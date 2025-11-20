@@ -1,0 +1,16 @@
+{
+  "name": "compiler-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "turbo": "^2.6.1"
+  }
+}

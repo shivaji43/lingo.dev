@@ -1,0 +1,13 @@
+{
+  "name": "@compiler/demo",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "echo 'not implemented'",
+    "build": "echo 'not implemented'",
+    "test": "echo 'not implemented'"
+  },
+  "dependencies": {
+    "@compiler/core": "workspace:*"
+  }
+}
