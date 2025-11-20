@@ -1,66 +1,32 @@
-import { createUnplugin } from 'unplugin';
-import { parse } from '@babel/parser';
-import traverseDefault from '@babel/traverse';
-import generateDefault from '@babel/generator';
-import * as t from '@babel/types';
+export const version = "0.0.0";
 
-// Handle ESM/CJS interop
-const traverse = (traverseDefault as any).default || traverseDefault;
-const generate = (generateDefault as any).default || generateDefault;
+export type {
+  LoaderConfig,
+  TranslationContext,
+  TranslationEntry,
+  MetadataSchema,
+  DictionarySchema,
+  TransformResult,
+  BabelTransformOptions,
+  ComponentType,
+} from "./types";
 
-export interface CompilerOptions {}
+export {
+  loadMetadata,
+  saveMetadata,
+  upsertEntry,
+  upsertEntries,
+  getEntry,
+  hasEntry,
+  getMetadataPath,
+} from "./metadata/manager";
 
-export const unplugin = createUnplugin<CompilerOptions>((options = {}) => {
-  return {
-    enforce: 'pre',
-    name: '@compiler/core',
+export { default as loader } from "./plugin/loader";
 
-    buildStart() {
-      // noop
-    },
-
-    buildEnd() {
-      // noop
-    },
-
-    load(id: string) {
-      // noop
-      return null;
-    },
-
-    transform(code: string, id: string) {
-      // Only transform JSX/TSX files
-      if (!/\.[jt]sx$/.test(id)) {
-        return null;
-      }
-
-      try {
-        const ast = parse(code, {
-          sourceType: 'module',
-          plugins: ['jsx', 'typescript'],
-        });
-
-        traverse(ast, {
-          JSXText(path: any) {
-            const value = path.node.value;
-            // Check if text is non-empty and meaningful (not just whitespace)
-            if (value.trim().length > 0) {
-              path.node.value = value.replace(/^(\s*)(.+?)(\s*)$/, '$1[compiler] $2$3');
-            }
-          },
-        });
-
-        const output = generate(ast, {}, code);
-        return {
-          code: output.code,
-          map: output.map,
-        };
-      } catch (error) {
-        console.error(`Error transforming ${id}:`, error);
-        return null;
-      }
-    },
-  };
-});
-
-export default unplugin;
+/**
+ * Initialize the compiler-beta
+ * This is mainly for testing/debugging purposes
+ */
+export function init() {
+  console.log("Lingo.dev Compiler Beta v" + version);
+}
