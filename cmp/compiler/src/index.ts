@@ -1,13 +1,18 @@
 import { createUnplugin } from 'unplugin';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
-import generate from '@babel/generator';
+import traverseDefault from '@babel/traverse';
+import generateDefault from '@babel/generator';
 import * as t from '@babel/types';
+
+// Handle ESM/CJS interop
+const traverse = (traverseDefault as any).default || traverseDefault;
+const generate = (generateDefault as any).default || generateDefault;
 
 export interface CompilerOptions {}
 
 export const unplugin = createUnplugin<CompilerOptions>((options = {}) => {
   return {
+    enforce: 'pre',
     name: '@compiler/core',
 
     buildStart() {
@@ -36,7 +41,7 @@ export const unplugin = createUnplugin<CompilerOptions>((options = {}) => {
         });
 
         traverse(ast, {
-          JSXText(path) {
+          JSXText(path: any) {
             const value = path.node.value;
             // Check if text is non-empty and meaningful (not just whitespace)
             if (value.trim().length > 0) {
