@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, Outlet } from 'react-router';
+import { useLingoCompiler } from '@compiler/core/react';
 
 function Layout() {
   return (
@@ -14,7 +15,14 @@ function Layout() {
 }
 
 function Home() {
-  return <h1>Home Page</h1>;
+  const { locale, translations } = useLingoCompiler();
+  return (
+    <div>
+      <h1>Home Page</h1>
+      <p>Current locale: {locale}</p>
+      <p>Translations loaded: {JSON.stringify(translations)}</p>
+    </div>
+  );
 }
 
 function About() {
