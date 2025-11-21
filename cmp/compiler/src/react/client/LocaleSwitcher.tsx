@@ -6,42 +6,42 @@ import { useTranslationContext } from "./TranslationContext";
  * Locale configuration
  */
 export interface LocaleConfig {
-    /**
-     * Locale code (e.g., 'en', 'de', 'fr')
-     */
-    code: string;
+  /**
+   * Locale code (e.g., 'en', 'de', 'fr')
+   */
+  code: string;
 
-    /**
-     * Display name (e.g., 'English', 'Deutsch', 'Français')
-     */
-    label: string;
+  /**
+   * Display name (e.g., 'English', 'Deutsch', 'Français')
+   */
+  label: string;
 }
 
 /**
  * LocaleSwitcher component props
  */
 export interface LocaleSwitcherProps {
-    /**
-     * Available locales
-     * @default [{ code: 'en', label: 'English' }]
-     */
-    locales?: LocaleConfig[];
+  /**
+   * Available locales
+   * @default [{ code: 'en', label: 'English' }]
+   */
+  locales?: LocaleConfig[];
 
-    /**
-     * Custom styles for the select element
-     */
-    style?: React.CSSProperties;
+  /**
+   * Custom styles for the select element
+   */
+  style?: React.CSSProperties;
 
-    /**
-     * Custom class name
-     */
-    className?: string;
+  /**
+   * Custom class name
+   */
+  className?: string;
 
-    /**
-     * Show loading indicator
-     * @default true
-     */
-    showLoadingState?: boolean;
+  /**
+   * Show loading indicator
+   * @default true
+   */
+  showLoadingState?: boolean;
 }
 
 /**
@@ -76,40 +76,38 @@ export interface LocaleSwitcherProps {
  * ```
  */
 export function LocaleSwitcher({
-                                   locales = [{
-                                       code: "en",
-                                       label: "English"
-                                   }],
-                                   style,
-                                   className = "lingo-locale-switcher",
-                                   showLoadingState = true,
-                               }: LocaleSwitcherProps) {
-    const {
-        locale,
-        setLocale,
-        isLoading
-    } = useTranslationContext();
+  locales = [
+    {
+      code: "en",
+      label: "English",
+    },
+  ],
+  style,
+  className = "lingo-locale-switcher",
+  showLoadingState = true,
+}: LocaleSwitcherProps) {
+  const { locale, setLocale, isLoading } = useTranslationContext();
 
-    const loading = showLoadingState && isLoading;
+  const loading = showLoadingState && isLoading;
 
-    return (
-        <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value)}
-            disabled={loading}
-            className={className}
-            style={{
-                opacity: loading ? 0.5 : 1,
-                cursor: loading ? "wait" : "pointer",
-                ...style,
-            }}
-            aria-label="Select language"
-        >
-            {locales.map((loc) => (
-                <option key={loc.code} value={loc.code}>
-                    {loc.label}
-                </option>
-            ))}
-        </select>
-    );
+  return (
+    <select
+      value={locale}
+      onChange={(e) => setLocale(e.target.value)}
+      disabled={loading}
+      className={className}
+      style={{
+        opacity: loading ? 0.5 : 1,
+        cursor: loading ? "wait" : "pointer",
+        ...style,
+      }}
+      aria-label="Select language"
+    >
+      {locales.map((loc) => (
+        <option key={loc.code} value={loc.code}>
+          {loc.label}
+        </option>
+      ))}
+    </select>
+  );
 }

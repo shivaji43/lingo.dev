@@ -1,4 +1,4 @@
-# @lingo.dev/_compiler
+# @lingo.dev/\_compiler
 
 Official Lingo.dev compiler with automatic translation support for React applications.
 
@@ -31,14 +31,14 @@ yarn add @lingo.dev/_compiler
 
 ```ts
 // vite.config.ts
-import { defineConfig } from 'vite';
-import { lingoCompilerPlugin } from '@lingo.dev/_compiler/vite';
+import { defineConfig } from "vite";
+import { lingoCompilerPlugin } from "@lingo.dev/_compiler/vite";
 
 export default defineConfig({
   plugins: [
     lingoCompilerPlugin({
-      sourceLocale: 'en',
-      preGenerateLocales: ['es', 'fr'],
+      sourceLocale: "en",
+      preGenerateLocales: ["es", "fr"],
     }),
   ],
 });
@@ -48,13 +48,13 @@ export default defineConfig({
 
 ```js
 // webpack.config.js
-import { lingoCompilerPlugin } from '@lingo.dev/_compiler/webpack';
+import { lingoCompilerPlugin } from "@lingo.dev/_compiler/webpack";
 
 export default {
   plugins: [
     lingoCompilerPlugin({
-      sourceLocale: 'en',
-      preGenerateLocales: ['es', 'fr'],
+      sourceLocale: "en",
+      preGenerateLocales: ["es", "fr"],
     }),
   ],
 };
@@ -64,13 +64,13 @@ export default {
 
 ```js
 // rollup.config.js
-import { lingoCompilerPlugin } from '@lingo.dev/_compiler/rollup';
+import { lingoCompilerPlugin } from "@lingo.dev/_compiler/rollup";
 
 export default {
   plugins: [
     lingoCompilerPlugin({
-      sourceLocale: 'en',
-      preGenerateLocales: ['es', 'fr'],
+      sourceLocale: "en",
+      preGenerateLocales: ["es", "fr"],
     }),
   ],
 };
@@ -80,14 +80,14 @@ export default {
 
 ```js
 // build.js
-import { build } from 'esbuild';
-import { lingoCompilerPlugin } from '@lingo.dev/_compiler/esbuild';
+import { build } from "esbuild";
+import { lingoCompilerPlugin } from "@lingo.dev/_compiler/esbuild";
 
 await build({
   plugins: [
     lingoCompilerPlugin({
-      sourceLocale: 'en',
-      preGenerateLocales: ['es', 'fr'],
+      sourceLocale: "en",
+      preGenerateLocales: ["es", "fr"],
     }),
   ],
 });
@@ -97,7 +97,7 @@ await build({
 
 ```js
 // next.config.js
-import { lingoCompilerLoader } from '@lingo.dev/_compiler/next';
+import { lingoCompilerLoader } from "@lingo.dev/_compiler/next";
 
 export default {
   webpack: (config) => {
@@ -108,8 +108,8 @@ export default {
         {
           loader: lingoCompilerLoader,
           options: {
-            sourceLocale: 'en',
-            sourceRoot: 'src',
+            sourceLocale: "en",
+            sourceRoot: "src",
           },
         },
       ],
@@ -311,13 +311,13 @@ This separation allows the core transformation logic to be reused for other bund
 
 ## Supported Bundlers
 
-| Bundler | Status | Import Path |
-|---------|--------|-------------|
-| Vite | ✅ Full Support | `@lingo.dev/_compiler/vite` |
+| Bundler | Status          | Import Path                    |
+| ------- | --------------- | ------------------------------ |
+| Vite    | ✅ Full Support | `@lingo.dev/_compiler/vite`    |
 | Webpack | ✅ Full Support | `@lingo.dev/_compiler/webpack` |
-| Rollup | ✅ Full Support | `@lingo.dev/_compiler/rollup` |
+| Rollup  | ✅ Full Support | `@lingo.dev/_compiler/rollup`  |
 | esbuild | ✅ Full Support | `@lingo.dev/_compiler/esbuild` |
-| Next.js | ✅ Full Support | `@lingo.dev/_compiler/next` |
+| Next.js | ✅ Full Support | `@lingo.dev/_compiler/next`    |
 
 All bundler plugins share the same configuration API and are powered by [unplugin](https://github.com/unjs/unplugin).
 

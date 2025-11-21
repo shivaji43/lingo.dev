@@ -6,12 +6,28 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "prepare": "husky",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "oxlint --fix",
+    "lint:check": "oxlint"
   },
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
+    "husky": "^9.1.7",
+    "nano-staged": "^0.9.0",
+    "oxlint": "^1.29.0",
+    "oxlint-tsgolint": "^0.8.0",
+    "prettier": "^3.6.2",
     "turbo": "^2.6.1"
+  },
+  "nano-staged": {
+    "*": [
+      "prettier --write --ignore-unknown",
+      "oxlint"
+    ]
   }
 }

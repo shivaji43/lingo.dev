@@ -19,7 +19,9 @@ function createEmptyMetadata(): MetadataSchema {
 /**
  * Get the path to the metadata file
  */
-export function getMetadataPath(config: Pick<LoaderConfig, "sourceRoot" | "lingoDir">): string {
+export function getMetadataPath(
+  config: Pick<LoaderConfig, "sourceRoot" | "lingoDir">,
+): string {
   return path.join(config.sourceRoot, config.lingoDir, "metadata.json");
 }
 
@@ -52,7 +54,7 @@ export async function saveMetadata(
   metadata: MetadataSchema,
 ): Promise<void> {
   const metadataPath = getMetadataPath(config);
-  await fs.mkdir(path.dirname(metadataPath), {recursive: true});
+  await fs.mkdir(path.dirname(metadataPath), { recursive: true });
 
   metadata.stats = {
     totalEntries: Object.keys(metadata.entries).length,

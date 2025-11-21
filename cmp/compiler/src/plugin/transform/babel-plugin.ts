@@ -8,7 +8,10 @@ import type {
   TranslationEntry,
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
-import { getFrameworkConfig, detectComponentType as detectComponentTypeByFramework } from "../../types/framework";
+import {
+  getFrameworkConfig,
+  detectComponentType as detectComponentTypeByFramework,
+} from "../../types/framework";
 
 /**
  * Plugin state to track transformation
@@ -27,7 +30,7 @@ interface PluginState {
   componentsNeedingTranslation: Set<string>;
 }
 
-const root = "@lingo.dev/_compiler"
+const root = "@lingo.dev/_compiler";
 
 /**
  * Detect if a function is a React component
@@ -58,7 +61,10 @@ function isReactComponent(
 /**
  * Detect component type (Client vs Server) based on framework and directives
  */
-function detectComponentType(path: NodePath<any>, config: LoaderConfig): ComponentType {
+function detectComponentType(
+  path: NodePath<any>,
+  config: LoaderConfig,
+): ComponentType {
   // Get framework configuration
   const frameworkConfig = getFrameworkConfig(config.framework || "unknown");
 
@@ -231,7 +237,9 @@ export function createBabelVisitors(
       // Mark that we need translation import and track this component
       visitorState.needsTranslationImport = true;
       if (visitorState.componentName) {
-        visitorState.componentsNeedingTranslation.add(visitorState.componentName);
+        visitorState.componentsNeedingTranslation.add(
+          visitorState.componentName,
+        );
       }
     },
   };
@@ -287,7 +295,10 @@ function injectTranslationImport(
   programPath.traverse({
     FunctionDeclaration(path) {
       const componentName = path.node.id?.name;
-      if (componentName && state.componentsNeedingTranslation.has(componentName)) {
+      if (
+        componentName &&
+        state.componentsNeedingTranslation.has(componentName)
+      ) {
         if (isServerComponent) {
           injectServerTranslationCall(path, state.config, serverPort);
         } else {

@@ -21,6 +21,7 @@ Source JSX → Babel Parser → AST Transformation → Code Generation → Trans
 **Purpose**: Determine which files should be transformed
 
 **Process**:
+
 - Check file extension: Only `.tsx` and `.jsx` files
 - Skip `node_modules` directory
 - Apply custom skip patterns if configured
@@ -37,6 +38,7 @@ Source JSX → Babel Parser → AST Transformation → Code Generation → Trans
 **Purpose**: Convert source code into an Abstract Syntax Tree (AST)
 
 **Process**:
+
 - Use `@babel/parser` to parse JSX/TypeScript code
 - Enable plugins: `["jsx", "typescript"]`
 - Generate AST that can be traversed and modified
@@ -52,11 +54,13 @@ Source JSX → Babel Parser → AST Transformation → Code Generation → Trans
 **Purpose**: Identify React components in the file
 
 **Detection Rules**:
+
 - Function declarations that return JSX
 - Arrow functions that return JSX
 - Function expressions that return JSX
 
 **Component Types**:
+
 - **Server Components**: Default for all components (unless marked with `"use client"`)
 - **Client Components**: Components with `"use client"` directive
 
@@ -69,6 +73,7 @@ Source JSX → Babel Parser → AST Transformation → Code Generation → Trans
 **Purpose**: Find all translatable text in JSX
 
 **What Gets Transformed**:
+
 ```jsx
 <div>Hello World</div>        // ✅ Transformed
 <h1>Welcome!</h1>              // ✅ Transformed
@@ -77,6 +82,7 @@ Source JSX → Babel Parser → AST Transformation → Code Generation → Trans
 ```
 
 **For Each Text Node**:
+
 1. Extract the text content
 2. Generate a unique hash based on:
    - Text content
@@ -110,13 +116,14 @@ import __lingoMetadata from "./.lingo/metadata.json";
 export async function Welcome() {
   const t = await getServerTranslations({
     metadata: __lingoMetadata,
-    sourceLocale: "en"
+    sourceLocale: "en",
   });
   return <div>{t("a1b2c3d4e5f6", "Hello World")}</div>;
 }
 ```
 
 **Injection Steps**:
+
 1. Add imports at file level:
    - Translation runtime (`getServerTranslations` or `useTranslation`)
    - Metadata JSON file
@@ -133,6 +140,7 @@ export async function Welcome() {
 **Purpose**: Convert modified AST back to JavaScript code
 
 **Process**:
+
 - Use `@babel/generator` to generate code from AST
 - Generate source maps for debugging
 - Preserve formatting where possible
@@ -148,6 +156,7 @@ export async function Welcome() {
 **Purpose**: Track all translatable strings across the application
 
 **Metadata Structure**:
+
 ```json
 {
   "version": "0.1",
@@ -172,6 +181,7 @@ export async function Welcome() {
 ```
 
 **Operations**:
+
 - `loadMetadata()`: Read existing metadata
 - `upsertEntries()`: Add or update translation entries
 - `saveMetadata()`: Write metadata to disk
@@ -202,19 +212,23 @@ The transformation pipeline integrates with different bundlers through **unplugi
 ### Plugin Hooks
 
 **buildStart**:
+
 - Start translation server (for dev mode)
 - Initialize configuration
 
 **transformInclude**:
+
 - Filter files (tsx/jsx only)
 - Skip node_modules
 
 **transform**:
+
 - Run the transformation pipeline
 - Update metadata
 - Return transformed code
 
 **buildEnd**:
+
 - Pre-generate translations for specified locales
 - Shut down translation server
 
@@ -225,25 +239,29 @@ The transformation pipeline integrates with different bundlers through **unplugi
 After transformation, the runtime provides the actual translation functionality:
 
 ### Server Components
+
 ```tsx
 const t = await getServerTranslations({
   metadata: __lingoMetadata,
-  sourceLocale: "en"
+  sourceLocale: "en",
 });
 ```
 
 **How it works**:
+
 1. Reads metadata to know what translations are needed
 2. Loads translation file for current locale from `.lingo/{locale}.json`
 3. Returns `t()` function that maps hashes to translated strings
 4. Falls back to source text if translation missing
 
 ### Client Components
+
 ```tsx
 const t = useTranslation();
 ```
 
 **How it works**:
+
 1. Gets locale from `TranslationProvider` context
 2. Loads translations from API endpoint or preloaded bundle
 3. Returns `t()` function that looks up translations by hash
@@ -264,6 +282,7 @@ Request locale → Check cache → Generate if missing → Return translations
 ```
 
 **Translation Server**:
+
 - Runs on ports 60000-60099
 - Handles on-demand translation generation
 - Caches results to `.lingo/{locale}.json`
