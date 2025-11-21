@@ -1,94 +1,122 @@
-import type { LoaderConfig } from "../types";
-import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
-import { shouldTransformFile, transformComponent } from "./transform";
-import { startTranslationServer } from "../server";
+/**
+ * Next.js Plugin for Lingo.dev Compiler
+ *
+ * Usage in next.config.js:
+ * ```js
+ * const { withLingo } = require('@lingo.dev/_compiler/next');
+ *
+ * module.exports = withLingo({
+ *   // Your Next.js config
+ * }, {
+ *   // Lingo options (optional)
+ *   sourceLocale: 'en',
+ *   useDirective: false,
+ * });
+ * ```
+ */
 
-let globalServer: any;
+import type { NextConfig } from "next";
+
+export interface LingoNextPluginOptions {
+  /**
+   * Root directory containing source files
+   * @default process.cwd()
+   */
+  sourceRoot?: string;
+
+  /**
+   * Directory for Lingo metadata and translations
+   * @default '.lingo'
+   */
+  lingoDir?: string;
+
+  /**
+   * Source locale (default language)
+   * @default 'en'
+   */
+  sourceLocale?: string;
+
+  /**
+   * Only transform files with 'use i18n' directive
+   * @default false
+   */
+  useDirective?: boolean;
+
+  /**
+   * File patterns to skip during transformation
+   * @default [/node_modules/, /\.spec\./, /\.test\./]
+   */
+  skipPatterns?: RegExp[];
+
+  /**
+   * Translation service configuration
+   */
+  translator?: {
+    type: "pseudo" | "openai" | "anthropic";
+    apiKey?: string;
+  };
+}
 
 /**
- * Turbopack/Webpack loader for automatic translation
- *
- * This loader transforms React components to inject translation calls automatically
+ * Next.js plugin that automatically adds the Lingo loader
  */
-export async function lingoCompilerLoader(
-  this: any,
-  source: string,
-): Promise<void> {
-  const callback = this.async();
-  console.warn("Loading", this.resourcePath);
-
-  try {
-    // Get loader options
-    const config: LoaderConfig = {
-      sourceRoot: this.getOptions().sourceRoot || process.cwd(),
-      lingoDir: this.getOptions().lingoDir || ".lingo",
-      sourceLocale: this.getOptions().sourceLocale || "en",
-      useDirective: this.getOptions().useDirective ?? false,
-      isDev: process.env.NODE_ENV !== "production",
-      skipPatterns: this.getOptions().skipPatterns || [
-        /node_modules/,
-        /\.spec\./,
-        /\.test\./,
-      ],
-      translator: this.getOptions().translator,
-      framework: "next", // Next.js uses directives for server/client detection
-    };
-
-    // Check if this file should be transformed
-    if (!shouldTransformFile(this.resourcePath, config)) {
-      return callback(null, source);
-    }
-
-    if (!globalServer) {
-      globalServer = await startTranslationServer({
-        startPort: 60000,
-        onError: (err) => {
-          console.error("Translation server error:", err);
+export function withLingo(
+  nextConfig: NextConfig = {},
+  lingoOptions: LingoNextPluginOptions = {},
+): NextConfig {
+  return {
+    ...nextConfig,
+    turbopack: {
+      rules: {
+        "*.{tsx,jsx}": {
+          loaders: [
+            {
+              loader: "@lingo.dev/_compiler/turbopack-loader",
+              options: {
+                sourceRoot: lingoOptions.sourceRoot || process.cwd(),
+                lingoDir: lingoOptions.lingoDir || ".lingo",
+                sourceLocale: lingoOptions.sourceLocale || "en",
+                useDirective: lingoOptions.useDirective ?? false,
+                translator: lingoOptions.translator ?? "null",
+              },
+            },
+          ],
         },
-        onReady: () => {
-          console.log("Translation server started");
-        },
-        config,
-      });
-    }
-
-    // Load current metadata
-    const metadata = await loadMetadata(config);
-
-    // Transform the component
-    const result = transformComponent({
-      code: source,
-      filePath: this.resourcePath,
-      config,
-      metadata,
-      serverPort: globalServer?.getPort() || null,
-    });
-
-    // If no transformation occurred, return original source
-    if (!result.transformed) {
-      return callback(null, source);
-    }
-
-    // Update metadata with new entries
-    if (result.newEntries && result.newEntries.length > 0) {
-      const updatedMetadata = upsertEntries(metadata, result.newEntries);
-      await saveMetadata(config, updatedMetadata);
-
-      // Log new translations discovered (in dev mode)
-      if (config.isDev) {
-        console.log(
-          `✨ Lingo: Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
-        );
+      },
+    },
+    webpack(config: any, options: any) {
+      // Apply user's webpack config first if it exists
+      if (typeof nextConfig.webpack === "function") {
+        config = nextConfig.webpack(config, options);
       }
-    }
 
-    // Return transformed code
-    callback(null, result.code, result.map);
-  } catch (error) {
-    console.error(
-      `⚠️  Lingo.dev compiler-beta failed for ${this.resourcePath}:`,
-    );
-    console.error("⚠️  Details:", error);
-    callback(error as Error);
-  }
+      // Add the Lingo loader
+      config.module.rules.push({
+        test: /\.(tsx|jsx)$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: "@lingo.dev/_compiler/turbopack-loader",
+            options: {
+              sourceRoot: lingoOptions.sourceRoot || process.cwd(),
+              lingoDir: lingoOptions.lingoDir || ".lingo",
+              sourceLocale: lingoOptions.sourceLocale || "en",
+              useDirective: lingoOptions.useDirective ?? false,
+              skipPatterns: lingoOptions.skipPatterns || [
+                /node_modules/,
+                /\.spec\./,
+                /\.test\./,
+              ],
+              translator: lingoOptions.translator,
+            },
+          },
+        ],
+      });
+
+      return config;
+    },
+  };
 }
+
+// Also export TypeScript types
+export type { NextConfig };

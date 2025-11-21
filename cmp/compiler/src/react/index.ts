@@ -15,6 +15,8 @@ export {
   type TranslationProviderProps,
 } from "./client/TranslationContext";
 
+export { NextTranslationProvider } from "./client/NextTranslationContext";
+
 // Export hooks
 export {
   useTranslation,

@@ -56,6 +56,11 @@
       "types": "./build/plugin/esbuild.d.ts",
       "import": "./build/plugin/esbuild.mjs",
       "require": "./build/plugin/esbuild.cjs"
+    },
+    "./turbopack-loader": {
+      "types": "./build/plugin/turbopack-loader.d.ts",
+      "import": "./build/plugin/turbopack-loader.mjs",
+      "require": "./build/plugin/turbopack-loader.cjs"
     }
   },
   "files": [

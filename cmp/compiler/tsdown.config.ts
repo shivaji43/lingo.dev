@@ -15,6 +15,7 @@ export default defineConfig({
     "src/plugin/webpack.ts",
     "src/plugin/rollup.ts",
     "src/plugin/esbuild.ts",
+    "src/plugin/turbopack-loader.ts",
   ],
   outDir: "build",
   format: ["cjs", "esm"],

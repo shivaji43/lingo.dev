@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 import "./globals.css";
-import { TranslationProvider } from "@lingo.dev/_compiler/react";
-import { useRouter } from "next/navigation";
+import { NextTranslationProvider } from "@lingo.dev/_compiler/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,13 +24,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Read locale from cookie (server-side)
   const cookieStore = await cookies();
   const locale = cookieStore.get("locale")?.value || "en";
-  const router = useRouter();
 
   return (
-    <TranslationProvider initialLocale={locale} router={router}>
+    <NextTranslationProvider initialLocale={locale}>
       <html lang={locale}>
         <body
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -39,6 +36,6 @@ export default async function RootLayout({
           {children}
         </body>
       </html>
-    </TranslationProvider>
+    </NextTranslationProvider>
   );
 }
