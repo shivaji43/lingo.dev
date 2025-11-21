@@ -9,8 +9,8 @@ import type {
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
 import {
-  getFrameworkConfig,
   detectComponentType as detectComponentTypeByFramework,
+  getFrameworkConfig,
 } from "../../types/framework";
 
 /**
@@ -268,14 +268,6 @@ function injectTranslationImport(
       t.stringLiteral(`${root}/react/server`),
     );
 
-    // Import metadata JSON for bundling
-    const metadataPath = `./${state.config.lingoDir}/metadata.json`;
-    const metadataImport = t.importDeclaration(
-      [t.importDefaultSpecifier(t.identifier("__lingoMetadata"))],
-      t.stringLiteral(metadataPath),
-    );
-
-    programPath.node.body.unshift(metadataImport);
     programPath.node.body.unshift(getServerTranslationsImport);
   } else {
     // Import useTranslation for Client Components
@@ -370,11 +362,7 @@ function injectServerTranslationCall(
     componentPath.node.async = true;
   }
 
-  // Create options object for getServerTranslations
-  const optionsProperties = [
-    // Pass the imported metadata (required)
-    t.objectProperty(t.identifier("metadata"), t.identifier("__lingoMetadata")),
-  ];
+  const optionsProperties = [];
 
   // Pass sourceLocale if configured
   if (config.sourceLocale) {
@@ -396,13 +384,13 @@ function injectServerTranslationCall(
     );
   }
 
-  const callArgs = [t.objectExpression(optionsProperties)];
-
   const serverCall = t.variableDeclaration("const", [
     t.variableDeclarator(
       t.identifier("t"),
       t.awaitExpression(
-        t.callExpression(t.identifier("getServerTranslations"), callArgs),
+        t.callExpression(t.identifier("getServerTranslations"), [
+          t.objectExpression(optionsProperties),
+        ]),
       ),
     ),
   ]);
