@@ -1,0 +1,132 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`transformComponent > complex component scenarios > should handle components with conditional rendering 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function ConditionalComponent({
+  showMessage
+}) {
+  const t = useTranslation();
+  return <div>
+      <h1>{t("3e08b6d47cba", "Title")}</h1>
+      {showMessage && <p>{t("98b032f9a357", "Optional Message")}</p>}
+    </div>;
+}"
+`;
+
+exports[`transformComponent > complex component scenarios > should handle components with map 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function ListComponent({
+  items
+}) {
+  const t = useTranslation();
+  return <div>
+      <h1>{t("ebb5cabd4638", "List Title")}</h1>
+      {items.map(item => <li key={item.id}>{item.name}</li>)}
+    </div>;
+}"
+`;
+
+exports[`transformComponent > multiple components in one file > should handle nested components 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+function OuterComponent() {
+  function InnerComponent() {
+    const t = useTranslation();
+    return <span>{t("d43d14308a37", "Inner Text")}</span>;
+  }
+  return <div>
+      <h1>{t("2ce4a85de254", "Outer Text")}</h1>
+      <InnerComponent />
+    </div>;
+}
+export default OuterComponent;"
+`;
+
+exports[`transformComponent > multiple components in one file > should transform arrow function components 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+const Welcome = () => {
+  const t = useTranslation();
+  return <div>{t("40f0ad754619", "Welcome Message")}</div>;
+};
+const Goodbye = () => <div>{t("e49bec7f787a", "Goodbye Message")}</div>;
+export { Welcome, Goodbye };"
+`;
+
+exports[`transformComponent > multiple components in one file > should transform mixed function and arrow components 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Title() {
+  const t = useTranslation();
+  return <h1>{t("2c7785af3ca4", "Page Title")}</h1>;
+}
+const Subtitle = () => {
+  const t = useTranslation();
+  return <h2>{t("f7f537ee168a", "Page Subtitle")}</h2>;
+};
+export const Description = () => <p>{t("5da487d0f2c0", "Page Description")}</p>;
+export default function Container() {
+  const t = useTranslation();
+  return <div>
+      <Title />
+      <Subtitle />
+      <Description />
+      <footer>{t("a14c905e3266", "Footer Text")}</footer>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > multiple components in one file > should transform multiple function components 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Header() {
+  const t = useTranslation();
+  return <header>{t("0d0ab07cccc4", "Site Header")}</header>;
+}
+export function Footer() {
+  const t = useTranslation();
+  return <footer>{t("f9cc8c2743cf", "Site Footer")}</footer>;
+}
+export function Main() {
+  const t = useTranslation();
+  return <main>{t("3a9e2195e549", "Main Content")}</main>;
+}"
+`;
+
+exports[`transformComponent > single component > should skip whitespace-only text 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Spacey() {
+  const t = useTranslation();
+  return <div>
+
+      <h1>{t("a0139c83fa7f", "Title")}</h1>
+
+    </div>;
+}"
+`;
+
+exports[`transformComponent > single component > should transform a simple component with text 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Welcome() {
+  const t = useTranslation();
+  return <div>{t("f107c6bf1474", "Hello World")}</div>;
+}"
+`;
+
+exports[`transformComponent > single component > should transform component with multiple text nodes 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Card() {
+  const t = useTranslation();
+  return <div>
+      <h1>{t("ac78456dc11b", "Welcome")}</h1>
+      <p>{t("c32ab6fbd661", "This is a description")}</p>
+      <button>{t("8ea4da0d08f6", "Click me")}</button>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > use directive mode > should transform files with 'use i18n' directive 1`] = `
+""use i18n";
+
+import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Test() {
+  const t = useTranslation();
+  return <div>{t("04784cab2f8c", "Hello")}</div>;
+}"
+`;

@@ -10,7 +10,7 @@ let globalServer: any;
  *
  * This loader transforms React components to inject translation calls automatically
  */
-export default async function lingoLoader(
+export async function lingoCompilerLoader(
   this: any,
   source: string,
 ): Promise<void> {
@@ -31,6 +31,7 @@ export default async function lingoLoader(
         /\.test\./,
       ],
       translator: this.getOptions().translator,
+      framework: "next", // Next.js uses directives for server/client detection
     };
 
     // Check if this file should be transformed

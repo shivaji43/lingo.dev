@@ -8,6 +8,7 @@ import type {
   TranslationEntry,
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
+import { getFrameworkConfig, detectComponentType as detectComponentTypeByFramework } from "../../types/framework";
 
 /**
  * Plugin state to track transformation
@@ -22,6 +23,8 @@ interface PluginState {
   metadata: MetadataSchema;
   filePath: string;
   serverPort?: number | null;
+  /** Track all components that need translation functions injected */
+  componentsNeedingTranslation: Set<string>;
 }
 
 const root = "@lingo.dev/_compiler"
@@ -53,26 +56,35 @@ function isReactComponent(
 }
 
 /**
- * Detect component type (Client vs Server)
- * In Next.js App Router, components are Server Components by default unless:
- * 1. They have "use client" directive
- * 2. They are imported by a client component
+ * Detect component type (Client vs Server) based on framework and directives
  */
-function detectComponentType(path: NodePath<any>): ComponentType {
-  // Check for 'use client' directive first
+function detectComponentType(path: NodePath<any>, config: LoaderConfig): ComponentType {
+  // Get framework configuration
+  const frameworkConfig = getFrameworkConfig(config.framework || "unknown");
+
+  // Check for directives in the file
   const program = path.findParent((p) => p.isProgram());
+  let hasUseClientDirective = false;
+  let hasUseServerDirective = false;
+
   if (program && program.isProgram()) {
     const directives = program.node.directives || [];
     for (const directive of directives) {
       if (directive.value.value === "use client") {
-        return "client" as ComponentType;
+        hasUseClientDirective = true;
+      }
+      if (directive.value.value === "use server") {
+        hasUseServerDirective = true;
       }
     }
   }
 
-  // In Next.js App Router, default is Server Component
-  // Server Components can be async or sync
-  return "server" as ComponentType;
+  // Use framework-specific detection logic
+  return detectComponentTypeByFramework(
+    frameworkConfig,
+    hasUseClientDirective,
+    hasUseServerDirective,
+  ) as ComponentType;
 }
 
 /**
@@ -145,21 +157,21 @@ export function createBabelVisitors(
     FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
       if (isReactComponent(path)) {
         visitorState.componentName = inferComponentName(path);
-        visitorState.componentType = detectComponentType(path);
+        visitorState.componentType = detectComponentType(path, config);
       }
     },
 
     ArrowFunctionExpression(path: NodePath<t.ArrowFunctionExpression>) {
       if (isReactComponent(path)) {
         visitorState.componentName = inferComponentName(path);
-        visitorState.componentType = detectComponentType(path);
+        visitorState.componentType = detectComponentType(path, config);
       }
     },
 
     FunctionExpression(path: NodePath<t.FunctionExpression>) {
       if (isReactComponent(path)) {
         visitorState.componentName = inferComponentName(path);
-        visitorState.componentType = detectComponentType(path);
+        visitorState.componentType = detectComponentType(path, config);
       }
     },
 
@@ -216,8 +228,11 @@ export function createBabelVisitors(
       // path.replaceWith(t.stringLiteral(hash));
       path.replaceWith(t.jsxExpressionContainer(tCall));
 
-      // Mark that we need translation import
+      // Mark that we need translation import and track this component
       visitorState.needsTranslationImport = true;
+      if (visitorState.componentName) {
+        visitorState.componentsNeedingTranslation.add(visitorState.componentName);
+      }
     },
   };
 }
@@ -268,10 +283,11 @@ function injectTranslationImport(
     programPath.node.body.unshift(importDeclaration);
   }
 
-  // Find the component function and inject appropriate translation call
+  // Find all component functions that need translation injection
   programPath.traverse({
     FunctionDeclaration(path) {
-      if (path.node.id?.name === state.componentName) {
+      const componentName = path.node.id?.name;
+      if (componentName && state.componentsNeedingTranslation.has(componentName)) {
         if (isServerComponent) {
           injectServerTranslationCall(path, state.config, serverPort);
         } else {
@@ -280,17 +296,19 @@ function injectTranslationImport(
       }
     },
     ArrowFunctionExpression(path) {
-      // Check if this is our component
+      // Check if this is one of our components
       const parent = path.parent;
       if (
         parent.type === "VariableDeclarator" &&
-        parent.id.type === "Identifier" &&
-        parent.id.name === state.componentName
+        parent.id.type === "Identifier"
       ) {
-        if (isServerComponent) {
-          injectServerTranslationCall(path, state.config, serverPort);
-        } else {
-          injectHookCall(path);
+        const componentName = parent.id.name;
+        if (state.componentsNeedingTranslation.has(componentName)) {
+          if (isServerComponent) {
+            injectServerTranslationCall(path, state.config, serverPort);
+          } else {
+            injectHookCall(path);
+          }
         }
       }
     },

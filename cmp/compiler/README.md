@@ -1,23 +1,125 @@
-# @lingo.dev/\_compiler-beta
+# @lingo.dev/_compiler
 
-Beta version of the Lingo.dev compiler with automatic translation support.
+Official Lingo.dev compiler with automatic translation support for React applications.
 
-This package provides a Babel-based loader for Turbopack/Webpack that automatically transforms React components to inject translation calls. It uses a hash-based metadata system to track translatable text across your application.
+This package provides plugins for multiple bundlers (Vite, Webpack, Rollup, esbuild) and a Next.js loader that automatically transforms React components to inject translation calls. It uses a hash-based metadata system to track translatable text across your application.
 
 ## Features
 
 - 🔄 **Automatic JSX text transformation** - Automatically detects and transforms translatable text in JSX
 - 📝 **Hash-based metadata** - Generates unique hashes for each translatable text based on content, component name, and file path
 - 🎯 **Opt-in or automatic** - Configure whether to require `'use i18n'` directive or transform all files
-- 🔌 **Turbopack/Webpack compatible** - Works as a standard loader
-- 🏗️ **Reusable architecture** - Core logic separated from loader for future Vite support
+- 🔌 **Multi-bundler support** - Works with Vite, Webpack, Rollup, esbuild, and Next.js
+- 🏗️ **Built on unplugin** - Unified plugin API across all bundlers
 - 📊 **Metadata tracking** - Maintains `.lingo/metadata.json` with all translatable content
+- ⚡ **Translation server** - On-demand translation generation during development
+- 🌐 **AI-powered translations** - Support for multiple LLM providers and Lingo.dev Engine
 
 ## Installation
 
 ```bash
-pnpm add @lingo.dev/_compiler-beta
+npm install @lingo.dev/_compiler
+# or
+pnpm add @lingo.dev/_compiler
+# or
+yarn add @lingo.dev/_compiler
 ```
+
+## Quick Start
+
+### Vite
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { lingoCompilerPlugin } from '@lingo.dev/_compiler/vite';
+
+export default defineConfig({
+  plugins: [
+    lingoCompilerPlugin({
+      sourceLocale: 'en',
+      preGenerateLocales: ['es', 'fr'],
+    }),
+  ],
+});
+```
+
+### Webpack
+
+```js
+// webpack.config.js
+import { lingoCompilerPlugin } from '@lingo.dev/_compiler/webpack';
+
+export default {
+  plugins: [
+    lingoCompilerPlugin({
+      sourceLocale: 'en',
+      preGenerateLocales: ['es', 'fr'],
+    }),
+  ],
+};
+```
+
+### Rollup
+
+```js
+// rollup.config.js
+import { lingoCompilerPlugin } from '@lingo.dev/_compiler/rollup';
+
+export default {
+  plugins: [
+    lingoCompilerPlugin({
+      sourceLocale: 'en',
+      preGenerateLocales: ['es', 'fr'],
+    }),
+  ],
+};
+```
+
+### esbuild
+
+```js
+// build.js
+import { build } from 'esbuild';
+import { lingoCompilerPlugin } from '@lingo.dev/_compiler/esbuild';
+
+await build({
+  plugins: [
+    lingoCompilerPlugin({
+      sourceLocale: 'en',
+      preGenerateLocales: ['es', 'fr'],
+    }),
+  ],
+});
+```
+
+### Next.js
+
+```js
+// next.config.js
+import { lingoCompilerLoader } from '@lingo.dev/_compiler/next';
+
+export default {
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.(tsx|jsx)$/,
+      exclude: /node_modules/,
+      use: [
+        {
+          loader: lingoCompilerLoader,
+          options: {
+            sourceLocale: 'en',
+            sourceRoot: 'src',
+          },
+        },
+      ],
+    });
+    return config;
+  },
+};
+```
+
+For detailed bundler-specific documentation, see [BUNDLER_SUPPORT.md](./BUNDLER_SUPPORT.md).
 
 ## Usage with Turbopack (Next.js 16+)
 
@@ -207,17 +309,31 @@ This separation allows the core transformation logic to be reused for other bund
 - Requires manual runtime setup (TranslationProvider, etc.)
 - Client components only (Server Component support coming)
 
+## Supported Bundlers
+
+| Bundler | Status | Import Path |
+|---------|--------|-------------|
+| Vite | ✅ Full Support | `@lingo.dev/_compiler/vite` |
+| Webpack | ✅ Full Support | `@lingo.dev/_compiler/webpack` |
+| Rollup | ✅ Full Support | `@lingo.dev/_compiler/rollup` |
+| esbuild | ✅ Full Support | `@lingo.dev/_compiler/esbuild` |
+| Next.js | ✅ Full Support | `@lingo.dev/_compiler/next` |
+
+All bundler plugins share the same configuration API and are powered by [unplugin](https://github.com/unjs/unplugin).
+
 ## Roadmap
 
 - [x] Hash-based metadata system
 - [x] Babel transformation plugin
 - [x] Turbopack loader
-- [ ] Server Component detection and transformation
-- [ ] Vite plugin support
-- [ ] Runtime library integration
-- [ ] Translation API integration (hybrid LCP)
+- [x] Multi-bundler support (Vite, Webpack, Rollup, esbuild)
+- [x] unplugin-based architecture
+- [x] Server Component detection and transformation
+- [x] Runtime library integration
+- [x] Translation API integration (LCP)
 - [ ] JSX attribute translation (alt, title, placeholder)
 - [ ] Nested JSX content support
+- [ ] React Server Components optimization
 
 ## Contributing
 

@@ -32,15 +32,30 @@
       "import": "./build/translate/index.mjs",
       "require": "./build/translate/index.cjs"
     },
-    "./next/loader": {
-      "types": "./build/plugin/loader.d.ts",
-      "import": "./build/plugin/loader.mjs",
-      "require": "./build/plugin/loader.cjs"
+    "./next": {
+      "types": "./build/plugin/next.d.ts",
+      "import": "./build/plugin/next.mjs",
+      "require": "./build/plugin/next.cjs"
     },
     "./vite": {
-      "types": "./build/vite-plugin.d.ts",
-      "import": "./build/vite-plugin.mjs",
-      "require": "./build/vite-plugin.cjs"
+      "types": "./build/plugin/vite.d.ts",
+      "import": "./build/plugin/vite.mjs",
+      "require": "./build/plugin/vite.cjs"
+    },
+    "./webpack": {
+      "types": "./build/plugin/webpack.d.ts",
+      "import": "./build/plugin/webpack.mjs",
+      "require": "./build/plugin/webpack.cjs"
+    },
+    "./rollup": {
+      "types": "./build/plugin/rollup.d.ts",
+      "import": "./build/plugin/rollup.mjs",
+      "require": "./build/plugin/rollup.cjs"
+    },
+    "./esbuild": {
+      "types": "./build/plugin/esbuild.d.ts",
+      "import": "./build/plugin/esbuild.mjs",
+      "require": "./build/plugin/esbuild.cjs"
     }
   },
   "files": [
@@ -66,7 +81,8 @@
     "next": "^16.0.3",
     "tsdown": "^0.16.5",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.9"
+    "vitest": "^4.0.9",
+    "unplugin": "^2.3.10"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.19",

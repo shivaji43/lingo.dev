@@ -3,6 +3,7 @@
  */
 
 import type { TranslatorConfig } from "./translate";
+import type { Framework } from "./types/framework";
 
 /**
  * Configuration for the translation loader
@@ -42,6 +43,11 @@ export interface LoaderConfig {
    * Translation provider to use
    */
   translator?: TranslatorConfig;
+
+  /**
+   * Framework being used (affects component detection)
+   */
+  framework?: Framework;
 }
 
 /**

@@ -4,7 +4,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOllama } from "ollama-ai-provider";
 import { createMistral } from "@ai-sdk/mistral";
 import { generateText, type LanguageModel } from "ai";
-import { LingoDotDevEngine } from "@lingo.dev/_sdk";
+import { LingoDotDevEngine } from "lingo.dev/sdk";
 import type { DictionarySchema } from "../../react/server";
 import type { TranslatableEntry, Translator } from "../api";
 import { getSystemPrompt } from "./prompt";

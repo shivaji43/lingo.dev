@@ -21,8 +21,6 @@ export {
   getMetadataPath,
 } from "./metadata/manager";
 
-export { default as loader } from "./plugin/loader";
-
 /**
  * Initialize the compiler-beta
  * This is mainly for testing/debugging purposes

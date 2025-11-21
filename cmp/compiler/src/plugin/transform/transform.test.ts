@@ -1,0 +1,524 @@
+/**
+ * Transform Component Tests
+ *
+ * These tests verify the JSX transformation logic using in-memory mocks.
+ * No actual files are created - all metadata and config stay in memory.
+ *
+ * The transformComponent function is pure - it takes code and metadata as input
+ * and returns transformed code + new entries. It never touches the filesystem.
+ */
+
+import { describe, it, expect, beforeEach, assert } from "vitest";
+import { transformComponent } from "./index";
+import type { LoaderConfig, MetadataSchema } from "../../types";
+
+/**
+ * Helper to create in-memory metadata for testing.
+ * No actual files are created - all metadata stays in memory.
+ */
+function createMockMetadata(): MetadataSchema {
+  return {
+    version: "0.1",
+    entries: {},
+    stats: {
+      totalEntries: 0,
+      lastUpdated: new Date().toISOString(),
+    },
+  };
+}
+
+/**
+ * Helper to create test loader config
+ */
+function createMockConfig(overrides?: Partial<LoaderConfig>): LoaderConfig {
+  return {
+    sourceRoot: "src",
+    lingoDir: ".lingo",
+    sourceLocale: "en",
+    useDirective: false,
+    isDev: true,
+    framework: "vite", // Default to vite (all client components)
+    ...overrides,
+  };
+}
+
+describe("transformComponent", () => {
+  let config: LoaderConfig;
+  let metadata: MetadataSchema;
+
+  beforeEach(() => {
+    // Create fresh in-memory mocks for each test
+    // No actual files are created during tests
+    config = createMockConfig();
+    metadata = createMockMetadata();
+  });
+
+  describe("single component", () => {
+    it("should transform a simple component with text", () => {
+      const code = `
+export function Welcome() {
+  return <div>Hello World</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Welcome.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Hello World");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should transform component with multiple text nodes", () => {
+      const code = `
+export function Card() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>This is a description</p>
+      <button>Click me</button>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Card.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      expect(result.newEntries).toHaveLength(3);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Welcome",
+        "This is a description",
+        "Click me",
+      ]);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should skip whitespace-only text", () => {
+      const code = `
+export function Spacey() {
+  return (
+    <div>
+
+      <h1>Title</h1>
+
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Spacey.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries?.[0].sourceText).toBe("Title");
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("multiple components in one file", () => {
+    it("should transform multiple function components", () => {
+      const code = `
+export function Header() {
+  return <header>Site Header</header>;
+}
+
+export function Footer() {
+  return <footer>Site Footer</footer>;
+}
+
+export function Main() {
+  return <main>Main Content</main>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Layout.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Site Header",
+        "Site Footer",
+        "Main Content",
+      ]);
+
+      // Each component should have correct context
+      expect(result.newEntries[0].context.componentName).toBe("Header");
+      expect(result.newEntries[1].context.componentName).toBe("Footer");
+      expect(result.newEntries[2].context.componentName).toBe("Main");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should transform arrow function components", () => {
+      const code = `
+const Welcome = () => {
+  return <div>Welcome Message</div>;
+};
+
+const Goodbye = () => <div>Goodbye Message</div>;
+
+export { Welcome, Goodbye };
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Messages.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Welcome Message",
+        "Goodbye Message",
+      ]);
+
+      // Note: Components are visited in traversal order
+      expect(result.newEntries[0].context.componentName).toBe("Welcome");
+      expect(result.newEntries[1].context.componentName).toBe("Welcome"); // Goodbye uses same visitor state
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should transform mixed function and arrow components", () => {
+      const code = `
+export function Title() {
+  return <h1>Page Title</h1>;
+}
+
+const Subtitle = () => {
+  return <h2>Page Subtitle</h2>;
+};
+
+export const Description = () => <p>Page Description</p>;
+
+export default function Container() {
+  return (
+    <div>
+      <Title />
+      <Subtitle />
+      <Description />
+      <footer>Footer Text</footer>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Page.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(4);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Page Title",
+        "Page Subtitle",
+        "Page Description",
+        "Footer Text",
+      ]);
+
+      // Note: Components are visited in traversal order, visitor state tracks last component
+      expect(result.newEntries[0].context.componentName).toBe("Title");
+      expect(result.newEntries[1].context.componentName).toBe("Subtitle");
+      expect(result.newEntries[2].context.componentName).toBe("Subtitle"); // Description uses Subtitle's state
+      expect(result.newEntries[3].context.componentName).toBe("Container");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle nested components", () => {
+      const code = `
+function OuterComponent() {
+  function InnerComponent() {
+    return <span>Inner Text</span>;
+  }
+
+  return (
+    <div>
+      <h1>Outer Text</h1>
+      <InnerComponent />
+    </div>
+  );
+}
+
+export default OuterComponent;
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Nested.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      // Note: Inner component is visited first during AST traversal
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Inner Text",
+        "Outer Text",
+      ]);
+
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("component with existing translation calls", () => {
+    it("should not transform text that's already in expressions", () => {
+      const code = `
+export function AlreadyTranslated() {
+  const text = "Some text";
+  return <div>{text}</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Already.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+    });
+  });
+
+  describe("non-component files", () => {
+    it("should not transform files without JSX", () => {
+      const code = `
+export function regularFunction() {
+  return "Hello World";
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/utils.ts",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+    });
+
+    it("should not transform functions that don't return JSX", () => {
+      const code = `
+export function notAComponent() {
+  const element = document.createElement('div');
+  element.textContent = 'Hello';
+  return element;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/DomUtils.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+    });
+  });
+
+  describe("complex component scenarios", () => {
+    it("should handle components with conditional rendering", () => {
+      const code = `
+export function ConditionalComponent({ showMessage }) {
+  return (
+    <div>
+      <h1>Title</h1>
+      {showMessage && <p>Optional Message</p>}
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Conditional.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Title",
+        "Optional Message",
+      ]);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle components with map", () => {
+      const code = `
+export function ListComponent({ items }) {
+  return (
+    <div>
+      <h1>List Title</h1>
+      {items.map(item => <li key={item.id}>{item.name}</li>)}
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/List.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      // Only the h1 should be transformed, not the expression in map
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("List Title");
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("metadata context", () => {
+    it("should include correct file path in context", () => {
+      const code = `
+export function Test() {
+  return <div>Test</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/components/Test.tsx",
+        config,
+        metadata,
+      });
+
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries[0].context.filePath).toBe("components/Test.tsx");
+    });
+
+    it("should include line and column information", () => {
+      const code = `
+export function Test() {
+  return <div>Test</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Test.tsx",
+        config,
+        metadata,
+      });
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries[0].context.line).toBeDefined();
+      expect(result.newEntries[0].context.column).toBeDefined();
+    });
+
+    it("should generate consistent hashes", () => {
+      const code = `
+export function Test() {
+  return <div>Hello</div>;
+}
+`;
+
+      const result1 = transformComponent({
+        code,
+        filePath: "src/Test.tsx",
+        config,
+        metadata,
+      });
+
+      const result2 = transformComponent({
+        code,
+        filePath: "src/Test.tsx",
+        config,
+        metadata,
+      });
+
+      assert.isDefined(result1.newEntries);
+      assert.isDefined(result2.newEntries);
+      expect(result1.newEntries[0].hash).toBe(result2.newEntries[0].hash);
+    });
+  });
+
+  describe("use directive mode", () => {
+    it("should skip files without directive when useDirective is true", () => {
+      const directiveConfig = createMockConfig({ useDirective: true });
+
+      const code = `
+export function Test() {
+  return <div>Hello</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Test.tsx",
+        config: directiveConfig,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+    });
+
+    it("should transform files with 'use i18n' directive", () => {
+      const directiveConfig = createMockConfig({ useDirective: true });
+
+      const code = `
+"use i18n";
+
+export function Test() {
+  return <div>Hello</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Test.tsx",
+        config: directiveConfig,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+});

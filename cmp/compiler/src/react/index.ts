@@ -10,6 +10,7 @@
 export {
   TranslationProvider,
   useTranslationContext,
+  getLocaleFromCookies,
   type TranslationContextType,
   type TranslationProviderProps,
 } from "./client/TranslationContext";
@@ -24,7 +25,7 @@ export {
 // Export components
 export {
   LocaleSwitcher,
-  getLocaleFromCookies,
+  LocaleSwitcher as LocaleSwitcherPure, // Alias for backwards compatibility
   type LocaleSwitcherProps,
   type LocaleConfig,
 } from "./client/LocaleSwitcher";

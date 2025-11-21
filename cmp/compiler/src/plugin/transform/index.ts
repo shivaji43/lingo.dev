@@ -1,7 +1,14 @@
 import * as parser from "@babel/parser";
-import traverse from "@babel/traverse";
-import generate from "@babel/generator";
+import traverseDefault from "@babel/traverse";
+import generateDefault from "@babel/generator";
 import path from "path";
+
+// Handle ESM/CJS interop - these packages may export differently
+// @ts-expect-error - Handle both default and named exports
+const traverse = traverseDefault.default ?? traverseDefault;
+// @ts-expect-error - Handle both default and named exports
+const generate = generateDefault.default ?? generateDefault;
+
 import type {
   BabelTransformOptions,
   LoaderConfig,
@@ -41,8 +48,10 @@ export function transformComponent(
       metadata,
       filePath: relativeFilePath,
       serverPort,
+      componentsNeedingTranslation: new Set<string>(),
     };
 
+    console.log(`[lingo.dev] Transforming ${filePath}`);
     // Apply our translation transformation
     const visitors = createBabelVisitors(
       config,

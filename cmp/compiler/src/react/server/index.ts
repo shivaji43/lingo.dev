@@ -6,7 +6,7 @@
 
 import { cookies } from "next/headers";
 import type { MetadataSchema } from "../../types";
-import type { Translator, TranslatableEntry } from "../../translate/api";
+import type { TranslatableEntry, Translator } from "../../translate";
 
 /**
  * Dictionary schema for translation
