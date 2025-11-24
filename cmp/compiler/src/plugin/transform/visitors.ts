@@ -14,9 +14,9 @@ import {
 } from "../../types/framework";
 
 /**
- * Plugin state to track transformation
+ * State shared between all the visitors.
  */
-interface PluginState {
+interface VisitorsSharedState {
   componentName: string | null;
   componentType: ComponentType;
   needsTranslationImport: boolean;
@@ -28,6 +28,8 @@ interface PluginState {
   serverPort?: number | null;
   /** Track all components that need translation functions injected */
   componentsNeedingTranslation: Set<string>;
+  /** Map component names to their translation hashes */
+  componentHashes: Map<string, string[]>;
 }
 
 const root = "@lingo.dev/_compiler";
@@ -135,7 +137,7 @@ export function createBabelVisitors(
   config: LoaderConfig,
   metadata: MetadataSchema,
   filePath: string,
-  visitorState: PluginState,
+  visitorState: VisitorsSharedState,
   serverPort?: number | null,
 ) {
   return {
@@ -152,9 +154,9 @@ export function createBabelVisitors(
       },
 
       exit(path: NodePath<t.Program>) {
-        // Inject translation import if needed
+        // After collecting all hashes, inject translation import and hook calls
         if (visitorState.needsTranslationImport) {
-          injectTranslationImport(path, visitorState, serverPort);
+          injectTranslationImportAndCalls(path, visitorState, serverPort);
         }
       },
     },
@@ -240,17 +242,23 @@ export function createBabelVisitors(
         visitorState.componentsNeedingTranslation.add(
           visitorState.componentName,
         );
+        // Track hash for this component
+        const hashes =
+          visitorState.componentHashes.get(visitorState.componentName) || [];
+        hashes.push(hash);
+        visitorState.componentHashes.set(visitorState.componentName, hashes);
       }
     },
   };
 }
 
 /**
- * Inject appropriate translation import based on component type
+ * Inject appropriate translation import and calls based on component type
+ * This runs after all hashes have been collected in the first pass
  */
-function injectTranslationImport(
+function injectTranslationImportAndCalls(
   programPath: NodePath<t.Program>,
-  state: PluginState,
+  state: VisitorsSharedState,
   serverPort?: number | null,
 ): void {
   // Determine if we're dealing with a server or client component
@@ -283,7 +291,7 @@ function injectTranslationImport(
     programPath.node.body.unshift(importDeclaration);
   }
 
-  // Find all component functions that need translation injection
+  // Second pass: Find all component functions and inject translation calls with collected hashes
   programPath.traverse({
     FunctionDeclaration(path) {
       const componentName = path.node.id?.name;
@@ -291,10 +299,11 @@ function injectTranslationImport(
         componentName &&
         state.componentsNeedingTranslation.has(componentName)
       ) {
+        const hashes = state.componentHashes.get(componentName) || [];
         if (isServerComponent) {
-          injectServerTranslationCall(path, state.config, serverPort);
+          injectServerTranslationCall(path, state.config, serverPort, hashes);
         } else {
-          injectHookCall(path);
+          injectHookCall(path, hashes);
         }
       }
     },
@@ -307,10 +316,11 @@ function injectTranslationImport(
       ) {
         const componentName = parent.id.name;
         if (state.componentsNeedingTranslation.has(componentName)) {
+          const hashes = state.componentHashes.get(componentName) || [];
           if (isServerComponent) {
-            injectServerTranslationCall(path, state.config, serverPort);
+            injectServerTranslationCall(path, state.config, serverPort, hashes);
           } else {
-            injectHookCall(path);
+            injectHookCall(path, hashes);
           }
         }
       }
@@ -319,10 +329,11 @@ function injectTranslationImport(
 }
 
 /**
- * Inject const t = useTranslation() at the start of the component (Client Components)
+ * Inject const t = useTranslation([...hashes]) at the start of the component (Client Components)
  */
 function injectHookCall(
   componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+  hashes: string[],
 ): void {
   const body = componentPath.get("body");
 
@@ -330,11 +341,16 @@ function injectHookCall(
     return;
   }
 
-  // useTranslation() takes no arguments - serverPort comes from context
+  // Create array of hash strings
+  const hashArray = t.arrayExpression(
+    hashes.map((hash) => t.stringLiteral(hash)),
+  );
+
+  // useTranslation([...hashes])
   const hookCall = t.variableDeclaration("const", [
     t.variableDeclarator(
       t.identifier("t"),
-      t.callExpression(t.identifier("useTranslation"), []),
+      t.callExpression(t.identifier("useTranslation"), [hashArray]),
     ),
   ]);
 
@@ -349,7 +365,8 @@ function injectHookCall(
 function injectServerTranslationCall(
   componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
   config: any,
-  serverPort?: number | null,
+  serverPort: number | null | undefined,
+  hashes: string[],
 ): void {
   const body = componentPath.get("body");
 
@@ -384,9 +401,23 @@ function injectServerTranslationCall(
     );
   }
 
+  // Pass hashes array
+  const hashArray = t.arrayExpression(
+    hashes.map((hash) => t.stringLiteral(hash)),
+  );
+  optionsProperties.push(t.objectProperty(t.identifier("hashes"), hashArray));
+
+  // getServerTranslations returns { t, locale }, so we need to destructure
   const serverCall = t.variableDeclaration("const", [
     t.variableDeclarator(
-      t.identifier("t"),
+      t.objectPattern([
+        t.objectProperty(
+          t.identifier("t"),
+          t.identifier("t"),
+          false,
+          true, // shorthand
+        ),
+      ]),
       t.awaitExpression(
         t.callExpression(t.identifier("getServerTranslations"), [
           t.objectExpression(optionsProperties),

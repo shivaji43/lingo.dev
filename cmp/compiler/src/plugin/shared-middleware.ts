@@ -11,16 +11,15 @@
 import fs from "fs/promises";
 import path from "path";
 import type { DictionarySchema } from "../react/server";
+import type { TranslationConfig } from "../types";
+import { createCachedTranslatorFromConfig } from "../translate";
+import { getCachePath, getMetadataPath } from "../utils/path-helpers";
 import {
-  createCachedTranslatorFromConfig,
-  type TranslatorConfig,
-} from "../translate";
+  createDictionary,
+  createDictionaryFromMetadata,
+} from "../utils/dictionary";
 
-export interface TranslationMiddlewareConfig {
-  sourceRoot: string;
-  lingoDir: string;
-  sourceLocale: string;
-  translator?: TranslatorConfig;
+export interface TranslationMiddlewareConfig extends TranslationConfig {
   allowProductionGeneration?: boolean;
 }
 
@@ -47,17 +46,8 @@ export async function handleTranslationRequest(
 
   console.log(`[lingo.dev] Translation requested for locale: ${locale}`);
 
-  // Construct cache path
-  // Use absolute sourceRoot if provided, otherwise resolve relative to cwd
-  const rootPath = path.isAbsolute(config.sourceRoot)
-    ? config.sourceRoot
-    : path.join(process.cwd(), config.sourceRoot);
-  const cachePath = path.join(
-    rootPath,
-    config.lingoDir,
-    "cache",
-    `${locale}.json`,
-  );
+  // Get cache path
+  const cachePath = getCachePath(config, locale);
 
   // Check if cached
   try {
@@ -101,28 +91,17 @@ export async function handleTranslationRequest(
   }
 
   // Load metadata
-  const metadataPath = path.join(rootPath, config.lingoDir, "metadata.json");
+  const metadataPath = getMetadataPath(config);
 
   try {
     const metadataContent = await fs.readFile(metadataPath, "utf-8");
     const metadata = JSON.parse(metadataContent);
 
     // Build source dictionary
-    const sourceDictionary: DictionarySchema = {
-      version: 0.1,
-      locale: config.sourceLocale,
-      files: {
-        __metadata: {
-          entries: Object.entries(metadata.entries || {}).reduce(
-            (acc, [hash, entry]: [string, any]) => {
-              acc[hash] = entry.sourceText;
-              return acc;
-            },
-            {} as Record<string, string>,
-          ),
-        },
-      },
-    };
+    const sourceDictionary = createDictionaryFromMetadata(
+      metadata,
+      config.sourceLocale,
+    );
 
     // Generate translations
     let translated: DictionarySchema;
@@ -144,7 +123,7 @@ export async function handleTranslationRequest(
         { text: string; context: Record<string, any> }
       > = {};
       for (const [hash, sourceText] of Object.entries(
-        sourceDictionary.files.__metadata.entries,
+        sourceDictionary.entries,
       )) {
         entriesMap[hash] = {
           text: sourceText,
@@ -158,15 +137,7 @@ export async function handleTranslationRequest(
         entriesMap,
       );
 
-      translated = {
-        version: sourceDictionary.version,
-        locale: locale,
-        files: {
-          __metadata: {
-            entries: translatedEntries,
-          },
-        },
-      };
+      translated = createDictionary(translatedEntries, locale);
     } else {
       // Return source dictionary if no translator configured
       translated = sourceDictionary;
@@ -221,18 +192,8 @@ export async function handleHashTranslationRequest(
     `[lingo.dev] Translation requested for ${hashes.length} hashes in locale: ${locale}`,
   );
 
-  // Use absolute sourceRoot if provided, otherwise resolve relative to cwd
-  const rootPath = path.isAbsolute(config.sourceRoot)
-    ? config.sourceRoot
-    : path.join(process.cwd(), config.sourceRoot);
-
-  // Construct cache path
-  const cachePath = path.join(
-    rootPath,
-    config.lingoDir,
-    "cache",
-    `${locale}.json`,
-  );
+  // Get cache path
+  const cachePath = getCachePath(config, locale);
 
   // Check if we have cached translations
   let cachedTranslations: Record<string, string> = {};
@@ -241,10 +202,7 @@ export async function handleHashTranslationRequest(
     const cachedDict = JSON.parse(cached);
 
     // Extract all translations from cached dictionary
-    for (const file of Object.values(cachedDict.files || {})) {
-      const entries = (file as any).entries || {};
-      Object.assign(cachedTranslations, entries);
-    }
+    Object.assign(cachedTranslations, cachedDict.entries || {});
   } catch (error) {
     // Cache doesn't exist or is invalid - will generate
   }
@@ -297,7 +255,7 @@ export async function handleHashTranslationRequest(
   }
 
   // Load metadata
-  const metadataPath = path.join(rootPath, config.lingoDir, "metadata.json");
+  const metadataPath = getMetadataPath(config);
 
   try {
     const metadataContent = await fs.readFile(metadataPath, "utf-8");
@@ -341,15 +299,7 @@ export async function handleHashTranslationRequest(
     const allTranslations = { ...cachedTranslations, ...newTranslations };
 
     // Update cache with merged translations
-    const updatedDictionary: DictionarySchema = {
-      version: 0.1,
-      locale: locale,
-      files: {
-        __metadata: {
-          entries: allTranslations,
-        },
-      },
-    };
+    const updatedDictionary = createDictionary(allTranslations, locale);
 
     await fs.mkdir(path.dirname(cachePath), { recursive: true });
     await fs.writeFile(cachePath, JSON.stringify(updatedDictionary, null, 2));

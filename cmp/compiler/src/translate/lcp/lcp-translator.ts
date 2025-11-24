@@ -42,18 +42,14 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     const sourceDictionary: DictionarySchema = {
       version: 0.1,
       locale: this.config.sourceLocale,
-      files: {
-        temp: {
-          entries: {
-            temp: entry.text,
-          },
-        },
+      entries: {
+        temp: entry.text,
       },
     };
 
     const translated = await this.translateDictionary(sourceDictionary, locale);
 
-    return translated.files["temp"]?.entries["temp"] || entry.text;
+    return translated.entries["temp"] || entry.text;
   }
 
   /**
@@ -67,21 +63,14 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     const sourceDictionary: DictionarySchema = {
       version: 0.1,
       locale: this.config.sourceLocale,
-      files: {
-        batch: {
-          entries: Object.fromEntries(
-            Object.entries(entriesMap).map(([hash, entry]) => [
-              hash,
-              entry.text,
-            ]),
-          ),
-        },
-      },
+      entries: Object.fromEntries(
+        Object.entries(entriesMap).map(([hash, entry]) => [hash, entry.text]),
+      ),
     };
 
     const translated = await this.translateDictionary(sourceDictionary, locale);
 
-    return translated.files["batch"]?.entries || {};
+    return translated.entries || {};
   }
 
   /**
@@ -299,55 +288,18 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
    */
   private chunkDictionary(dictionary: DictionarySchema): DictionarySchema[] {
     const MAX_ENTRIES_PER_CHUNK = 100;
-    const { files, ...rest } = dictionary;
+    const { entries, ...rest } = dictionary;
     const chunks: DictionarySchema[] = [];
 
-    let currentChunk: DictionarySchema = {
-      ...rest,
-      files: {},
-    };
-    let currentEntryCount = 0;
+    const entryPairs = Object.entries(entries);
 
-    for (const [fileName, file] of Object.entries(files)) {
-      const entries = file.entries;
-      const entryPairs = Object.entries(entries);
-
-      let currentIndex = 0;
-      while (currentIndex < entryPairs.length) {
-        const remainingSpace = MAX_ENTRIES_PER_CHUNK - currentEntryCount;
-        const entriesToAdd = entryPairs.slice(
-          currentIndex,
-          currentIndex + remainingSpace,
-        );
-
-        if (entriesToAdd.length > 0) {
-          if (!currentChunk.files[fileName]) {
-            currentChunk.files[fileName] = { entries: {} };
-          }
-          Object.assign(
-            currentChunk.files[fileName].entries,
-            Object.fromEntries(entriesToAdd),
-          );
-          currentEntryCount += entriesToAdd.length;
-        }
-
-        currentIndex += entriesToAdd.length;
-
-        if (
-          currentEntryCount >= MAX_ENTRIES_PER_CHUNK ||
-          (currentIndex < entryPairs.length &&
-            currentEntryCount + (entryPairs.length - currentIndex) >
-              MAX_ENTRIES_PER_CHUNK)
-        ) {
-          chunks.push(currentChunk);
-          currentChunk = { ...rest, files: {} };
-          currentEntryCount = 0;
-        }
-      }
-    }
-
-    if (currentEntryCount > 0) {
-      chunks.push(currentChunk);
+    // Split entries into chunks of MAX_ENTRIES_PER_CHUNK
+    for (let i = 0; i < entryPairs.length; i += MAX_ENTRIES_PER_CHUNK) {
+      const chunkEntries = entryPairs.slice(i, i + MAX_ENTRIES_PER_CHUNK);
+      chunks.push({
+        ...rest,
+        entries: Object.fromEntries(chunkEntries),
+      });
     }
 
     return chunks;
@@ -363,31 +315,20 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       return {
         version: 0.1,
         locale: this.config.sourceLocale,
-        files: {},
+        entries: {},
       };
     }
 
-    const fileNames = Array.from(
-      new Set(dictionaries.flatMap((dict) => Object.keys(dict.files))),
-    );
-
-    const files: Record<string, { entries: Record<string, string> }> = {};
-
-    for (const fileName of fileNames) {
-      const entries: Record<string, string> = {};
-      for (const dict of dictionaries) {
-        const file = dict.files[fileName];
-        if (file) {
-          Object.assign(entries, file.entries);
-        }
-      }
-      files[fileName] = { entries };
+    // Merge all entries from all dictionaries
+    const mergedEntries: Record<string, string> = {};
+    for (const dict of dictionaries) {
+      Object.assign(mergedEntries, dict.entries);
     }
 
     return {
       version: dictionaries[0].version,
       locale: dictionaries[0].locale,
-      files,
+      entries: mergedEntries,
     };
   }
 }

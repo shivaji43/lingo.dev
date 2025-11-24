@@ -1,14 +1,3 @@
-/**
- * Compiler-Beta Test Page
- *
- * This page demonstrates the automatic translation transformation
- * provided by @lingo.dev/_compiler
- *
- * The JSX text in this file will be automatically transformed to use
- * translation hashes. Check the .lingo/metadata.json file after building
- * to see the generated metadata.
- */
-
 export default function CompilerTestPage() {
   return (
     <div className="min-h-screen p-8 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">

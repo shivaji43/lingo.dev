@@ -11,36 +11,10 @@
 import { describe, it, expect, beforeEach, assert } from "vitest";
 import { transformComponent } from "./index";
 import type { LoaderConfig, MetadataSchema } from "../../types";
-
-/**
- * Helper to create in-memory metadata for testing.
- * No actual files are created - all metadata stays in memory.
- */
-function createMockMetadata(): MetadataSchema {
-  return {
-    version: "0.1",
-    entries: {},
-    stats: {
-      totalEntries: 0,
-      lastUpdated: new Date().toISOString(),
-    },
-  };
-}
-
-/**
- * Helper to create test loader config
- */
-function createMockConfig(overrides?: Partial<LoaderConfig>): LoaderConfig {
-  return {
-    sourceRoot: "src",
-    lingoDir: ".lingo",
-    sourceLocale: "en",
-    useDirective: false,
-    isDev: true,
-    framework: "vite", // Default to vite (all client components)
-    ...overrides,
-  };
-}
+import {
+  createMockMetadata,
+  createMockConfig,
+} from "../../__test-utils__/mocks";
 
 describe("transformComponent", () => {
   let config: LoaderConfig;
@@ -518,6 +492,91 @@ export function Test() {
 
       expect(result.transformed).toBe(true);
       expect(result.newEntries).toHaveLength(1);
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("server components", () => {
+    it("should transform server component with multiple text nodes in paragraph", () => {
+      // Use Next.js framework config for proper server component detection
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export default async function ServerPage() {
+  return (
+    <div>
+      <h1>Welcome to our site</h1>
+      <p>This is a paragraph with three short strings inside it.</p>
+      <button>Click here</button>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Welcome to our site",
+        "This is a paragraph with three short strings inside it.",
+        "Click here",
+      ]);
+
+      // Should inject getServerTranslations import
+      expect(result.code).toContain("import { getServerTranslations } from");
+
+      // Should inject await getServerTranslations with hashes array
+      expect(result.code).toContain("await getServerTranslations");
+      expect(result.code).toContain("hashes:");
+
+      // Should make component async
+      expect(result.code).toContain("async function ServerPage");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should inject correct hash array for server component", () => {
+      // Use Next.js framework config for proper server component detection
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export async function ServerCard() {
+  return (
+    <div>
+      <h2>Title</h2>
+      <p>Description</p>
+      <span>Footer</span>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/components/ServerCard.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+
+      // Should have all three hashes in the array
+      const hashes = result.newEntries.map((e) => e.hash);
+      for (const hash of hashes) {
+        expect(result.code).toContain(hash);
+      }
+
       expect(result.code).toMatchSnapshot();
     });
   });

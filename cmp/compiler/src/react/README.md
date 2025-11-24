@@ -99,33 +99,6 @@ export function Welcome() {
 }
 ```
 
-### `useTranslationWithStatus()`
-
-Returns translation function and loading state.
-
-**Returns:**
-
-- `t` (function): Translation function
-- `isLoading` (boolean): Whether translations are loading
-- `locale` (string): Current locale
-- `setLocale` (function): Function to change locale
-
-**Example:**
-
-```tsx
-import { useTranslationWithStatus } from "@lingo.dev/_compiler-beta/react";
-
-export function MyComponent() {
-  const { t, isLoading, locale } = useTranslationWithStatus();
-
-  if (isLoading) {
-    return <LoadingSpinner />;
-  }
-
-  return <h1>{t("hash_abc")}</h1>;
-}
-```
-
 ### `useTranslationContext()`
 
 Access the translation context directly.
@@ -212,7 +185,6 @@ For Server Components, use the separate `getServerTranslations()` function (not 
 2. **Pass the router** to `<LocaleSwitcher>` for seamless Server Component updates
 3. **Pre-load common translations** using `initialTranslations` prop
 4. **Use custom fetch function** if you have a custom translation API
-5. **Handle loading states** with `useTranslationWithStatus()` or `isLoading` prop
 
 ## TypeScript Support
 

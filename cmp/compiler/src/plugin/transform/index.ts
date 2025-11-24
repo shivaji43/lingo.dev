@@ -2,6 +2,8 @@ import * as parser from "@babel/parser";
 import traverseDefault from "@babel/traverse";
 import generateDefault from "@babel/generator";
 import path from "path";
+import { LoaderConfig, MetadataSchema, TranslationEntry } from "../../types";
+import { createBabelVisitors } from "./visitors";
 
 // Handle ESM/CJS interop - these packages may export differently
 // @ts-expect-error - Handle both default and named exports
@@ -9,38 +11,69 @@ const traverse = traverseDefault.default ?? traverseDefault;
 // @ts-expect-error - Handle both default and named exports
 const generate = generateDefault.default ?? generateDefault;
 
-import type {
-  BabelTransformOptions,
-  LoaderConfig,
-  TransformResult,
-} from "../../types";
-import { createBabelVisitors } from "./babel-plugin";
+export interface TransformResult {
+  code: string;
+  map?: any;
+  newEntries?: TranslationEntry[];
+  transformed: boolean;
+}
+
+/**
+ * Options for the Babel transformation
+ */
+export interface BabelTransformOptions {
+  /**
+   * Source code to transform
+   */
+  code: string;
+
+  /**
+   * File path being transformed
+   */
+  filePath: string;
+
+  /**
+   * Loader configuration
+   */
+  config: LoaderConfig;
+
+  /**
+   * Current metadata
+   */
+  metadata: MetadataSchema;
+
+  /**
+   * Port of the translation server (if running)
+   */
+  serverPort?: number | null;
+}
 
 /**
  * Transform component code to inject translation calls
  */
-export function transformComponent(
-  options: BabelTransformOptions,
-): TransformResult {
-  const { code, filePath, config, metadata, serverPort } = options;
-
+export function transformComponent({
+  code,
+  filePath,
+  config,
+  metadata,
+  serverPort,
+}: BabelTransformOptions): TransformResult {
   // Get relative file path for consistent hashing
   const relativeFilePath = path
     .relative(path.resolve(config.sourceRoot), filePath)
     .split(path.sep)
-    .join("/"); // Always normalize for cross-platform consistency
+    // '/' is used as a cross-platform path separator
+    .join("/");
 
   try {
-    // Parse the code with TypeScript and JSX support
     const ast = parser.parse(code, {
       sourceType: "module",
       plugins: ["jsx", "typescript"],
     });
 
-    // Create visitor state
     const visitorState = {
       componentName: null as string | null,
-      componentType: "unknown" as any,
+      componentType: "unknown",
       needsTranslationImport: false,
       hasUseI18nDirective: false,
       newEntries: [] as any[],
@@ -49,10 +82,11 @@ export function transformComponent(
       filePath: relativeFilePath,
       serverPort,
       componentsNeedingTranslation: new Set<string>(),
+      componentHashes: new Map<string, string[]>(),
     };
 
     console.log(`[lingo.dev] Transforming ${filePath}`);
-    // Apply our translation transformation
+
     const visitors = createBabelVisitors(
       config,
       metadata,
@@ -60,9 +94,9 @@ export function transformComponent(
       visitorState,
       serverPort,
     );
+
     traverse(ast, visitors);
 
-    // Generate code from AST
     const output = generate(
       ast,
       {

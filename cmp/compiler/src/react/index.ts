@@ -20,7 +20,6 @@ export { NextTranslationProvider } from "./client/NextTranslationContext";
 // Export hooks
 export {
   useTranslation,
-  useTranslationWithStatus,
   type TranslationFunction,
 } from "./client/useTranslation";
 

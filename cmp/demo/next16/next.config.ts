@@ -7,6 +7,13 @@ export default withLingo(nextConfig, {
   sourceRoot: "./app",
   lingoDir: ".lingo",
   sourceLocale: "en",
+  targetLocales: ["es", "de", "ja", "fr", "ru"],
   useDirective: false, // Set to true to require 'use i18n' directive
-  translator: { type: "pseudo" }, // Enable pseudolocalization for testing
+  translator: {
+    type: "lcp",
+    config: {
+      models: "lingo.dev",
+      sourceLocale: "en",
+    },
+  },
 });

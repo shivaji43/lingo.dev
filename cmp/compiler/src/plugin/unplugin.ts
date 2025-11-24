@@ -20,6 +20,11 @@ import type { LoaderConfig } from "../types";
 import { handleTranslationRequest } from "./shared-middleware";
 import { startTranslationServer } from "../server";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
+import {
+  getTranslationQueue,
+  createQueuedTranslations,
+} from "./translation-queue";
+import { createLoaderConfig } from "../utils/config-factory";
 
 export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
   /**
@@ -27,6 +32,34 @@ export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
    * @default [] - Generate none at build time
    */
   preGenerateLocales?: string[];
+
+  /**
+   * Build strategy for translations
+   * - 'queue': Queue translations during build, process at end (recommended for production)
+   * - 'immediate': Generate translations immediately (legacy behavior)
+   * @default 'queue' in production, 'immediate' in development
+   */
+  buildStrategy?: "queue" | "immediate";
+
+  /**
+   * Maximum number of translations to process in a single batch
+   * @default 50
+   */
+  batchSize?: number;
+
+  /**
+   * Output path for static translation files (relative to project root)
+   * If specified, translations will be copied to this directory for static serving
+   * @default undefined (no static files generated)
+   * @example 'public/translations'
+   */
+  publicOutputPath?: string;
+
+  /**
+   * Whether to wait for all translations to complete before finishing the build
+   * @default true in production, false in development
+   */
+  waitForTranslations?: boolean;
 }
 
 let globalServer: any;
@@ -37,15 +70,11 @@ let globalServer: any;
  */
 export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
   (options = {} as LingoPluginOptions, meta) => {
-    const config: LoaderConfig = {
+    const config: LoaderConfig = createLoaderConfig({
       ...options,
       sourceRoot: options.sourceRoot ?? "src",
-      lingoDir: options.lingoDir ?? ".lingo",
-      sourceLocale: options.sourceLocale ?? "en",
-      useDirective: options.useDirective ?? false,
       isDev: false, // Will be set correctly in buildStart
-      framework: options.framework ?? "unknown", // Will be set by specific plugin
-    };
+    });
 
     return {
       name: "lingo-compiler",
@@ -117,6 +146,28 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             },
             config,
           });
+        }
+
+        // Initialize translation queue for production builds
+        if (!config.isDev && options.preGenerateLocales?.length) {
+          const buildStrategy = options.buildStrategy ?? "queue";
+
+          if (buildStrategy === "queue") {
+            console.log(
+              "[lingo.dev] Initializing translation queue for build...",
+            );
+
+            const queue = getTranslationQueue();
+            queue.initialize({
+              locales: options.preGenerateLocales,
+              batchSize: options.batchSize ?? 50,
+              waitForCompletion: options.waitForTranslations ?? true,
+              publicOutputPath: options.publicOutputPath
+                ? path.join(process.cwd(), options.publicOutputPath)
+                : undefined,
+              config,
+            });
+          }
         }
       },
 
@@ -197,6 +248,26 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             const updatedMetadata = upsertEntries(metadata, result.newEntries);
             await saveMetadata(config, updatedMetadata);
 
+            // Queue translations if using queue strategy in production
+            const buildStrategy = options.buildStrategy ?? "queue";
+            if (
+              !config.isDev &&
+              buildStrategy === "queue" &&
+              options.preGenerateLocales?.length
+            ) {
+              const queue = getTranslationQueue();
+              const queuedTranslations = createQueuedTranslations(
+                result.newEntries.reduce(
+                  (acc, entry) => {
+                    acc[entry.hash] = entry;
+                    return acc;
+                  },
+                  {} as Record<string, (typeof result.newEntries)[0]>,
+                ),
+              );
+              queue.addBatch(queuedTranslations);
+            }
+
             // Log new translations discovered (in dev mode)
             if (config.isDev) {
               console.log(
@@ -219,28 +290,75 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
       async buildEnd() {
         // Pre-generate translations for specified locales during build
         if (!config.isDev && options.preGenerateLocales?.length) {
-          console.log("[lingo.dev] Pre-generating translations for build...");
+          const buildStrategy = options.buildStrategy ?? "queue";
 
-          for (const locale of options.preGenerateLocales) {
+          if (buildStrategy === "queue") {
+            // Use new queue-based approach
+            console.log("[lingo.dev] Processing translation queue...");
+
+            const queue = getTranslationQueue();
+
+            // Add all existing metadata entries to queue if not already queued
+            const metadata = await loadMetadata({
+              sourceRoot: config.sourceRoot,
+              lingoDir: config.lingoDir,
+            });
+
+            if (queue.isEmpty() && Object.keys(metadata.entries).length > 0) {
+              console.log(
+                `[lingo.dev] Adding ${Object.keys(metadata.entries).length} existing translations to queue`,
+              );
+              const queuedTranslations = createQueuedTranslations(
+                metadata.entries,
+              );
+              queue.addBatch(queuedTranslations);
+            }
+
+            // Process the queue
             try {
-              const response = await handleTranslationRequest(locale, {
-                sourceRoot: config.sourceRoot,
-                lingoDir: config.lingoDir,
-                sourceLocale: config.sourceLocale,
-                translator: config.translator,
-                allowProductionGeneration: true,
-              });
+              await queue.process();
 
-              if (response.status !== 200) {
-                console.error(
-                  `[lingo.dev] Failed to pre-generate ${locale}: ${response.body}`,
-                );
+              // Wait for completion if configured
+              if (options.waitForTranslations !== false) {
+                await queue.waitForCompletion();
               }
+
+              const stats = queue.getStats();
+              console.log(`[lingo.dev] Translation queue completed:`, stats);
             } catch (error) {
               console.error(
-                `[lingo.dev] Failed to pre-generate ${locale}:`,
+                "[lingo.dev] Failed to process translation queue:",
                 error,
               );
+              throw error;
+            }
+          } else {
+            // Legacy immediate approach
+            console.log(
+              "[lingo.dev] Pre-generating translations for build (immediate mode)...",
+            );
+
+            for (const locale of options.preGenerateLocales) {
+              try {
+                const response = await handleTranslationRequest(locale, {
+                  sourceRoot: config.sourceRoot,
+                  lingoDir: config.lingoDir,
+                  sourceLocale: config.sourceLocale,
+                  translator: config.translator,
+                  allowProductionGeneration: true,
+                });
+
+                if (response.status !== 200) {
+                  console.error(
+                    `[lingo.dev] Failed to pre-generate ${locale}: ${response.body}`,
+                  );
+                }
+              } catch (error) {
+                console.error(
+                  `[lingo.dev] Failed to pre-generate ${locale}:`,
+                  error,
+                );
+              }
             }
           }
         }

@@ -57,11 +57,7 @@ export function createCachedTranslator<TConfig>(
       const dictionary = {
         version: 0.1,
         locale,
-        files: {
-          __cache: {
-            entries: mergedTranslations,
-          },
-        },
+        entries: mergedTranslations,
       };
 
       await cache.set(locale, dictionary);

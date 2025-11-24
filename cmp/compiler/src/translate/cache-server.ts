@@ -68,11 +68,7 @@ export class ServerTranslationCache {
   private extractTranslations(
     dictionary: DictionarySchema,
   ): Record<string, string> {
-    const translations: Record<string, string> = {};
-    for (const file of Object.values(dictionary.files)) {
-      Object.assign(translations, file.entries);
-    }
-    return translations;
+    return dictionary.entries || {};
   }
 
   /**

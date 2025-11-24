@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useTranslationContext } from "./TranslationContext";
 
 /**
@@ -20,71 +20,52 @@ export type TranslationFunction = (hash: string, source: string) => string;
  * This hook is automatically injected by the Babel plugin.
  * You typically don't need to call it manually.
  *
+ * @param hashes - Static list of all translation hashes used in this component (injected at build time)
+ *
  * @example
  * ```tsx
  * 'use client';
  *
  * export function Welcome() {
- *   const t = useTranslation();
+ *   const t = useTranslation(['hash_abc123', 'hash_def456']);
  *
  *   return (
  *     <div>
- *       <h1>{t('hash_abc123')}</h1>
- *       <p>{t('hash_def456')}</p>
+ *       <h1>{t('hash_abc123', 'Welcome')}</h1>
+ *       <p>{t('hash_def456', 'Hello world')}</p>
  *     </div>
  *   );
  * }
  * ```
  */
-export function useTranslation(): TranslationFunction {
-  const { translations, registerHash, locale, sourceLocale } =
+export function useTranslation(hashes: string[]): TranslationFunction {
+  const { translations, registerHashes, locale, sourceLocale } =
     useTranslationContext();
 
-  /**
-   * Translation function
-   * Registers the hash with the provider and returns the translation or fallback
-   */
-  const t = useCallback(
+  // Register all hashes in useEffect (safe for state updates)
+  useEffect(() => {
+    // Skip if source locale
+    if (locale === sourceLocale) {
+      return;
+    }
+
+    console.log(
+      `[lingo.dev] Registering ${hashes.length} hashes for component`,
+    );
+
+    registerHashes(hashes);
+  }, [hashes, registerHashes, locale, sourceLocale]);
+
+  return useCallback(
     (hash: string, source: string): string => {
       // For source locale, always return source text
       if (locale === sourceLocale) {
         return source;
       }
 
-      // Register this hash (provider will request translation if missing)
-      registerHash(hash);
-
       // Return translation if available, otherwise return source as fallback
       return translations[hash] || source;
     },
-    [translations, registerHash, locale, sourceLocale],
+    [translations, locale, sourceLocale],
   );
-
-  return t;
-}
-
-/**
- * Hook variant that returns translation function and loading state
- *
- * @example
- * ```tsx
- * const { t, isLoading } = useTranslationWithStatus();
- *
- * if (isLoading) {
- *   return <LoadingSpinner />;
- * }
- *
- * return <h1>{t('hash_abc')}</h1>;
- * ```
- */
-export function useTranslationWithStatus() {
-  const context = useTranslationContext();
-  const t = useTranslation();
-
-  return {
-    t,
-    isLoading: context.isLoading,
-    locale: context.locale,
-    setLocale: context.setLocale,
-  };
 }

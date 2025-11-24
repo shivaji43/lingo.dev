@@ -53,7 +53,7 @@ function parseArgs() {
       options.prompt = args[i + 1];
       i++;
     } else if (arg === "--help" || arg === "-h") {
-      console.log(`
+      process.stdout.write(`
 Lingo.dev Translation Server
 
 Usage:
@@ -114,14 +114,16 @@ async function main() {
     };
   }
 
-  console.log("[lingo.dev] Starting translation server...");
-  console.log("[lingo.dev] Configuration:", {
-    startPort: options.port,
-    sourceRoot: options.sourceRoot,
-    lingoDir: options.lingoDir,
-    sourceLocale: options.sourceLocale,
-    translator: translatorConfig,
-  });
+  process.stdout.write("[lingo.dev] Starting translation server...\n");
+  process.stdout.write(
+    `[lingo.dev] Configuration: ${JSON.stringify({
+      startPort: options.port,
+      sourceRoot: options.sourceRoot,
+      lingoDir: options.lingoDir,
+      sourceLocale: options.sourceLocale,
+      translator: translatorConfig,
+    })}\n`,
+  );
 
   let server: TranslationServer | null = null;
 
@@ -136,26 +138,28 @@ async function main() {
         allowProductionGeneration: true,
       },
       onReady: (port) => {
-        console.log("[lingo.dev] Server ready!");
-        console.log("[lingo.dev] Available endpoints:");
-        console.log(`[lingo.dev]   - GET http://127.0.0.1:${port}/health`);
-        console.log(
-          `[lingo.dev]   - GET http://127.0.0.1:${port}/translations/:locale`,
+        process.stdout.write("[lingo.dev] Server ready!\n");
+        process.stdout.write("[lingo.dev] Available endpoints:\n");
+        process.stdout.write(
+          `[lingo.dev]   - GET http://127.0.0.1:${port}/health\n`,
         );
-        console.log(
-          `[lingo.dev]   - GET http://127.0.0.1:${port}/translations/:locale/:hash`,
+        process.stdout.write(
+          `[lingo.dev]   - GET http://127.0.0.1:${port}/translations/:locale\n`,
         );
-        console.log("[lingo.dev]");
-        console.log("[lingo.dev] Press Ctrl+C to stop");
+        process.stdout.write(
+          `[lingo.dev]   - GET http://127.0.0.1:${port}/translations/:locale/:hash\n`,
+        );
+        process.stdout.write("[lingo.dev]\n");
+        process.stdout.write("[lingo.dev] Press Ctrl+C to stop\n");
       },
       onError: (error) => {
-        console.error("[lingo.dev] Server error:", error);
+        process.stderr.write(`[lingo.dev] Server error: ${error.stack}\n`);
       },
     });
 
     // Handle graceful shutdown
     const shutdown = async () => {
-      console.log("\n[lingo.dev] Shutting down...");
+      process.stdout.write("\n[lingo.dev] Shutting down...\n");
       if (server) {
         await server.stop();
       }
@@ -174,9 +178,8 @@ async function main() {
 }
 
 // Run if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((error) => {
-    console.error("[lingo.dev] Fatal error:", error);
-    process.exit(1);
-  });
-}
+// Auto-run when executed directly with node or tsx
+main().catch((error) => {
+  console.error("[lingo.dev] Fatal error:", error);
+  process.exit(1);
+});

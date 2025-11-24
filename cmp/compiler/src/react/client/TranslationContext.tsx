@@ -35,7 +35,7 @@ export interface TranslationContextType {
    * Register a hash as being used in a component
    * The provider will automatically request missing translations
    */
-  registerHash: (hash: string) => void;
+  registerHashes: (hashes: string[]) => void;
 
   /**
    * Whether translations are currently being loaded
@@ -59,21 +59,6 @@ export interface TranslationContextType {
 const TranslationContext = createContext<TranslationContextType | null>(null);
 
 /**
- * Set locale in cookies (client-side)
- */
-function setLocaleInCookies(
-  locale: string,
-  cookieName: string = "locale",
-  maxAge: number = 31536000,
-): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  document.cookie = `${cookieName}=${locale}; path=/; max-age=${maxAge}; SameSite=Lax`;
-}
-
-/**
  * Translation provider props
  */
 export interface TranslationProviderProps {
@@ -93,47 +78,14 @@ export interface TranslationProviderProps {
   initialTranslations?: Record<string, string>;
 
   /**
-   * Custom fetch function for translations
-   * Default implementation calls /api/translate
-   */
-  fetchTranslations?: (
-    hashes: string[],
-    locale: string,
-  ) => Promise<Record<string, string>>;
-
-  /**
    * Debounce delay for batching translation requests (ms)
    * Default: 100ms
    */
   batchDelay?: number;
-
-  /**
-   * Port of the translation server (if running)
-   */
-  serverPort?: number | null;
-
   /**
    * Cookie configuration for persisting locale
    */
-  cookie?: {
-    /**
-     * Cookie name for storing locale
-     * @default 'locale'
-     */
-    name?: string;
-
-    /**
-     * Cookie max age in seconds
-     * @default 31536000 (1 year)
-     */
-    maxAge?: number;
-
-    /**
-     * Disable cookie persistence
-     * @default false
-     */
-    disabled?: boolean;
-  };
+  cookieConfig?: CookieConfig;
 
   /**
    * Optional router instance for Next.js integration
@@ -144,6 +96,12 @@ export interface TranslationProviderProps {
 
   children: ReactNode;
 }
+
+type CookieConfig = { name: string; maxAge: number };
+
+const defaultCookieConfig: CookieConfig = { name: "locale", maxAge: 31536000 };
+
+const IS_DEV = process.env.NODE_ENV === "development";
 
 /**
  * Translation Provider Component
@@ -169,28 +127,74 @@ export interface TranslationProviderProps {
  * }
  * ```
  */
-export function TranslationProvider({
+// Export the appropriate provider directly
+export const TranslationProvider = IS_DEV
+  ? TranslationProvider__Dev
+  : TranslationProvider__Prod;
+
+function TranslationProvider__Prod({
   initialLocale,
   sourceLocale = "en",
   initialTranslations = {},
-  fetchTranslations: customFetchTranslations,
-  batchDelay = 100,
-  serverPort: providedServerPort,
-  cookie: cookieConfig,
+  cookieConfig: customCookieConfig,
   router,
   children,
 }: TranslationProviderProps) {
-  // Use provided serverPort or try to read from global variable
-  const serverPort =
-    providedServerPort ||
-    (typeof window !== "undefined" && (window as any).__LINGO_SERVER_PORT__) ||
-    60000;
+  const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
+  const [locale, setLocaleState] = useState(initialLocale);
 
-  // Extract cookie configuration with defaults
-  const cookieName = cookieConfig?.name ?? "locale";
-  const cookieMaxAge = cookieConfig?.maxAge ?? 31536000;
-  const cookieDisabled = cookieConfig?.disabled ?? false;
+  console.log(
+    `[lingo.dev] TranslationProvider initialized with locale: ${locale}`,
+    initialTranslations,
+  );
 
+  /**
+   * Change locale - triggers server re-render via router.refresh()
+   * Following next-intl pattern: locale changes reload the page with new translations from server
+   */
+  const setLocale = useCallback(
+    async (newLocale: string) => {
+      // 1. Persist to cookie so server can read it on next render
+      setLocaleInCookies(newLocale, cookieConfig);
+
+      // 2. Update local state for immediate UI feedback
+      setLocaleState(newLocale);
+
+      // 3. Trigger server re-render - Server Components will fetch new translations
+      // and pass them as initialTranslations prop, causing this component to re-render
+      if (router) {
+        router.refresh();
+      }
+    },
+    [cookieConfig, router],
+  );
+
+  return (
+    <TranslationContext.Provider
+      value={{
+        locale,
+        setLocale,
+        translations: initialTranslations,
+        registerHashes: () => {}, // No-op in production
+        isLoading: false, // No loading state - translations come from server
+        sourceLocale,
+      }}
+    >
+      {children}
+    </TranslationContext.Provider>
+  );
+}
+
+function TranslationProvider__Dev({
+  initialLocale,
+  sourceLocale = "en",
+  initialTranslations = {},
+  batchDelay = 100,
+  cookieConfig: customCookieConfig,
+  router,
+  children,
+}: TranslationProviderProps) {
+  const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
   const [locale, setLocaleState] = useState(initialLocale);
   const [translations, setTranslations] =
     useState<Record<string, string>>(initialTranslations);
@@ -198,6 +202,9 @@ export function TranslationProvider({
 
   // Track registered hashes from components (updated every render)
   const registeredHashesRef = useRef<Set<string>>(new Set());
+
+  // Track all hashes that have been seen (for hot reload detection)
+  const [allSeenHashes, setAllSeenHashes] = useState<Set<string>>(new Set());
 
   // Track which hashes are pending translation request
   const pendingHashesRef = useRef<Set<string>>(new Set());
@@ -209,7 +216,6 @@ export function TranslationProvider({
   const translationsRef = useRef<Record<string, string>>(initialTranslations);
   const localeRef = useRef(locale);
 
-  // Keep refs in sync with state
   useEffect(() => {
     translationsRef.current = translations;
   }, [translations]);
@@ -221,67 +227,92 @@ export function TranslationProvider({
   /**
    * Default fetch function - calls batch translation endpoint
    */
-  const defaultFetchTranslations = useCallback(
-    async (hashes: string[], targetLocale: string) => {
-      // Use POST endpoint for batch translation
-      const url = `http://127.0.0.1:${serverPort}/translations/${targetLocale}`;
+  const fetchTranslations = useCallback(
+    async (targetLocale: string, hashes?: string[]) => {
+      // TODO (AleksandrSl 24/11/2025): Replace with a real port during AST generation
+      const __serverPort__ = 60000;
+      const url = `http://127.0.0.1:${__serverPort__}/translations/${targetLocale}`;
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ hashes }),
-      });
+      let response;
+      if (!hashes || hashes.length === 0) {
+        response = await fetch(url);
+      } else {
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ hashes }),
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`Translation API error: ${response.statusText}`);
       }
 
-      // Response is a hash -> translation map
       return await response.json();
     },
-    [serverPort],
+    [],
   );
-
-  const fetchFn = customFetchTranslations || defaultFetchTranslations;
 
   /**
    * Register a hash as being used in a component
-   * Called during render - must not trigger state updates
+   * Called during render - must not trigger state updates immediately
    */
-  const registerHash = useCallback((hash: string) => {
-    registeredHashesRef.current.add(hash);
+  const registerHashes = useCallback((hashes: string[]) => {
+    let wasNew = false;
+    hashes.forEach((hash) => {
+      wasNew = wasNew || !registeredHashesRef.current.has(hash);
+      registeredHashesRef.current.add(hash);
+    });
+
+    console.log(
+      `[lingo.dev] Registering hashes: ${hashes.join(", ")}. Registered hashes: ${registeredHashesRef.current.values()}. wasNew: ${wasNew}`,
+    );
+
+    // Schedule a state update for the next tick to track all hashes
+    if (wasNew) {
+      setAllSeenHashes((prev) => {
+        const next = prev.union(new Set(hashes));
+        // TODO (AleksandrSl 25/11/2025): Should be a cheaper solution
+        console.log(`[lingo.dev] New allSeenHashes: ${[...next.values()]}`);
+        return next;
+      });
+    }
   }, []);
 
   /**
    * Check for missing translations and request them (batched)
-   * This runs after every render
+   * This runs when allSeenHashes changes (hot reload or new components mount)
    */
   useEffect(() => {
+    console.log(
+      `[lingo.dev] TranslationProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
+    );
+
     // Skip if source locale
     if (locale === sourceLocale) {
-      registeredHashesRef.current.clear();
       return;
     }
 
-    // Find hashes that are registered but not translated and not already pending
+    // Find hashes that are seen but not translated and not already pending
     const missingHashes: string[] = [];
-    for (const hash of registeredHashesRef.current) {
-      if (
-        !translationsRef.current[hash] &&
-        !pendingHashesRef.current.has(hash)
-      ) {
+    console.log(
+      "allSeenHashes: ",
+      [...allSeenHashes.values()],
+      [...pendingHashesRef.current.values()],
+    );
+    console.log("translationsRef.current: ", translations);
+    for (const hash of allSeenHashes) {
+      if (!translations[hash] && !pendingHashesRef.current.has(hash)) {
         missingHashes.push(hash);
         pendingHashesRef.current.add(hash);
       }
     }
-
-    // Clear registered hashes for next render
-    registeredHashesRef.current.clear();
+    console.log("Missing hashes: ", missingHashes.join(","));
 
     // If no missing hashes, nothing to do
-    if (missingHashes.length === 0) return;
+    if (missingHashes.length === 0 && localeRef.current == locale) return;
 
     console.log(
       `[lingo.dev] Requesting translations for ${missingHashes.length} hashes in locale ${locale}`,
@@ -297,11 +328,17 @@ export function TranslationProvider({
       const hashesToFetch = Array.from(pendingHashesRef.current);
       pendingHashesRef.current.clear();
 
+      console.log(
+        `[lingo.dev] Fetching translations for ${hashesToFetch.length} hashes`,
+      );
       if (hashesToFetch.length === 0) return;
 
       setIsLoading(true);
       try {
-        const newTranslations = await fetchFn(hashesToFetch, localeRef.current);
+        const newTranslations = await fetchTranslations(
+          localeRef.current,
+          hashesToFetch,
+        );
 
         setTranslations((prev) => ({ ...prev, ...newTranslations }));
       } catch (error) {
@@ -317,7 +354,14 @@ export function TranslationProvider({
         setIsLoading(false);
       }
     }, batchDelay);
-  }); // Run after every render
+  }, [
+    allSeenHashes,
+    locale,
+    sourceLocale,
+    batchDelay,
+    fetchTranslations,
+    translations,
+  ]);
 
   /**
    * Clear batch timer on unmount
@@ -336,9 +380,7 @@ export function TranslationProvider({
   const setLocale = useCallback(
     async (newLocale: string) => {
       // 1. Persist to cookie (unless disabled)
-      if (!cookieDisabled) {
-        setLocaleInCookies(newLocale, cookieName, cookieMaxAge);
-      }
+      setLocaleInCookies(newLocale, cookieConfig);
 
       // 2. Update state
       setLocaleState(newLocale);
@@ -363,32 +405,15 @@ export function TranslationProvider({
           `[lingo.dev] Fetching translations for locale: ${newLocale}`,
         );
 
-        // Determine URL based on serverPort
-        const url = serverPort
-          ? `http://127.0.0.1:${serverPort}/translations/${newLocale}`
-          : `/api/translations/${newLocale}`;
-
-        // Fetch translation file from API endpoint or server
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          throw new Error(
-            `Failed to fetch translations: ${response.statusText}`,
-          );
-        }
-
-        const translatedDict = await response.json();
+        const translatedDict = await fetchTranslations(newLocale);
 
         const endTime = performance.now();
         console.log(
           `[lingo.dev] Translation fetch complete for ${newLocale} in ${(endTime - startTime).toFixed(2)}ms`,
         );
 
-        // Extract all translations from dictionary files
-        const allTranslations: Record<string, string> = {};
-        Object.values(translatedDict.files || {}).forEach((file: any) => {
-          Object.assign(allTranslations, file.entries || {});
-        });
+        // Extract all translations from a dictionary
+        const allTranslations = translatedDict.entries || {};
 
         console.log(
           `[lingo.dev] Translations loaded for ${newLocale}:`,
@@ -407,26 +432,19 @@ export function TranslationProvider({
         setIsLoading(false);
       }
     },
-    [
-      sourceLocale,
-      serverPort,
-      cookieDisabled,
-      cookieName,
-      cookieMaxAge,
-      router,
-    ],
+    [sourceLocale, cookieConfig, router],
   );
 
+  // TODO (AleksandrSl 24/11/2025): Should I memo the value>
   return (
     <TranslationContext.Provider
       value={{
         locale,
         setLocale,
         translations,
-        registerHash,
+        registerHashes,
         isLoading,
         sourceLocale,
-        serverPort,
       }}
     >
       {children}
@@ -449,6 +467,20 @@ export function useTranslationContext(): TranslationContextType {
   }
 
   return context;
+}
+
+/**
+ * Set locale in cookies (client-side)
+ */
+function setLocaleInCookies(
+  locale: string,
+  cookieConfig: { name: string; maxAge: number },
+): void {
+  if (typeof document === "undefined") {
+    return;
+  }
+
+  document.cookie = `${cookieConfig.name}=${locale}; path=/; max-age=${cookieConfig.maxAge}; SameSite=Lax`;
 }
 
 /**

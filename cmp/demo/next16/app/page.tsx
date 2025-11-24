@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Counter } from "@/components/counter";
 import { LocaleSwitcher } from "@lingo.dev/_compiler/react";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -43,7 +44,8 @@ export default function Home() {
             center.
           </p>
         </div>
-        <div>Test</div>
+        <div>Test2</div>
+        <Link href="/test">Test</Link>
         <Counter />
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <a

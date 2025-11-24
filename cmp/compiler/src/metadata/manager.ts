@@ -1,6 +1,11 @@
 import fs from "fs/promises";
 import path from "path";
-import type { LoaderConfig, MetadataSchema, TranslationEntry } from "../types";
+import type {
+  MetadataConfig,
+  MetadataSchema,
+  TranslationEntry,
+} from "../types";
+import { getMetadataPath as getMetadataPathUtil } from "../utils/path-helpers";
 
 /**
  * Default metadata schema
@@ -16,13 +21,12 @@ function createEmptyMetadata(): MetadataSchema {
   };
 }
 
+// TODO (AleksandrSl 24/11/2025): Probably remove and use path util as is
 /**
  * Get the path to the metadata file
  */
-export function getMetadataPath(
-  config: Pick<LoaderConfig, "sourceRoot" | "lingoDir">,
-): string {
-  return path.join(config.sourceRoot, config.lingoDir, "metadata.json");
+export function getMetadataPath(config: MetadataConfig): string {
+  return getMetadataPathUtil(config);
 }
 
 /**
@@ -30,7 +34,7 @@ export function getMetadataPath(
  * Creates empty metadata if file doesn't exist
  */
 export async function loadMetadata(
-  config: Pick<LoaderConfig, "sourceRoot" | "lingoDir">,
+  config: MetadataConfig,
 ): Promise<MetadataSchema> {
   const metadataPath = getMetadataPath(config);
 
@@ -50,7 +54,7 @@ export async function loadMetadata(
  * Save metadata to disk
  */
 export async function saveMetadata(
-  config: Pick<LoaderConfig, "sourceRoot" | "lingoDir">,
+  config: MetadataConfig,
   metadata: MetadataSchema,
 ): Promise<void> {
   const metadataPath = getMetadataPath(config);

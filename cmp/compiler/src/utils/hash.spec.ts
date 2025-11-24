@@ -1,9 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  generateTranslationHash,
-  isValidHash,
-  generateShortHash,
-} from "./hash";
+import { generateTranslationHash, isValidHash } from "./hash";
 
 describe("hash utilities", () => {
   describe("generateTranslationHash", () => {
@@ -54,19 +50,6 @@ describe("hash utilities", () => {
       expect(isValidHash("ABCDEF123456")).toBe(false); // uppercase
       expect(isValidHash("xyz123456789")).toBe(false); // contains x, y, z
       expect(isValidHash("")).toBe(false);
-    });
-  });
-
-  describe("generateShortHash", () => {
-    it("should generate an 8-character hash", () => {
-      const hash = generateShortHash("test input");
-      expect(hash).toHaveLength(8);
-    });
-
-    it("should generate consistent hashes", () => {
-      const hash1 = generateShortHash("test");
-      const hash2 = generateShortHash("test");
-      expect(hash1).toBe(hash2);
     });
   });
 });

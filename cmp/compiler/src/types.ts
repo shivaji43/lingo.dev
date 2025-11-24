@@ -51,6 +51,27 @@ export interface LoaderConfig {
 }
 
 /**
+ * Minimal config needed for metadata operations
+ * Used by metadata manager functions
+ */
+export type MetadataConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
+
+/**
+ * Config needed for translation operations
+ * Includes translator configuration
+ */
+export type TranslationConfig = Pick<
+  LoaderConfig,
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "translator"
+>;
+
+/**
+ * Config needed for path operations
+ * Alias for MetadataConfig (same fields)
+ */
+export type PathConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
+
+/**
  * Context information for a translatable text
  */
 export interface TranslationContext {
@@ -106,7 +127,7 @@ export interface TranslationEntry {
 }
 
 /**
- * Metadata file schema (.lingo/metadata.json)
+ * Metadata file schema
  */
 export interface MetadataSchema {
   /**
@@ -129,37 +150,6 @@ export interface MetadataSchema {
 }
 
 /**
- * Dictionary schema for translated content
- * Maps hash -> translated text
- */
-export type DictionarySchema = Record<string, string>;
-
-/**
- * Result of a transformation
- */
-export interface TransformResult {
-  /**
-   * Transformed code
-   */
-  code: string;
-
-  /**
-   * Source map (optional)
-   */
-  map?: any;
-
-  /**
-   * New entries discovered during transformation
-   */
-  newEntries?: TranslationEntry[];
-
-  /**
-   * Whether transformation was applied
-   */
-  transformed: boolean;
-}
-
-/**
  * Component type detection
  */
 export enum ComponentType {
@@ -171,34 +161,4 @@ export enum ComponentType {
 
   /** Unknown or not a React component */
   UNKNOWN = "unknown",
-}
-
-/**
- * Options for the Babel transformation
- */
-export interface BabelTransformOptions {
-  /**
-   * Source code to transform
-   */
-  code: string;
-
-  /**
-   * File path being transformed
-   */
-  filePath: string;
-
-  /**
-   * Loader configuration
-   */
-  config: LoaderConfig;
-
-  /**
-   * Current metadata
-   */
-  metadata: MetadataSchema;
-
-  /**
-   * Port of the translation server (if running)
-   */
-  serverPort?: number | null;
 }

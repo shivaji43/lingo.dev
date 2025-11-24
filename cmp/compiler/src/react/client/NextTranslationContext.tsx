@@ -6,7 +6,33 @@ import {
 } from "./TranslationContext";
 import { useRouter } from "next/navigation";
 
-// TODO (AleksandrSl 21/11/2025): Is it a temporary solution? Check next-intl
+/**
+ * Next.js-specific Translation Provider
+ *
+ * @example
+ * ```tsx
+ * // app/layout.tsx (Server Component)
+ * import { getServerTranslations } from '@lingo.dev/_compiler-beta/react/server';
+ * import { NextTranslationProvider } from '@lingo.dev/_compiler-beta/react';
+ *
+ * export default async function RootLayout({ children }) {
+ *   const { locale, t } = await getServerTranslations();
+ *
+ *   return (
+ *     <html>
+ *       <body>
+ *         <NextTranslationProvider
+ *           initialLocale={locale}
+ *           initialTranslations={translations}
+ *         >
+ *           {children}
+ *         </NextTranslationProvider>
+ *       </body>
+ *     </html>
+ *   );
+ * }
+ * ```
+ */
 export const NextTranslationProvider = (props: TranslationProviderProps) => {
   return <TranslationProvider {...props} router={useRouter()} />;
 };

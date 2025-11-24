@@ -5,7 +5,7 @@ exports[`transformComponent > complex component scenarios > should handle compon
 export function ConditionalComponent({
   showMessage
 }) {
-  const t = useTranslation();
+  const t = useTranslation(["3e08b6d47cba", "98b032f9a357"]);
   return <div>
       <h1>{t("3e08b6d47cba", "Title")}</h1>
       {showMessage && <p>{t("98b032f9a357", "Optional Message")}</p>}
@@ -18,7 +18,7 @@ exports[`transformComponent > complex component scenarios > should handle compon
 export function ListComponent({
   items
 }) {
-  const t = useTranslation();
+  const t = useTranslation(["ebb5cabd4638"]);
   return <div>
       <h1>{t("ebb5cabd4638", "List Title")}</h1>
       {items.map(item => <li key={item.id}>{item.name}</li>)}
@@ -30,7 +30,7 @@ exports[`transformComponent > multiple components in one file > should handle ne
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function OuterComponent() {
   function InnerComponent() {
-    const t = useTranslation();
+    const t = useTranslation(["d43d14308a37", "2ce4a85de254"]);
     return <span>{t("d43d14308a37", "Inner Text")}</span>;
   }
   return <div>
@@ -44,7 +44,7 @@ export default OuterComponent;"
 exports[`transformComponent > multiple components in one file > should transform arrow function components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 const Welcome = () => {
-  const t = useTranslation();
+  const t = useTranslation(["40f0ad754619", "e49bec7f787a"]);
   return <div>{t("40f0ad754619", "Welcome Message")}</div>;
 };
 const Goodbye = () => <div>{t("e49bec7f787a", "Goodbye Message")}</div>;
@@ -54,16 +54,16 @@ export { Welcome, Goodbye };"
 exports[`transformComponent > multiple components in one file > should transform mixed function and arrow components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Title() {
-  const t = useTranslation();
+  const t = useTranslation(["2c7785af3ca4"]);
   return <h1>{t("2c7785af3ca4", "Page Title")}</h1>;
 }
 const Subtitle = () => {
-  const t = useTranslation();
+  const t = useTranslation(["f7f537ee168a", "5da487d0f2c0"]);
   return <h2>{t("f7f537ee168a", "Page Subtitle")}</h2>;
 };
 export const Description = () => <p>{t("5da487d0f2c0", "Page Description")}</p>;
 export default function Container() {
-  const t = useTranslation();
+  const t = useTranslation(["a14c905e3266"]);
   return <div>
       <Title />
       <Subtitle />
@@ -76,23 +76,59 @@ export default function Container() {
 exports[`transformComponent > multiple components in one file > should transform multiple function components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Header() {
-  const t = useTranslation();
+  const t = useTranslation(["0d0ab07cccc4"]);
   return <header>{t("0d0ab07cccc4", "Site Header")}</header>;
 }
 export function Footer() {
-  const t = useTranslation();
+  const t = useTranslation(["f9cc8c2743cf"]);
   return <footer>{t("f9cc8c2743cf", "Site Footer")}</footer>;
 }
 export function Main() {
-  const t = useTranslation();
+  const t = useTranslation(["3a9e2195e549"]);
   return <main>{t("3a9e2195e549", "Main Content")}</main>;
+}"
+`;
+
+exports[`transformComponent > server components > should inject correct hash array for server component 1`] = `
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export async function ServerCard() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["37e8a52e4028", "54ee3cde38cd", "82e802cc4b0f"]
+  });
+  return <div>
+      <h2>{t("37e8a52e4028", "Title")}</h2>
+      <p>{t("54ee3cde38cd", "Description")}</p>
+      <span>{t("82e802cc4b0f", "Footer")}</span>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > server components > should transform server component with multiple text nodes in paragraph 1`] = `
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export default async function ServerPage() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["4b1203f723d1", "b68747a48800", "ecaa2508bfa5"]
+  });
+  return <div>
+      <h1>{t("4b1203f723d1", "Welcome to our site")}</h1>
+      <p>{t("b68747a48800", "This is a paragraph with three short strings inside it.")}</p>
+      <button>{t("ecaa2508bfa5", "Click here")}</button>
+    </div>;
 }"
 `;
 
 exports[`transformComponent > single component > should skip whitespace-only text 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Spacey() {
-  const t = useTranslation();
+  const t = useTranslation(["a0139c83fa7f"]);
   return <div>
 
       <h1>{t("a0139c83fa7f", "Title")}</h1>
@@ -104,7 +140,7 @@ export function Spacey() {
 exports[`transformComponent > single component > should transform a simple component with text 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Welcome() {
-  const t = useTranslation();
+  const t = useTranslation(["f107c6bf1474"]);
   return <div>{t("f107c6bf1474", "Hello World")}</div>;
 }"
 `;
@@ -112,7 +148,7 @@ export function Welcome() {
 exports[`transformComponent > single component > should transform component with multiple text nodes 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Card() {
-  const t = useTranslation();
+  const t = useTranslation(["ac78456dc11b", "c32ab6fbd661", "8ea4da0d08f6"]);
   return <div>
       <h1>{t("ac78456dc11b", "Welcome")}</h1>
       <p>{t("c32ab6fbd661", "This is a description")}</p>
@@ -126,7 +162,7 @@ exports[`transformComponent > use directive mode > should transform files with '
 
 import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Test() {
-  const t = useTranslation();
+  const t = useTranslation(["04784cab2f8c"]);
   return <div>{t("04784cab2f8c", "Hello")}</div>;
 }"
 `;

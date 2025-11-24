@@ -2,55 +2,44 @@ import type { LoaderConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { startTranslationServer } from "../server";
+import { createLoaderConfig } from "../utils/config-factory";
 
 let globalServer: any;
 
 /**
  * Turbopack/Webpack loader for automatic translation
  *
- * This loader transforms React components to inject translation calls automatically
+ * This loader transforms React components to inject translation calls automatically.
+ *
+ * For production builds, translations are generated after compilation completes
+ * via Next.js's runAfterProductionCompile hook (see next.ts plugin).
  */
 export default async function lingoCompilerTurbopackLoader(
   this: any,
   source: string,
 ): Promise<void> {
   const callback = this.async();
-  console.warn("Loading", this.resourcePath);
 
   try {
-    // Get loader options
-    const config: LoaderConfig = {
-      sourceRoot: this.getOptions().sourceRoot || process.cwd(),
-      lingoDir: this.getOptions().lingoDir || ".lingo",
-      sourceLocale: this.getOptions().sourceLocale || "en",
-      useDirective: this.getOptions().useDirective ?? false,
-      isDev: process.env.NODE_ENV !== "production",
-      skipPatterns: this.getOptions().skipPatterns || [
-        /node_modules/,
-        /\.spec\./,
-        /\.test\./,
-      ],
-      translator: this.getOptions().translator,
-      framework: "next", // Next.js uses directives for server/client detection
-    };
+    const config: LoaderConfig = this.getOptions();
 
     // Check if this file should be transformed
     if (!shouldTransformFile(this.resourcePath, config)) {
       return callback(null, source);
     }
 
-    if (!globalServer) {
-      globalServer = await startTranslationServer({
-        startPort: 60000,
-        onError: (err) => {
-          console.error("Translation server error:", err);
-        },
-        onReady: () => {
-          console.log("Translation server started");
-        },
-        config,
-      });
-    }
+    // if (!globalServer) {
+    //   globalServer = await startTranslationServer({
+    //     startPort: 60000,
+    //     onError: (err) => {
+    //       console.error("Translation server error:", err);
+    //     },
+    //     onReady: () => {
+    //       console.log("Translation server started");
+    //     },
+    //     config,
+    //   });
+    // }
 
     // Load current metadata
     const metadata = await loadMetadata(config);
@@ -61,7 +50,7 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverPort: globalServer?.getPort() || null,
+      serverPort: 60000, //globalServer?.getPort() || null,
     });
 
     // If no transformation occurred, return original source
@@ -75,6 +64,7 @@ export default async function lingoCompilerTurbopackLoader(
       await saveMetadata(config, updatedMetadata);
 
       // Log new translations discovered (in dev mode)
+      // Note: In production, translations are generated after build via runAfterProductionCompile
       if (config.isDev) {
         console.log(
           `✨ Lingo: Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,

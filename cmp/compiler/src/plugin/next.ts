@@ -14,8 +14,15 @@
  * });
  * ```
  */
-
 import type { NextConfig } from "next";
+
+import path from "path";
+import { loadMetadata } from "../metadata/manager";
+import { handleHashTranslationRequest } from "./shared-middleware";
+import fs from "fs/promises";
+import type { TranslatorConfig } from "../translate";
+import { getCachePath } from "../utils/path-helpers";
+import { createLoaderConfig } from "../utils/config-factory";
 
 export interface LingoNextPluginOptions {
   /**
@@ -36,6 +43,8 @@ export interface LingoNextPluginOptions {
    */
   sourceLocale?: string;
 
+  targetLocales: string[];
+
   /**
    * Only transform files with 'use i18n' directive
    * @default false
@@ -51,21 +60,154 @@ export interface LingoNextPluginOptions {
   /**
    * Translation service configuration
    */
-  translator?: {
-    type: "pseudo" | "openai" | "anthropic";
-    apiKey?: string;
-  };
+  translator?: TranslatorConfig;
+
+  /**
+   * Maximum number of translations to process in a single batch
+   * Lower values = more API calls but better for rate limits
+   * Higher values = fewer API calls but may hit rate limits
+   * @default 50
+   */
+  batchSize?: number;
 }
 
+// TODO (AleksandrSl 24/11/2025):
+// 1. Detect if trubopack is used.
+// 2. Merge configs correctly.
+//  See
+//  https://github.com/getsentry/sentry-javascript/blob/develop/packages/nextjs/src/config/util.ts#L172
+//  https://github.com/amannn/next-intl/blob/main/packages/next-intl/src/plugin/getNextConfig.tsx
 /**
  * Next.js plugin that automatically adds the Lingo loader
  */
 export function withLingo(
   nextConfig: NextConfig = {},
-  lingoOptions: LingoNextPluginOptions = {},
+  lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
+  const lingoConfig = createLoaderConfig({
+    ...lingoOptions,
+    isDev: process.env.NODE_ENV !== "production",
+    framework: "next",
+  });
+
   return {
     ...nextConfig,
+    compiler: {
+      runAfterProductionCompile: async ({ distDir, projectDir }) => {
+        // Call user's hook first if it exists
+        if (
+          typeof nextConfig.compiler?.runAfterProductionCompile === "function"
+        ) {
+          await nextConfig.compiler.runAfterProductionCompile({
+            distDir,
+            projectDir,
+          });
+        }
+
+        console.log("[lingo.dev] Running post-build translation generation...");
+        try {
+          const config = {
+            sourceRoot: lingoOptions.sourceRoot || process.cwd(),
+            lingoDir: lingoOptions.lingoDir || ".lingo",
+            sourceLocale: lingoOptions.sourceLocale || "en",
+            translator: lingoOptions.translator,
+          };
+
+          // Load all translation hashes from metadata
+          const metadata = await loadMetadata(config);
+          const hashes = Object.keys(metadata.entries);
+
+          if (hashes.length === 0) {
+            console.log("[lingo.dev] No translations found, skipping");
+            return;
+          }
+
+          console.log(
+            `[lingo.dev] Processing ${hashes.length} translations for ${lingoOptions.targetLocales.length} locale(s)...`,
+          );
+
+          const batchSize = lingoOptions.batchSize ?? 50;
+
+          // Process all locales in parallel
+          const localePromises = lingoOptions.targetLocales.map(
+            async (locale) => {
+              console.log(`[lingo.dev] Translating to ${locale}...`);
+
+              // Split into batches
+              const batches: string[][] = [];
+              for (let i = 0; i < hashes.length; i += batchSize) {
+                batches.push(hashes.slice(i, i + batchSize));
+              }
+
+              let completed = 0;
+
+              // Process batches sequentially for this locale
+              for (const batch of batches) {
+                const response = await handleHashTranslationRequest(
+                  locale,
+                  batch,
+                  {
+                    ...config,
+                    allowProductionGeneration: true,
+                  },
+                );
+
+                if (response.status !== 200) {
+                  throw new Error(
+                    `Translation failed for ${locale}: ${response.body}`,
+                  );
+                }
+
+                completed += batch.length;
+                const percentage = Math.round(
+                  (completed / hashes.length) * 100,
+                );
+                console.log(
+                  `[lingo.dev] ${locale}: ${completed}/${hashes.length} (${percentage}%)`,
+                );
+              }
+
+              console.log(`[lingo.dev] ✓ ${locale} completed`);
+            },
+          );
+
+          // Wait for all locales to complete
+          await Promise.all(localePromises);
+
+          // Generate static files if configured
+          const publicPath = distDir;
+
+          console.log(
+            `[lingo.dev] Generating static translation files in ${distDir}`,
+          );
+
+          await fs.mkdir(publicPath, { recursive: true });
+
+          for (const locale of lingoOptions.targetLocales) {
+            const cacheFilePath = getCachePath(config, locale);
+            const publicFilePath = path.join(publicPath, `${locale}.json`);
+
+            try {
+              await fs.copyFile(cacheFilePath, publicFilePath);
+              console.log(`[lingo.dev] ✓ Generated ${locale}.json`);
+            } catch (error) {
+              console.error(
+                `[lingo.dev] Failed to copy ${locale}.json:`,
+                error,
+              );
+            }
+          }
+
+          console.log(
+            "[lingo.dev] ✓ Translation generation completed successfully",
+          );
+        } catch (error) {
+          console.error("[lingo.dev] Translation generation failed:", error);
+          throw error;
+        }
+      },
+    },
+
     turbopack: {
       rules: {
         "*.{tsx,jsx}": {
@@ -73,12 +215,17 @@ export function withLingo(
             {
               loader: "@lingo.dev/_compiler/turbopack-loader",
               options: {
-                sourceRoot: lingoOptions.sourceRoot || process.cwd(),
-                lingoDir: lingoOptions.lingoDir || ".lingo",
-                sourceLocale: lingoOptions.sourceLocale || "en",
-                useDirective: lingoOptions.useDirective ?? false,
-                translator: lingoOptions.translator ?? "null",
-              },
+                sourceRoot: lingoConfig.sourceRoot,
+                lingoDir: lingoConfig.lingoDir,
+                sourceLocale: lingoConfig.sourceLocale,
+                useDirective: lingoConfig.useDirective,
+                translator: lingoConfig.translator
+                  ? JSON.stringify(lingoConfig.translator)
+                  : "null",
+                // TODO (AleksandrSl 24/11/2025): This one should be serialized properly.
+                // skipPatterns: lingoConfig.skipPatterns,
+                framework: lingoConfig.framework,
+              } as any,
             },
           ],
         },
@@ -98,16 +245,13 @@ export function withLingo(
           {
             loader: "@lingo.dev/_compiler/turbopack-loader",
             options: {
-              sourceRoot: lingoOptions.sourceRoot || process.cwd(),
-              lingoDir: lingoOptions.lingoDir || ".lingo",
-              sourceLocale: lingoOptions.sourceLocale || "en",
-              useDirective: lingoOptions.useDirective ?? false,
-              skipPatterns: lingoOptions.skipPatterns || [
-                /node_modules/,
-                /\.spec\./,
-                /\.test\./,
-              ],
-              translator: lingoOptions.translator,
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              sourceLocale: lingoConfig.sourceLocale,
+              useDirective: lingoConfig.useDirective,
+              skipPatterns: lingoConfig.skipPatterns,
+              translator: lingoConfig.translator,
+              framework: lingoConfig.framework,
             },
           },
         ],
