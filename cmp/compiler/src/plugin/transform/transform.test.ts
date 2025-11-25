@@ -173,9 +173,9 @@ export { Welcome, Goodbye };
         "Goodbye Message",
       ]);
 
-      // Note: Components are visited in traversal order
+      // Each component has its own context
       expect(result.newEntries[0].context.componentName).toBe("Welcome");
-      expect(result.newEntries[1].context.componentName).toBe("Welcome"); // Goodbye uses same visitor state
+      expect(result.newEntries[1].context.componentName).toBe("Goodbye");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -221,10 +221,10 @@ export default function Container() {
         "Footer Text",
       ]);
 
-      // Note: Components are visited in traversal order, visitor state tracks last component
+      // Each component has its own context
       expect(result.newEntries[0].context.componentName).toBe("Title");
       expect(result.newEntries[1].context.componentName).toBe("Subtitle");
-      expect(result.newEntries[2].context.componentName).toBe("Subtitle"); // Description uses Subtitle's state
+      expect(result.newEntries[2].context.componentName).toBe("Description");
       expect(result.newEntries[3].context.componentName).toBe("Container");
 
       expect(result.code).toMatchSnapshot();

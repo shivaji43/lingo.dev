@@ -46,8 +46,17 @@ function isReactComponent(
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
 ): boolean {
-  let returnsJSX = false;
+  // Check for arrow function with JSX expression body: () => <div>...</div>
+  if (path.isArrowFunctionExpression()) {
+    const body = path.node.body;
+    if (body.type === "JSXElement" || body.type === "JSXFragment") {
+      return true;
+    }
+  }
 
+  // TODO (AleksandrSl 25/11/2025): In which order does it traverse? If it's DFS it may find the incorrect return?
+  // Check for explicit return statements with JSX
+  let returnsJSX = false;
   path.traverse({
     ReturnStatement(returnPath) {
       const argument = returnPath.node.argument;
@@ -176,16 +185,21 @@ function transformJSXText(
   path: NodePath<t.JSXText>,
   state: VisitorsSharedState,
 ): void {
-  // TODO (AleksandrSl 25/11/2025): WHy do we require component name? We should be able to transform the default export as well.
-  // Require component context
-  if (!state.componentName) return;
-
   const text = path.node.value.trim();
   if (text.length == 0 || /^[\s\n]*$/.test(text)) return;
 
+  // TODO (AleksandrSl 25/11/2025): Ideally we can keep a stack of nested components, to skip this search.
+  // Find the nearest component ancestor
+  const componentPath = getNearestComponentAncestor(path);
+  if (!componentPath) return;
+
+  const componentName = inferComponentName(componentPath);
+  // TODO (AleksandrSl 25/11/2025): WHy do we require component name? We should be able to transform the default export as well.
+  if (!componentName) return;
+
   const entry = createTranslationEntry(
     text,
-    state.componentName,
+    componentName,
     state.filePath,
     path.node.loc?.start.line,
     path.node.loc?.start.column,
@@ -195,11 +209,11 @@ function transformJSXText(
   // TODO (AleksandrSl 25/11/2025): How do we use this?
   // Track component needs translation
   state.needsTranslationImport = true;
-  state.componentsNeedingTranslation.add(state.componentName);
+  state.componentsNeedingTranslation.add(componentName);
 
-  const hashes = state.componentHashes.get(state.componentName) || [];
+  const hashes = state.componentHashes.get(componentName) || [];
   hashes.push(entry.hash);
-  state.componentHashes.set(state.componentName, hashes);
+  state.componentHashes.set(componentName, hashes);
 
   path.replaceWith(createTranslationCall(entry.hash, text));
 }
@@ -250,7 +264,31 @@ function injectClientHook(
   hashes: string[],
 ): void {
   const body = componentPath.get("body");
-  if (!body.isBlockStatement()) return;
+
+  // Handle arrow functions with expression bodies: () => <jsx>
+  // Convert to block statement: () => { const t = ...; return <jsx>; }
+  if (!body.isBlockStatement()) {
+    if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
+      const returnStatement = t.returnStatement(body.node as t.Expression);
+      componentPath.node.body = t.blockStatement([returnStatement]);
+      // Re-get the body after conversion
+      const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
+
+      const hashArray = t.arrayExpression(
+        hashes.map((hash) => t.stringLiteral(hash)),
+      );
+
+      const hookCall = t.variableDeclaration("const", [
+        t.variableDeclarator(
+          t.identifier("t"),
+          t.callExpression(t.identifier("useTranslation"), [hashArray]),
+        ),
+      ]);
+
+      newBody.node.body.unshift(hookCall);
+    }
+    return;
+  }
 
   const hashArray = t.arrayExpression(
     hashes.map((hash) => t.stringLiteral(hash)),
@@ -277,7 +315,67 @@ function injectServerHook(
   hashes: string[],
 ): void {
   const body = componentPath.get("body");
-  if (!body.isBlockStatement()) return;
+
+  // Handle arrow functions with expression bodies: () => <jsx>
+  // Convert to block statement: async () => { const { t } = await ...; return <jsx>; }
+  if (!body.isBlockStatement()) {
+    if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
+      const returnStatement = t.returnStatement(body.node as t.Expression);
+      componentPath.node.body = t.blockStatement([returnStatement]);
+      componentPath.node.async = true;
+      // Re-get the body after conversion
+      const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
+
+      const optionsProperties = [];
+
+      if (config.sourceLocale) {
+        optionsProperties.push(
+          t.objectProperty(
+            t.identifier("sourceLocale"),
+            t.stringLiteral(config.sourceLocale),
+          ),
+        );
+      }
+
+      if (serverPort) {
+        optionsProperties.push(
+          t.objectProperty(
+            t.identifier("serverPort"),
+            t.numericLiteral(serverPort),
+          ),
+        );
+      }
+
+      const hashArray = t.arrayExpression(
+        hashes.map((hash) => t.stringLiteral(hash)),
+      );
+      optionsProperties.push(
+        t.objectProperty(t.identifier("hashes"), hashArray),
+      );
+
+      // Create: const { t } = await getServerTranslations({ ... })
+      const serverCall = t.variableDeclaration("const", [
+        t.variableDeclarator(
+          t.objectPattern([
+            t.objectProperty(
+              t.identifier("t"),
+              t.identifier("t"),
+              false,
+              true, // shorthand
+            ),
+          ]),
+          t.awaitExpression(
+            t.callExpression(t.identifier("getServerTranslations"), [
+              t.objectExpression(optionsProperties),
+            ]),
+          ),
+        ),
+      ]);
+
+      newBody.node.body.unshift(serverCall);
+    }
+    return;
+  }
 
   if (!componentPath.node.async) {
     componentPath.node.async = true;
@@ -337,15 +435,54 @@ function injectServerHook(
 function injectTranslations(
   programPath: NodePath<t.Program>,
   state: VisitorsSharedState,
+  config: LoaderConfig,
   serverPort?: number | null,
 ): void {
-  const isServerComponent = state.componentType === "server";
+  // Detect if any component is a server component
+  let hasServerComponent = false;
+  let hasClientComponent = false;
 
-  // Add appropriate import
-  const importDeclaration = isServerComponent
-    ? createServerImport()
-    : createClientImport();
-  programPath.node.body.unshift(importDeclaration);
+  programPath.traverse({
+    FunctionDeclaration(path) {
+      const componentName = path.node.id?.name;
+      if (
+        componentName &&
+        state.componentsNeedingTranslation.has(componentName)
+      ) {
+        const componentType = detectComponentType(path, config);
+        if (componentType === "server") {
+          hasServerComponent = true;
+        } else {
+          hasClientComponent = true;
+        }
+      }
+    },
+    ArrowFunctionExpression(path) {
+      const parent = path.parent;
+      if (
+        parent.type === "VariableDeclarator" &&
+        parent.id.type === "Identifier"
+      ) {
+        const componentName = parent.id.name;
+        if (state.componentsNeedingTranslation.has(componentName)) {
+          const componentType = detectComponentType(path, config);
+          if (componentType === "server") {
+            hasServerComponent = true;
+          } else {
+            hasClientComponent = true;
+          }
+        }
+      }
+    },
+  });
+
+  // Add appropriate import(s)
+  // For now, we assume a file has either server or client components, not both
+  if (hasServerComponent) {
+    programPath.node.body.unshift(createServerImport());
+  } else if (hasClientComponent) {
+    programPath.node.body.unshift(createClientImport());
+  }
 
   // Inject hooks into all components that need translation
   programPath.traverse({
@@ -356,7 +493,8 @@ function injectTranslations(
         state.componentsNeedingTranslation.has(componentName)
       ) {
         const hashes = state.componentHashes.get(componentName) || [];
-        if (isServerComponent) {
+        const componentType = detectComponentType(path, config);
+        if (componentType === "server") {
           injectServerHook(path, state.config, serverPort, hashes);
         } else {
           injectClientHook(path, hashes);
@@ -372,7 +510,8 @@ function injectTranslations(
         const componentName = parent.id.name;
         if (state.componentsNeedingTranslation.has(componentName)) {
           const hashes = state.componentHashes.get(componentName) || [];
-          if (isServerComponent) {
+          const componentType = detectComponentType(path, config);
+          if (componentType === "server") {
             injectServerHook(path, state.config, serverPort, hashes);
           } else {
             injectClientHook(path, hashes);
@@ -388,6 +527,33 @@ function injectTranslations(
 // ============================================================================
 
 /**
+ * Get the nearest component ancestor of a given path
+ */
+function getNearestComponentAncestor(
+  path: NodePath<any>,
+): NodePath<
+  t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
+> | null {
+  let current = path.parentPath;
+
+  while (current) {
+    if (
+      current.isFunctionDeclaration() ||
+      current.isFunctionExpression() ||
+      current.isArrowFunctionExpression()
+    ) {
+      // Check if this function is a React component
+      if (isReactComponent(current)) {
+        return current;
+      }
+    }
+    current = current.parentPath;
+  }
+
+  return null;
+}
+
+/**
  * Handle component function detection and state update
  */
 function handleComponentFunction(
@@ -395,12 +561,19 @@ function handleComponentFunction(
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
   state: VisitorsSharedState,
+  // TODO (AleksandrSl 25/11/2025): Remove the param
   config: LoaderConfig,
 ): void {
   if (!isReactComponent(path)) return;
 
-  state.componentName = inferComponentName(path);
-  state.componentType = detectComponentType(path, config);
+  const componentName = inferComponentName(path);
+  if (!componentName) return;
+
+  // Store component info for later hook injection
+  // We don't set state.componentName here because JSXText visitors will handle that
+  if (!state.componentHashes.has(componentName)) {
+    state.componentHashes.set(componentName, []);
+  }
 }
 
 /**
@@ -429,7 +602,7 @@ export function createBabelVisitors({
       exit(path: NodePath<t.Program>) {
         // Inject imports and hooks after collecting all translations
         if (visitorState.needsTranslationImport) {
-          injectTranslations(path, visitorState, serverPort);
+          injectTranslations(path, visitorState, config, serverPort);
         }
       },
     },
@@ -447,7 +620,7 @@ export function createBabelVisitors({
       handleComponentFunction(path, visitorState, config);
     },
 
-    // Transform JSX text nodes
+    // Transform JSX text nodes - finds nearest component ancestor
     JSXText(path: NodePath<t.JSXText>) {
       transformJSXText(path, visitorState);
     },

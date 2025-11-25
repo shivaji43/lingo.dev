@@ -29,12 +29,13 @@ export function ListComponent({
 exports[`transformComponent > multiple components in one file > should handle nested components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function OuterComponent() {
+  const t = useTranslation(["9daad18b3a29"]);
   function InnerComponent() {
-    const t = useTranslation(["d43d14308a37", "2ce4a85de254"]);
+    const t = useTranslation(["d43d14308a37"]);
     return <span>{t("d43d14308a37", "Inner Text")}</span>;
   }
   return <div>
-      <h1>{t("2ce4a85de254", "Outer Text")}</h1>
+      <h1>{t("9daad18b3a29", "Outer Text")}</h1>
       <InnerComponent />
     </div>;
 }
@@ -44,10 +45,13 @@ export default OuterComponent;"
 exports[`transformComponent > multiple components in one file > should transform arrow function components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 const Welcome = () => {
-  const t = useTranslation(["40f0ad754619", "e49bec7f787a"]);
+  const t = useTranslation(["40f0ad754619"]);
   return <div>{t("40f0ad754619", "Welcome Message")}</div>;
 };
-const Goodbye = () => <div>{t("e49bec7f787a", "Goodbye Message")}</div>;
+const Goodbye = () => {
+  const t = useTranslation(["b592655e3c8f"]);
+  return <div>{t("b592655e3c8f", "Goodbye Message")}</div>;
+};
 export { Welcome, Goodbye };"
 `;
 
@@ -58,10 +62,13 @@ export function Title() {
   return <h1>{t("2c7785af3ca4", "Page Title")}</h1>;
 }
 const Subtitle = () => {
-  const t = useTranslation(["f7f537ee168a", "5da487d0f2c0"]);
+  const t = useTranslation(["f7f537ee168a"]);
   return <h2>{t("f7f537ee168a", "Page Subtitle")}</h2>;
 };
-export const Description = () => <p>{t("5da487d0f2c0", "Page Description")}</p>;
+export const Description = () => {
+  const t = useTranslation(["68e3e03a539d"]);
+  return <p>{t("68e3e03a539d", "Page Description")}</p>;
+};
 export default function Container() {
   const t = useTranslation(["a14c905e3266"]);
   return <div>
