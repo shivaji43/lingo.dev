@@ -3,7 +3,7 @@ import traverseDefault from "@babel/traverse";
 import generateDefault from "@babel/generator";
 import path from "path";
 import { LoaderConfig, MetadataSchema, TranslationEntry } from "../../types";
-import { createBabelVisitors } from "./visitors";
+import { createBabelVisitors, VisitorsSharedState } from "./visitors";
 
 // Handle ESM/CJS interop - these packages may export differently
 // @ts-expect-error - Handle both default and named exports
@@ -83,17 +83,15 @@ export function transformComponent({
       serverPort,
       componentsNeedingTranslation: new Set<string>(),
       componentHashes: new Map<string, string[]>(),
-    };
+    } satisfies VisitorsSharedState;
 
     console.log(`[lingo.dev] Transforming ${filePath}`);
 
-    const visitors = createBabelVisitors(
+    const visitors = createBabelVisitors({
       config,
-      metadata,
-      relativeFilePath,
       visitorState,
       serverPort,
-    );
+    });
 
     traverse(ast, visitors);
 

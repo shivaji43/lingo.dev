@@ -1,6 +1,7 @@
 /**
  * Framework detection and configuration
  */
+import { ComponentType } from "../types";
 
 export type Framework =
   | "next"
@@ -60,8 +61,7 @@ export function getFrameworkConfig(framework: Framework): FrameworkConfig {
 export function detectComponentType(
   frameworkConfig: FrameworkConfig,
   hasUseClientDirective: boolean,
-  hasUseServerDirective: boolean,
-): "client" | "server" {
+): ComponentType {
   switch (frameworkConfig.componentDetection) {
     case "directive":
       // Next.js: Check for directives

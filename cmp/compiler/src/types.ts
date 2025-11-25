@@ -149,16 +149,4 @@ export interface MetadataSchema {
   };
 }
 
-/**
- * Component type detection
- */
-export enum ComponentType {
-  /** Client Component ('use client') */
-  CLIENT = "client",
-
-  /** Server Component (async function) */
-  SERVER = "server",
-
-  /** Unknown or not a React component */
-  UNKNOWN = "unknown",
-}
+export type ComponentType = "client" | "server" | "unknown";

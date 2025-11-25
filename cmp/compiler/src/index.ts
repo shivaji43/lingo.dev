@@ -6,7 +6,6 @@ export type {
   TranslationContext,
   TranslationEntry,
   MetadataSchema,
-  ComponentType,
 } from "./types";
 
 export {
