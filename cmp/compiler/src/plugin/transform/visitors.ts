@@ -109,11 +109,17 @@ function hasUseI18nDirective(program: NodePath<t.Program>): boolean {
 // TODO (AleksandrSl 25/11/2025): Allow to add support for other frameworks
 /**
  * Detect component type (Client vs Server) based on framework and directives
+ * If config.isServer is explicitly set, it overrides auto-detection
  */
 function detectComponentType(
   path: NodePath<unknown>,
   config: LoaderConfig,
 ): ComponentType {
+  // If isServer is explicitly set in config, use it to override detection
+  if (config.isServer !== undefined) {
+    return config.isServer ? "server" : "client";
+  }
+
   const frameworkConfig = getFrameworkConfig(config.framework || "unknown");
 
   const program = path.findParent((p) => p.isProgram());

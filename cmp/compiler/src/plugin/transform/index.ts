@@ -86,7 +86,7 @@ export function transformComponent({
       componentHashes: new Map<string, string[]>(),
     } satisfies VisitorsSharedState;
 
-    logger.debug(`Transforming ${filePath}`);
+    logger.debug(`Transforming ${filePath}, isServer: ${config.isServer}`);
 
     const visitors = createBabelVisitors({
       config,

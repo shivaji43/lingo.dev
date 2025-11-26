@@ -2,7 +2,6 @@ import type { LoaderConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { startTranslationServer } from "../server";
-import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 
 let globalServer: any;
@@ -19,9 +18,14 @@ export default async function lingoCompilerTurbopackLoader(
   this: any,
   source: string,
 ): Promise<void> {
+  // Ensure we're running in loader context
+  if (typeof this.async !== "function") {
+    throw new Error("This module must be run as a loader");
+  }
   const callback = this.async();
 
   try {
+    // Log available methods on loader context
     const config: LoaderConfig = this.getOptions();
 
     // Check if this file should be transformed
@@ -29,18 +33,18 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    // if (!globalServer) {
-    //   globalServer = await startTranslationServer({
-    //     startPort: 60000,
-    //     onError: (err) => {
-    //       console.error("Translation server error:", err);
-    //     },
-    //     onReady: () => {
-    //       console.log("Translation server started");
-    //     },
-    //     config,
-    //   });
-    // }
+    if (!globalServer) {
+      globalServer = await startTranslationServer({
+        startPort: 60000,
+        onError: (err) => {
+          logger.error("Translation server error:", err);
+        },
+        onReady: () => {
+          logger.info("Translation server started");
+        },
+        config,
+      });
+    }
 
     // Load current metadata
     const metadata = await loadMetadata(config);
@@ -51,7 +55,7 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverPort: globalServer?.getPort() || 60000 || null,
+      serverPort: globalServer?.getPort() || null,
     });
 
     // If no transformation occurred, return original source

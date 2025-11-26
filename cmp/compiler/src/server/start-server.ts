@@ -4,7 +4,7 @@
  *
  * Usage:
  *   node start-server.js
- *   node start-server.js --port 3456
+ *   node start-server.js --port 60000
  *   node start-server.js --source-root ./app --lingo-dir .lingo
  */
 
@@ -16,11 +16,10 @@ import {
 import type { TranslatorConfig } from "../translate";
 import { logger } from "../utils/logger";
 
-// Parse command line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
   const options: any = {
-    port: 3456,
+    port: 60000,
     sourceRoot: "./app",
     lingoDir: ".lingo",
     sourceLocale: "en",

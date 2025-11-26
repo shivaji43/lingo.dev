@@ -53,7 +53,7 @@ export class TranslationServer {
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
-    this.startPort = options.startPort || 3456;
+    this.startPort = options.startPort || 60000;
     this.onReadyCallback = options.onReady;
     this.onErrorCallback = options.onError;
   }
@@ -78,6 +78,9 @@ export class TranslationServer {
           // Port is in use, try next one
           reject(new Error(`Port ${port} is already in use`));
         } else {
+          process.stderr.write(
+            `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Translation server error: ${error.message}\n`,
+          );
           this.onErrorCallback?.(error);
           reject(error);
         }
@@ -85,6 +88,10 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.port = port;
+        // Use process.stdout for visibility in loader/worker contexts
+        process.stdout.write(
+          `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Translation server listening on http://127.0.0.1:${port}\n`,
+        );
         logger.info(`Translation server listening on http://127.0.0.1:${port}`);
         this.onReadyCallback?.(port);
         resolve(port);
@@ -213,16 +220,6 @@ export class TranslationServer {
         return;
       }
 
-      // Translation endpoint: GET /translations/:locale/:hash
-      const hashMatch = url.pathname.match(
-        /^\/translations\/([^/]+)\/([^/]+)$/,
-      );
-      if (hashMatch && req.method === "GET") {
-        const [, locale, hash] = hashMatch;
-        await this.handleSingleHashRequest(locale, hash, res);
-        return;
-      }
-
       // Translation dictionary endpoint: GET /translations/:locale
       const dictMatch = url.pathname.match(/^\/translations\/([^/]+)$/);
       if (dictMatch && req.method === "GET") {
@@ -251,67 +248,6 @@ export class TranslationServer {
       res.end(
         JSON.stringify({
           error: "Internal Server Error",
-          message: error instanceof Error ? error.message : "Unknown error",
-        }),
-      );
-    }
-  }
-
-  /**
-   * Handle translation request for a single hash
-   */
-  private async handleSingleHashRequest(
-    locale: string,
-    hash: string,
-    res: http.ServerResponse,
-  ): Promise<void> {
-    try {
-      // Use hash-based request for efficiency
-      const response = await handleHashTranslationRequest(
-        locale,
-        [hash],
-        this.config,
-      );
-
-      if (response.status !== 200) {
-        res.writeHead(response.status, response.headers);
-        res.end(response.body);
-        return;
-      }
-
-      // Parse the result
-      const translations = JSON.parse(response.body);
-      const translation = translations[hash];
-
-      if (!translation) {
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            error: "Translation not found",
-            hash,
-            locale,
-          }),
-        );
-        return;
-      }
-
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600",
-      });
-      res.end(
-        JSON.stringify({
-          hash,
-          locale,
-          translation,
-        }),
-      );
-    } catch (error) {
-      logger.error(`Error getting translation for ${locale}/${hash}:`, error);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          error: "Translation generation failed",
           message: error instanceof Error ? error.message : "Unknown error",
         }),
       );

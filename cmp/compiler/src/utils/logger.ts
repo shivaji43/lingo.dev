@@ -35,3 +35,4 @@ class Logger {
 }
 
 export const logger = new Logger();
+logger.setDebug(true);

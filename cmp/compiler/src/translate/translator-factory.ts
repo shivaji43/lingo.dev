@@ -19,6 +19,10 @@ export type TranslatorConfig =
  * Create a translator instance based on configuration
  */
 export function createTranslator(config: TranslatorConfig): Translator<any> {
+  // TODO (AleksandrSl 26/11/2025): Why the config can be a string?
+  if (typeof config === "string") {
+    config = JSON.parse(config);
+  }
   switch (config.type) {
     case "pseudo":
       return new PseudoTranslator({});
@@ -27,7 +31,9 @@ export function createTranslator(config: TranslatorConfig): Translator<any> {
       return new LCPTranslator(config.config);
 
     default:
-      throw new Error(`Unknown translator type: ${(config as any).type}`);
+      throw new Error(
+        `Unknown translator type: ${(config as any).type}. Config: ${JSON.stringify(config)}`,
+      );
   }
 }
 

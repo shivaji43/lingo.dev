@@ -35,6 +35,12 @@ export interface LoaderConfig {
   isDev?: boolean;
 
   /**
+   * Whether this loader is processing server components
+   * When true, only server component logic will be applied
+   */
+  isServer?: boolean;
+
+  /**
    * Skip transformation for specific patterns
    */
   skipPatterns?: RegExp[];
