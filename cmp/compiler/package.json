@@ -112,7 +112,7 @@
     "@babel/traverse": "^7.28.5",
     "@babel/types": "^7.28.5",
     "@openrouter/ai-sdk-provider": "^0.7.1",
-    "ai": "^4.2.10",
+    "ai": "^5.0.102",
     "dotenv": "^16.4.5",
     "fast-xml-parser": "^5.0.8",
     "lingo.dev": "^0.117.0",
@@ -128,6 +128,5 @@
     "next": {
       "optional": true
     }
-  },
-  "packageManager": "pnpm@9.12.3"
+  }
 }
