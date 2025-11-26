@@ -9,10 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5.0.1
+        # pnpm version is taken from package.json
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - name: Use Node.js 20
         uses: actions/setup-node@v6.0.0
         with:
@@ -29,10 +28,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5.0.1
+        # pnpm version is taken from package.json
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
       - name: Use Node.js 20
         uses: actions/setup-node@v6.0.0
         with:
