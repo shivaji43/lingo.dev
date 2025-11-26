@@ -6,6 +6,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { DictionarySchema } from "../react/server";
+import { logger } from "../utils/logger";
 
 /**
  * Server-side cache configuration
@@ -100,10 +101,7 @@ export class ServerTranslationCache {
         "utf-8",
       );
     } catch (error) {
-      console.error(
-        `[lingo.dev] Failed to write cache for locale ${locale}:`,
-        error,
-      );
+      logger.error(`Failed to write cache for locale ${locale}:`, error);
     }
   }
 

@@ -18,6 +18,7 @@ import {
   createDictionary,
   createDictionaryFromMetadata,
 } from "../utils/dictionary";
+import { logger } from "../utils/logger";
 
 export interface TranslationMiddlewareConfig extends TranslationConfig {
   allowProductionGeneration?: boolean;
@@ -44,7 +45,7 @@ export async function handleTranslationRequest(
 ): Promise<TranslationResponse> {
   const startTime = performance.now();
 
-  console.log(`[lingo.dev] Translation requested for locale: ${locale}`);
+  logger.info(`Translation requested for locale: ${locale}`);
 
   // Get cache path
   const cachePath = getCachePath(config, locale);
@@ -53,8 +54,8 @@ export async function handleTranslationRequest(
   try {
     const cached = await fs.readFile(cachePath, "utf-8");
     const endTime = performance.now();
-    console.log(
-      `[lingo.dev] Cache hit for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
+    logger.info(
+      `Cache hit for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
     );
 
     return {
@@ -74,8 +75,8 @@ export async function handleTranslationRequest(
   const canGenerate = isDev || config.allowProductionGeneration;
 
   if (!canGenerate) {
-    console.warn(
-      `[lingo.dev] Translation not found for ${locale} and production generation is disabled`,
+    logger.warn(
+      `Translation not found for ${locale} and production generation is disabled`,
     );
     return {
       status: 404,
@@ -107,8 +108,8 @@ export async function handleTranslationRequest(
     let translated: DictionarySchema;
 
     if (config.translator) {
-      console.log(
-        `[lingo.dev] Generating translations for ${locale} using ${config.translator.type} translator...`,
+      logger.info(
+        `Generating translations for ${locale} using ${config.translator.type} translator...`,
       );
 
       // Create cached translator
@@ -149,8 +150,8 @@ export async function handleTranslationRequest(
     await fs.writeFile(cachePath, translatedJson);
 
     const endTime = performance.now();
-    console.log(
-      `[lingo.dev] Translation generated for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
+    logger.info(
+      `Translation generated for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
     );
 
     return {
@@ -162,7 +163,7 @@ export async function handleTranslationRequest(
       body: translatedJson,
     };
   } catch (error) {
-    console.error(`[lingo.dev] Error generating translations:`, error);
+    logger.error(`Error generating translations:`, error);
 
     return {
       status: 500,
@@ -188,8 +189,8 @@ export async function handleHashTranslationRequest(
 ): Promise<TranslationResponse> {
   const startTime = performance.now();
 
-  console.log(
-    `[lingo.dev] Translation requested for ${hashes.length} hashes in locale: ${locale}`,
+  logger.info(
+    `Translation requested for ${hashes.length} hashes in locale: ${locale}`,
   );
 
   // Get cache path
@@ -213,8 +214,8 @@ export async function handleHashTranslationRequest(
   if (missingHashes.length === 0) {
     // All hashes are cached!
     const endTime = performance.now();
-    console.log(
-      `[lingo.dev] Cache hit for all ${hashes.length} hashes in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
+    logger.info(
+      `Cache hit for all ${hashes.length} hashes in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
     );
 
     const result: Record<string, string> = {};
@@ -237,8 +238,8 @@ export async function handleHashTranslationRequest(
   const canGenerate = isDev || config.allowProductionGeneration;
 
   if (!canGenerate) {
-    console.warn(
-      `[lingo.dev] Translations not found for ${missingHashes.length} hashes in ${locale} and production generation is disabled`,
+    logger.warn(
+      `Translations not found for ${missingHashes.length} hashes in ${locale} and production generation is disabled`,
     );
     return {
       status: 404,
@@ -281,8 +282,8 @@ export async function handleHashTranslationRequest(
     let newTranslations: Record<string, string> = {};
 
     if (config.translator && Object.keys(entriesMap).length > 0) {
-      console.log(
-        `[lingo.dev] Generating translations for ${Object.keys(entriesMap).length} missing hashes in ${locale} using ${config.translator.type} translator...`,
+      logger.info(
+        `Generating translations for ${Object.keys(entriesMap).length} missing hashes in ${locale} using ${config.translator.type} translator...`,
       );
 
       // Create cached translator
@@ -311,8 +312,8 @@ export async function handleHashTranslationRequest(
     }
 
     const endTime = performance.now();
-    console.log(
-      `[lingo.dev] Translation generated for ${hashes.length} hashes (${missingHashes.length} new) in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
+    logger.info(
+      `Translation generated for ${hashes.length} hashes (${missingHashes.length} new) in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
     );
 
     return {
@@ -324,10 +325,7 @@ export async function handleHashTranslationRequest(
       body: JSON.stringify(result),
     };
   } catch (error) {
-    console.error(
-      `[lingo.dev] Error generating translations for hashes:`,
-      error,
-    );
+    logger.error(`Error generating translations for hashes:`, error);
 
     return {
       status: 500,

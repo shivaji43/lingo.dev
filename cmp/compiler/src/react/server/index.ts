@@ -7,7 +7,7 @@
 import { cookies } from "next/headers";
 import { readFile } from "fs/promises";
 import { join } from "path";
-import { cache } from "react";
+import { logger } from "../../utils/logger";
 
 /**
  * Dictionary schema for translation
@@ -76,75 +76,23 @@ async function readTranslationsFromFilesystem(
       return {};
     }
 
-    process.stdout.write(
-      `[lingo.dev] Loaded translations from filesystem: ${successPath}\n`,
-    );
+    logger.info(`Loaded translations from filesystem: ${successPath}`);
 
     // Extract translations from dictionary format
     const translations = data.entries || {};
 
-    process.stdout.write(
-      `[lingo.dev] Loaded ${Object.keys(translations).length} translations for locale: ${locale}\n`,
+    logger.info(
+      `Loaded ${Object.keys(translations).length} translations for locale: ${locale}`,
     );
 
     return translations;
   } catch (error) {
     process.stderr.write(
-      `[lingo.dev] Error reading translations from filesystem: ${error}\n`,
+      `[lingo.dev] Error reading translations from filesystem: ${error}`,
     );
     return {};
   }
 }
-
-/**
- * Fetch translations from HTTP (fallback or external sources)
- * This uses Next.js's built-in fetch cache for optimal performance
- */
-async function fetchTranslationsFromHttp(
-  locale: string,
-  baseUrl?: string,
-): Promise<Record<string, string>> {
-  const isDev = process.env.NODE_ENV === "development";
-
-  // In development, always fetch fresh data
-  // In production, use Next.js cache with long revalidation
-  const cacheOptions = isDev
-    ? { cache: "no-store" as const }
-    : { next: { revalidate: 3600 } }; // Cache for 1 hour in production
-
-  try {
-    const url = `${baseUrl}/${locale}.json`;
-
-    process.stdout.write(
-      `[lingo.dev] Fetching translations from HTTP: ${url}\n`,
-    );
-
-    const response = await fetch(url, cacheOptions);
-
-    if (!response.ok) {
-      process.stderr.write(
-        `[lingo.dev] Failed to fetch translation file: ${response.statusText}\n`,
-      );
-      return {};
-    }
-
-    const data: DictionarySchema = await response.json();
-
-    // Extract translations from dictionary format
-    const translations = data.entries || {};
-
-    process.stdout.write(
-      `[lingo.dev] Loaded ${Object.keys(translations).length} translations for locale: ${locale}\n`,
-    );
-
-    return translations;
-  } catch (error) {
-    process.stderr.write(`[lingo.dev] Error fetching translations: ${error}\n`);
-    return {};
-  }
-}
-
-const cachedFetchTranslationsFromStaticFile = cache(fetchTranslationsFromHttp);
 
 /**
  * Fetch translations from development server
@@ -168,18 +116,16 @@ async function fetchTranslationsFromDevServer(
     );
 
     if (!response.ok) {
-      process.stderr.write(
-        `[lingo.dev] Failed to fetch from dev server: ${response.statusText}\n`,
+      logger.error(
+        `[lingo.dev] Failed to fetch from dev server: ${response.statusText}`,
       );
       return {};
     }
     const data = await response.json();
-    console.debug(`Fetched translations: ${JSON.stringify(data)}`);
+    logger.debug(`Fetched translations: ${JSON.stringify(data)}`);
     return data || {};
   } catch (error) {
-    process.stderr.write(
-      `[lingo.dev] Error fetching from dev server: ${error}\n`,
-    );
+    logger.error(`Error fetching from dev server: ${error}`);
     return {};
   }
 }
@@ -275,22 +221,31 @@ export async function getServerTranslations(options?: {
 
   const isDev = process.env.NODE_ENV === "development";
 
-  if (isDev && options?.serverPort) {
-    // Development mode with server port - fetch from dev server
-    process.stdout.write(
-      `[lingo.dev] Fetching ${hashes.length} translations from dev server (port ${options.serverPort}) for locale: ${locale}\n`,
-    );
-    translations = await fetchTranslationsFromDevServer(
-      options.serverPort,
-      locale,
-      hashes,
-    );
-
-    console.debug(`Fetched translations: ${JSON.stringify(translations)}`);
+  logger.debug(
+    `Fetching translations for locale: ${locale}`,
+    isDev,
+    options?.serverPort,
+    hashes.join(","),
+  );
+  if (isDev) {
+    if (!options?.serverPort) {
+      translations = {};
+    } else {
+      // Development mode with server port - fetch from dev server
+      logger.info(
+        `Fetching ${hashes.length} translations from dev server (port ${options.serverPort}) for locale: ${locale}`,
+      );
+      translations = await fetchTranslationsFromDevServer(
+        options.serverPort,
+        locale,
+        hashes,
+      );
+      logger.debug(`Fetched translations: ${JSON.stringify(translations)}`);
+    }
   } else {
     // Default: Read from filesystem (most efficient)
-    process.stdout.write(
-      `[lingo.dev] Reading ${hashes.length} translations from filesystem for locale: ${locale}\n`,
+    logger.info(
+      `Reading ${hashes.length} translations from filesystem for locale: ${locale}`,
     );
     translations = await readTranslationsFromFilesystem(locale);
   }
@@ -305,8 +260,8 @@ export async function getServerTranslations(options?: {
 
       // Fallback to source text
       if (process.env.NODE_ENV === "development") {
-        process.stderr.write(
-          `[lingo.dev] Translation not found for hash: ${hash}, using fallback: ${sourceText}\n`,
+        logger.warn(
+          `Translation not found for hash: ${hash}, using fallback: ${sourceText}`,
         );
       }
       return sourceText;

@@ -1,3 +1,5 @@
+import { logger } from "../../utils/logger";
+
 interface PromptArguments {
   sourceLocale: string;
   targetLocale: string;
@@ -11,7 +13,7 @@ export function getSystemPrompt(args: PromptArguments): string {
       .trim()
       .replace("{SOURCE_LOCALE}", args.sourceLocale)
       .replace("{TARGET_LOCALE}", args.targetLocale);
-    console.log("✨ Using user-defined translation prompt");
+    logger.info("✨ Using user-defined translation prompt");
     return userPrompt;
   }
 

@@ -14,6 +14,7 @@ import {
 } from "./translation-server";
 
 import type { TranslatorConfig } from "../translate";
+import { logger } from "../utils/logger";
 
 // Parse command line arguments
 function parseArgs() {
@@ -172,7 +173,7 @@ async function main() {
     // Keep the process alive
     process.stdin.resume();
   } catch (error) {
-    console.error("[lingo.dev] Failed to start server:", error);
+    logger.error("Failed to start server:", error);
     process.exit(1);
   }
 }
@@ -180,6 +181,6 @@ async function main() {
 // Run if this is the main module
 // Auto-run when executed directly with node or tsx
 main().catch((error) => {
-  console.error("[lingo.dev] Fatal error:", error);
+  logger.error("Fatal error:", error);
   process.exit(1);
 });

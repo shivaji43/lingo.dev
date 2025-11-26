@@ -4,6 +4,7 @@
 
 import { ServerTranslationCache, type ServerCacheConfig } from "./cache-server";
 import type { Translator, TranslatableEntry } from "./api";
+import { logger } from "../utils/logger";
 
 /**
  * Create a cached version of a translator
@@ -36,7 +37,7 @@ export function createCachedTranslator<TConfig>(
         (hash) => hash in cached,
       );
       if (allHashesInCache && Object.keys(cached).length > 0) {
-        console.log(`[lingo.dev] Using cached translations for ${locale}`);
+        logger.info(`Using cached translations for ${locale}`);
         // Return only the requested hashes
         const result: Record<string, string> = {};
         for (const hash of Object.keys(entriesMap)) {
@@ -46,7 +47,7 @@ export function createCachedTranslator<TConfig>(
       }
 
       // No complete cache, perform translation
-      console.log(`[lingo.dev] Translating to ${locale}...`);
+      logger.info(`Translating to ${locale}...`);
       const translated = await translator.batchTranslate(locale, entriesMap);
 
       // Cache the result by updating the cache with new translations
@@ -61,7 +62,7 @@ export function createCachedTranslator<TConfig>(
       };
 
       await cache.set(locale, dictionary);
-      console.log(`[lingo.dev] Cached translations for ${locale}`);
+      logger.info(`Cached translations for ${locale}`);
 
       return translated;
     },

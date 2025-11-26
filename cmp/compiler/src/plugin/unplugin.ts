@@ -25,6 +25,7 @@ import {
   createQueuedTranslations,
 } from "./translation-queue";
 import { createLoaderConfig } from "../utils/config-factory";
+import { logger } from "../utils/logger";
 
 export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
   /**
@@ -139,10 +140,10 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
           globalServer = await startTranslationServer({
             startPort: 60000,
             onError: (err) => {
-              console.error("Translation server error:", err);
+              logger.error("Translation server error:", err);
             },
             onReady: () => {
-              console.log("Translation server started");
+              logger.info("Translation server started");
             },
             config,
           });
@@ -153,9 +154,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
           const buildStrategy = options.buildStrategy ?? "queue";
 
           if (buildStrategy === "queue") {
-            console.log(
-              "[lingo.dev] Initializing translation queue for build...",
-            );
+            logger.info("Initializing translation queue for build...");
 
             const queue = getTranslationQueue();
             queue.initialize({
@@ -172,29 +171,29 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
       },
 
       transformInclude(id) {
-        console.log(`[lingo.dev] transformInclude check for: ${id}`);
+        logger.debug(`transformInclude check for: ${id}`);
 
         // Only transform .tsx and .jsx files
         if (!id.match(/\.(tsx|jsx)$/)) {
-          console.log(`[lingo.dev] Skipping ${id} - not tsx/jsx`);
+          logger.debug(`Skipping ${id} - not tsx/jsx`);
           return false;
         }
 
         // Skip node_modules
         if (id.includes("node_modules")) {
-          console.log(`[lingo.dev] Skipping ${id} - node_modules`);
+          logger.debug(`Skipping ${id} - node_modules`);
           return false;
         }
 
-        console.log(`[lingo.dev] Including ${id} for transformation`);
+        logger.debug(`Including ${id} for transformation`);
         return true;
       },
 
       async transform(code, id) {
         try {
-          console.log(`[lingo.dev] transform() called for: ${id}`);
-          console.log(
-            `[lingo.dev] Code length: ${code.length}, First 100 chars: ${code.substring(0, 100)}`,
+          logger.debug(`transform() called for: ${id}`);
+          logger.debug(
+            `Code length: ${code.length}, First 100 chars: ${code.substring(0, 100)}`,
           );
 
           // Get relative path from sourceRoot
@@ -203,8 +202,8 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             .split(path.sep)
             .join("/"); // Normalize for cross-platform consistency
 
-          console.log(`[lingo.dev] Relative path: ${relativePath}`);
-          console.log(`[lingo.dev] Config:`, {
+          logger.debug(`Relative path: ${relativePath}`);
+          logger.debug(`Config:`, {
             sourceRoot: config.sourceRoot,
             lingoDir: config.lingoDir,
           });
@@ -215,8 +214,8 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             lingoDir: config.lingoDir,
           });
 
-          console.log(
-            `[lingo.dev] Metadata loaded, entries:`,
+          logger.debug(
+            `Metadata loaded, entries:`,
             Object.keys(metadata.entries).length,
           );
 
@@ -229,21 +228,21 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             serverPort: globalServer?.getPort() || null,
           });
 
-          console.log(`[lingo.dev] Transform result:`, {
+          logger.debug(`Transform result:`, {
             transformed: result.transformed,
             newEntriesCount: result.newEntries?.length || 0,
           });
 
           // If no transformation occurred, return original code
           if (!result.transformed) {
-            console.log(`[lingo.dev] No transformation needed for ${id}`);
+            logger.debug(`No transformation needed for ${id}`);
             return null;
           }
 
           // Update metadata with new entries
           if (result.newEntries && result.newEntries.length > 0) {
-            console.log(
-              `[lingo.dev] Updating metadata with ${result.newEntries.length} new entries`,
+            logger.debug(
+              `Updating metadata with ${result.newEntries.length} new entries`,
             );
             const updatedMetadata = upsertEntries(metadata, result.newEntries);
             await saveMetadata(config, updatedMetadata);
@@ -270,19 +269,19 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
 
             // Log new translations discovered (in dev mode)
             if (config.isDev) {
-              console.log(
-                `✨ [lingo.dev] Found ${result.newEntries.length} translatable text(s) in ${id}`,
+              logger.info(
+                `Found ${result.newEntries.length} translatable text(s) in ${id}`,
               );
             }
           }
 
-          console.log(`[lingo.dev] Returning transformed code for ${id}`);
+          logger.debug(`Returning transformed code for ${id}`);
           return {
             code: result.code,
             map: result.map,
           };
         } catch (error) {
-          console.error(`[lingo.dev] Transform error in ${id}:`, error);
+          logger.error(`Transform error in ${id}:`, error);
           return null;
         }
       },
@@ -294,7 +293,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
 
           if (buildStrategy === "queue") {
             // Use new queue-based approach
-            console.log("[lingo.dev] Processing translation queue...");
+            logger.info("Processing translation queue...");
 
             const queue = getTranslationQueue();
 
@@ -305,8 +304,8 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             });
 
             if (queue.isEmpty() && Object.keys(metadata.entries).length > 0) {
-              console.log(
-                `[lingo.dev] Adding ${Object.keys(metadata.entries).length} existing translations to queue`,
+              logger.info(
+                `Adding ${Object.keys(metadata.entries).length} existing translations to queue`,
               );
               const queuedTranslations = createQueuedTranslations(
                 metadata.entries,
@@ -324,18 +323,15 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               }
 
               const stats = queue.getStats();
-              console.log(`[lingo.dev] Translation queue completed:`, stats);
+              logger.info(`Translation queue completed:`, stats);
             } catch (error) {
-              console.error(
-                "[lingo.dev] Failed to process translation queue:",
-                error,
-              );
+              logger.error("Failed to process translation queue:", error);
               throw error;
             }
           } else {
             // Legacy immediate approach
-            console.log(
-              "[lingo.dev] Pre-generating translations for build (immediate mode)...",
+            logger.info(
+              "Pre-generating translations for build (immediate mode)...",
             );
 
             for (const locale of options.preGenerateLocales) {
@@ -349,15 +345,12 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
                 });
 
                 if (response.status !== 200) {
-                  console.error(
-                    `[lingo.dev] Failed to pre-generate ${locale}: ${response.body}`,
+                  logger.error(
+                    `Failed to pre-generate ${locale}: ${response.body}`,
                   );
                 }
               } catch (error) {
-                console.error(
-                  `[lingo.dev] Failed to pre-generate ${locale}:`,
-                  error,
-                );
+                logger.error(`Failed to pre-generate ${locale}:`, error);
               }
             }
           }

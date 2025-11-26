@@ -12,12 +12,13 @@ import { obj2xml, xml2obj } from "./xml2obj";
 import { shots } from "./shots";
 import { getLocaleModel } from "./locales";
 import {
-  getGroqKey,
   getGoogleKey,
-  getOpenRouterKey,
-  getMistralKey,
+  getGroqKey,
   getLingoDotDevKey,
+  getMistralKey,
+  getOpenRouterKey,
 } from "./api-keys";
+import { logger } from "../../utils/logger";
 
 /**
  * LCP Translator configuration
@@ -125,8 +126,8 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       );
     }
 
-    console.log(
-      `✨ Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
+    logger.info(
+      `Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
     const engine = new LingoDotDevEngine({ apiKey });
@@ -164,8 +165,8 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       );
     }
 
-    console.log(
-      `ℹ️ Using LLM ("${provider}":"${model}") to translate from "${this.config.sourceLocale}" to "${targetLocale}"`,
+    logger.info(
+      `Using LLM ("${provider}":"${model}") to translate from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
     const aiModel = this.createAiModel(provider, model);
@@ -229,7 +230,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
             "⚠️  GROQ API key not found. Please set GROQ_API_KEY environment variable.",
           );
         }
-        console.log(`Creating Groq client using model ${modelId}`);
+        logger.debug(`Creating Groq client using model ${modelId}`);
         return createGroq({ apiKey })(modelId);
       }
 
@@ -240,7 +241,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
             "⚠️  Google API key not found. Please set GOOGLE_API_KEY environment variable.",
           );
         }
-        console.log(
+        logger.debug(
           `Creating Google Generative AI client using model ${modelId}`,
         );
         return createGoogleGenerativeAI({ apiKey })(modelId);
@@ -253,12 +254,12 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
             "⚠️  OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.",
           );
         }
-        console.log(`Creating OpenRouter client using model ${modelId}`);
+        logger.debug(`Creating OpenRouter client using model ${modelId}`);
         return createOpenRouter({ apiKey })(modelId);
       }
 
       case "ollama": {
-        console.log(
+        logger.debug(
           `Creating Ollama client using model ${modelId} at default address`,
         );
         return createOllama()(modelId);
@@ -271,7 +272,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
             "⚠️  Mistral API key not found. Please set MISTRAL_API_KEY environment variable.",
           );
         }
-        console.log(`Creating Mistral client using model ${modelId}`);
+        logger.debug(`Creating Mistral client using model ${modelId}`);
         return createMistral({ apiKey })(modelId);
       }
 

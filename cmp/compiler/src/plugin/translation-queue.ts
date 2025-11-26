@@ -11,6 +11,7 @@
 
 import type { LoaderConfig, TranslationEntry } from "../types";
 import { EventEmitter } from "events";
+import { logger } from "../utils/logger";
 
 export interface QueuedTranslation {
   hash: string;
@@ -190,7 +191,7 @@ export class TranslationQueue extends EventEmitter {
     }
 
     if (this.isEmpty()) {
-      console.log("[lingo.dev] Translation queue is empty, nothing to process");
+      logger.info("Translation queue is empty, nothing to process");
       return;
     }
 
@@ -201,8 +202,8 @@ export class TranslationQueue extends EventEmitter {
       const { locales, batchSize = 50 } = this.options;
       const hashes = Array.from(this.queue.keys());
 
-      console.log(
-        `[lingo.dev] Processing ${hashes.length} translations for ${locales.length} locale(s)...`,
+      logger.info(
+        `Processing ${hashes.length} translations for ${locales.length} locale(s)...`,
       );
 
       // Process each locale in parallel
@@ -218,10 +219,10 @@ export class TranslationQueue extends EventEmitter {
       }
 
       this.emit("processing-completed");
-      console.log("[lingo.dev] Translation processing completed successfully");
+      logger.info("Translation processing completed successfully");
     } catch (error) {
       this.emit("processing-failed", error);
-      console.error("[lingo.dev] Translation processing failed:", error);
+      logger.error("Translation processing failed:", error);
       throw error;
     } finally {
       this.processing = false;
@@ -243,8 +244,8 @@ export class TranslationQueue extends EventEmitter {
       "./shared-middleware"
     );
 
-    console.log(
-      `[lingo.dev] Processing ${hashes.length} translations for locale: ${locale}`,
+    logger.info(
+      `Processing ${hashes.length} translations for locale: ${locale}`,
     );
 
     // Process in batches
@@ -271,8 +272,8 @@ export class TranslationQueue extends EventEmitter {
           // Emit progress event
           this.emit("progress", this.getProgress(locale));
 
-          console.log(
-            `[lingo.dev] ${locale}: ${completed}/${hashes.length} (${Math.round((completed / hashes.length) * 100)}%)`,
+          logger.info(
+            `${locale}: ${completed}/${hashes.length} (${Math.round((completed / hashes.length) * 100)}%)`,
           );
         } else {
           throw new Error(`Translation request failed: ${response.body}`);
@@ -282,10 +283,7 @@ export class TranslationQueue extends EventEmitter {
         for (const hash of batch) {
           this.failed.set(hash, error as Error);
         }
-        console.error(
-          `[lingo.dev] Failed to translate batch for ${locale}:`,
-          error,
-        );
+        logger.error(`Failed to translate batch for ${locale}:`, error);
         // Continue with next batch instead of failing entirely
       }
     }
@@ -315,9 +313,7 @@ export class TranslationQueue extends EventEmitter {
 
     const { locales, config, publicOutputPath } = this.options;
 
-    console.log(
-      `[lingo.dev] Generating static translation files in ${publicOutputPath}`,
-    );
+    logger.info(`Generating static translation files in ${publicOutputPath}`);
 
     // Ensure output directory exists
     await fs.mkdir(publicOutputPath, { recursive: true });
@@ -339,9 +335,9 @@ export class TranslationQueue extends EventEmitter {
         // Copy to public directory
         await fs.copyFile(cacheFilePath, publicFilePath);
 
-        console.log(`[lingo.dev] ✓ Generated ${locale}.json`);
+        logger.info(`Generated ${locale}.json`);
       } catch (error) {
-        console.error(`[lingo.dev] Failed to copy ${locale}.json:`, error);
+        logger.error(`Failed to copy ${locale}.json:`, error);
       }
     }
   }

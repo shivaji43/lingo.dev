@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { logger } from "../../utils/logger";
 
 /**
  * Translation context type
@@ -143,8 +144,8 @@ function TranslationProvider__Prod({
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
   const [locale, setLocaleState] = useState(initialLocale);
 
-  console.log(
-    `[lingo.dev] TranslationProvider initialized with locale: ${locale}`,
+  logger.debug(
+    `TranslationProvider initialized with locale: ${locale}`,
     initialTranslations,
   );
 
@@ -266,8 +267,8 @@ function TranslationProvider__Dev({
       registeredHashesRef.current.add(hash);
     });
 
-    console.log(
-      `[lingo.dev] Registering hashes: ${hashes.join(", ")}. Registered hashes: ${registeredHashesRef.current.values()}. wasNew: ${wasNew}`,
+    logger.debug(
+      `Registering hashes: ${hashes.join(", ")}. Registered hashes: ${registeredHashesRef.current.values()}. wasNew: ${wasNew}`,
     );
 
     // Schedule a state update for the next tick to track all hashes
@@ -275,7 +276,7 @@ function TranslationProvider__Dev({
       setAllSeenHashes((prev) => {
         const next = prev.union(new Set(hashes));
         // TODO (AleksandrSl 25/11/2025): Should be a cheaper solution
-        console.log(`[lingo.dev] New allSeenHashes: ${[...next.values()]}`);
+        logger.debug(`New allSeenHashes: ${[...next.values()]}`);
         return next;
       });
     }
@@ -286,8 +287,8 @@ function TranslationProvider__Dev({
    * This runs when allSeenHashes changes (hot reload or new components mount)
    */
   useEffect(() => {
-    console.log(
-      `[lingo.dev] TranslationProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
+    logger.debug(
+      `TranslationProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
     );
 
     // Skip if source locale
@@ -297,25 +298,25 @@ function TranslationProvider__Dev({
 
     // Find hashes that are seen but not translated and not already pending
     const missingHashes: string[] = [];
-    console.log(
+    logger.debug(
       "allSeenHashes: ",
       [...allSeenHashes.values()],
       [...pendingHashesRef.current.values()],
     );
-    console.log("translationsRef.current: ", translations);
+    logger.debug("translationsRef.current: ", translations);
     for (const hash of allSeenHashes) {
       if (!translations[hash] && !pendingHashesRef.current.has(hash)) {
         missingHashes.push(hash);
         pendingHashesRef.current.add(hash);
       }
     }
-    console.log("Missing hashes: ", missingHashes.join(","));
+    logger.debug("Missing hashes: ", missingHashes.join(","));
 
     // If no missing hashes, nothing to do
     if (missingHashes.length === 0 && localeRef.current == locale) return;
 
-    console.log(
-      `[lingo.dev] Requesting translations for ${missingHashes.length} hashes in locale ${locale}`,
+    logger.debug(
+      `Requesting translations for ${missingHashes.length} hashes in locale ${locale}`,
     );
 
     // Cancel existing timer
@@ -328,9 +329,7 @@ function TranslationProvider__Dev({
       const hashesToFetch = Array.from(pendingHashesRef.current);
       pendingHashesRef.current.clear();
 
-      console.log(
-        `[lingo.dev] Fetching translations for ${hashesToFetch.length} hashes`,
-      );
+      logger.debug(`Fetching translations for ${hashesToFetch.length} hashes`);
       if (hashesToFetch.length === 0) return;
 
       setIsLoading(true);
@@ -342,10 +341,7 @@ function TranslationProvider__Dev({
 
         setTranslations((prev) => ({ ...prev, ...newTranslations }));
       } catch (error) {
-        console.error(
-          "[TranslationProvider] Failed to fetch translations:",
-          error,
-        );
+        logger.error("Failed to fetch translations:", error);
         // Remove from pending so they can be retried
         for (const hash of hashesToFetch) {
           pendingHashesRef.current.delete(hash);
@@ -401,31 +397,23 @@ function TranslationProvider__Dev({
       const startTime = performance.now();
 
       try {
-        console.log(
-          `[lingo.dev] Fetching translations for locale: ${newLocale}`,
-        );
+        logger.info(`Fetching translations for locale: ${newLocale}`);
 
         const translatedDict = await fetchTranslations(newLocale);
 
         const endTime = performance.now();
-        console.log(
-          `[lingo.dev] Translation fetch complete for ${newLocale} in ${(endTime - startTime).toFixed(2)}ms`,
+        logger.info(
+          `Translation fetch complete for ${newLocale} in ${(endTime - startTime).toFixed(2)}ms`,
         );
 
         // Extract all translations from a dictionary
         const allTranslations = translatedDict.entries || {};
 
-        console.log(
-          `[lingo.dev] Translations loaded for ${newLocale}:`,
-          allTranslations,
-        );
+        logger.debug(`Translations loaded for ${newLocale}:`, allTranslations);
 
         setTranslations(allTranslations);
       } catch (error) {
-        console.error(
-          `[lingo.dev] Failed to load translations for ${newLocale}:`,
-          error,
-        );
+        logger.error(`Failed to load translations for ${newLocale}:`, error);
         // Clear translations on error - components will request individually
         setTranslations({});
       } finally {

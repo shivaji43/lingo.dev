@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import { useTranslationContext } from "./TranslationContext";
+import { logger } from "../../utils/logger";
 
 /**
  * Translation function type
@@ -49,9 +50,7 @@ export function useTranslation(hashes: string[]): TranslationFunction {
       return;
     }
 
-    console.log(
-      `[lingo.dev] Registering ${hashes.length} hashes for component`,
-    );
+    logger.debug(`Registering ${hashes.length} hashes for component`);
 
     registerHashes(hashes);
   }, [hashes, registerHashes, locale, sourceLocale]);

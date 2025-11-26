@@ -3,6 +3,7 @@ import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { startTranslationServer } from "../server";
 import { createLoaderConfig } from "../utils/config-factory";
+import { logger } from "../utils/logger";
 
 let globalServer: any;
 
@@ -50,7 +51,7 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverPort: 60000, //globalServer?.getPort() || null,
+      serverPort: globalServer?.getPort() || 60000 || null,
     });
 
     // If no transformation occurred, return original source
@@ -66,8 +67,8 @@ export default async function lingoCompilerTurbopackLoader(
       // Log new translations discovered (in dev mode)
       // Note: In production, translations are generated after build via runAfterProductionCompile
       if (config.isDev) {
-        console.log(
-          `✨ Lingo: Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
+        logger.debug(
+          `Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
         );
       }
     }
@@ -75,10 +76,8 @@ export default async function lingoCompilerTurbopackLoader(
     // Return transformed code
     callback(null, result.code, result.map);
   } catch (error) {
-    console.error(
-      `⚠️  Lingo.dev compiler-beta failed for ${this.resourcePath}:`,
-    );
-    console.error("⚠️  Details:", error);
+    logger.error(`Compiler failed for ${this.resourcePath}:`);
+    logger.error("Details:", error);
     callback(error as Error);
   }
 }

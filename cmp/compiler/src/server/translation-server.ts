@@ -18,6 +18,7 @@ import {
   handleTranslationRequest,
   type TranslationMiddlewareConfig,
 } from "../plugin/shared-middleware";
+import { logger } from "../utils/logger";
 
 export interface TranslationServerOptions {
   /**
@@ -84,9 +85,7 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.port = port;
-        console.log(
-          `[lingo.dev] Translation server listening on http://127.0.0.1:${port}`,
-        );
+        logger.info(`Translation server listening on http://127.0.0.1:${port}`);
         this.onReadyCallback?.(port);
         resolve(port);
       });
@@ -106,7 +105,7 @@ export class TranslationServer {
         if (error) {
           reject(error);
         } else {
-          console.log(`[lingo.dev] Translation server stopped`);
+          logger.info(`Translation server stopped`);
           this.server = null;
           this.port = null;
           resolve();
@@ -182,7 +181,7 @@ export class TranslationServer {
       const url = new URL(req.url || "", `http://${req.headers.host}`);
 
       // Log request
-      console.log(`[lingo.dev] ${req.method} ${url.pathname}`);
+      logger.debug(`${req.method} ${url.pathname}`);
 
       // Handle CORS for browser requests
       res.setHeader("Access-Control-Allow-Origin", "*");
@@ -247,7 +246,7 @@ export class TranslationServer {
         }),
       );
     } catch (error) {
-      console.error("[lingo.dev] Error handling request:", error);
+      logger.error("Error handling request:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -308,10 +307,7 @@ export class TranslationServer {
         }),
       );
     } catch (error) {
-      console.error(
-        `[lingo.dev] Error getting translation for ${locale}/${hash}:`,
-        error,
-      );
+      logger.error(`Error getting translation for ${locale}/${hash}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -366,10 +362,7 @@ export class TranslationServer {
       res.writeHead(response.status);
       res.end(response.body);
     } catch (error) {
-      console.error(
-        `[lingo.dev] Error getting batch translations for ${locale}:`,
-        error,
-      );
+      logger.error(`Error getting batch translations for ${locale}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -398,10 +391,7 @@ export class TranslationServer {
       res.writeHead(response.status);
       res.end(response.body);
     } catch (error) {
-      console.error(
-        `[lingo.dev] Error getting dictionary for ${locale}:`,
-        error,
-      );
+      logger.error(`Error getting dictionary for ${locale}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({

@@ -23,6 +23,7 @@ import fs from "fs/promises";
 import type { TranslatorConfig } from "../translate";
 import { getCachePath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
+import { logger } from "../utils/logger";
 
 export interface LingoNextPluginOptions {
   /**
@@ -104,7 +105,7 @@ export function withLingo(
           });
         }
 
-        console.log("[lingo.dev] Running post-build translation generation...");
+        logger.info("Running post-build translation generation...");
         try {
           const config = {
             sourceRoot: lingoOptions.sourceRoot || process.cwd(),
@@ -118,12 +119,12 @@ export function withLingo(
           const hashes = Object.keys(metadata.entries);
 
           if (hashes.length === 0) {
-            console.log("[lingo.dev] No translations found, skipping");
+            logger.info("No translations found, skipping");
             return;
           }
 
-          console.log(
-            `[lingo.dev] Processing ${hashes.length} translations for ${lingoOptions.targetLocales.length} locale(s)...`,
+          logger.info(
+            `Processing ${hashes.length} translations for ${lingoOptions.targetLocales.length} locale(s)...`,
           );
 
           const batchSize = lingoOptions.batchSize ?? 50;
@@ -131,7 +132,7 @@ export function withLingo(
           // Process all locales in parallel
           const localePromises = lingoOptions.targetLocales.map(
             async (locale) => {
-              console.log(`[lingo.dev] Translating to ${locale}...`);
+              logger.info(`Translating to ${locale}...`);
 
               // Split into batches
               const batches: string[][] = [];
@@ -162,12 +163,12 @@ export function withLingo(
                 const percentage = Math.round(
                   (completed / hashes.length) * 100,
                 );
-                console.log(
-                  `[lingo.dev] ${locale}: ${completed}/${hashes.length} (${percentage}%)`,
+                logger.info(
+                  `${locale}: ${completed}/${hashes.length} (${percentage}%)`,
                 );
               }
 
-              console.log(`[lingo.dev] ✓ ${locale} completed`);
+              logger.info(`${locale} completed`);
             },
           );
 
@@ -177,9 +178,7 @@ export function withLingo(
           // Generate static files if configured
           const publicPath = distDir;
 
-          console.log(
-            `[lingo.dev] Generating static translation files in ${distDir}`,
-          );
+          logger.info(`Generating static translation files in ${distDir}`);
 
           await fs.mkdir(publicPath, { recursive: true });
 
@@ -189,20 +188,15 @@ export function withLingo(
 
             try {
               await fs.copyFile(cacheFilePath, publicFilePath);
-              console.log(`[lingo.dev] ✓ Generated ${locale}.json`);
+              logger.info(`✓ Generated ${locale}.json`);
             } catch (error) {
-              console.error(
-                `[lingo.dev] Failed to copy ${locale}.json:`,
-                error,
-              );
+              logger.error(`Failed to copy ${locale}.json:`, error);
             }
           }
 
-          console.log(
-            "[lingo.dev] ✓ Translation generation completed successfully",
-          );
+          logger.info("Translation generation completed successfully");
         } catch (error) {
-          console.error("[lingo.dev] Translation generation failed:", error);
+          logger.error("Translation generation failed:", error);
           throw error;
         }
       },

@@ -4,6 +4,7 @@ import generateDefault from "@babel/generator";
 import path from "path";
 import { LoaderConfig, MetadataSchema, TranslationEntry } from "../../types";
 import { createBabelVisitors, VisitorsSharedState } from "./visitors";
+import { logger } from "../../utils/logger";
 
 // Handle ESM/CJS interop - these packages may export differently
 // @ts-expect-error - Handle both default and named exports
@@ -85,7 +86,7 @@ export function transformComponent({
       componentHashes: new Map<string, string[]>(),
     } satisfies VisitorsSharedState;
 
-    console.log(`[lingo.dev] Transforming ${filePath}`);
+    logger.debug(`Transforming ${filePath}`);
 
     const visitors = createBabelVisitors({
       config,
@@ -111,7 +112,7 @@ export function transformComponent({
       transformed: visitorState.newEntries.length > 0,
     };
   } catch (error) {
-    console.error(`Failed to transform ${filePath}:`, error);
+    logger.error(`Failed to transform ${filePath}:`, error);
     // Return original code on error
     return {
       code,
