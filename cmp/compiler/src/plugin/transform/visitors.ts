@@ -524,6 +524,63 @@ function injectTranslations(
 // ============================================================================
 // METADATA TRANSFORMATION - Handle metadata exports and generateMetadata
 // ============================================================================
+
+/**
+ * Whitelist of metadata fields that should be translated.
+ * Other fields (like technical configurations, URLs, etc.) are left unchanged.
+ */
+const TRANSLATABLE_METADATA_FIELDS = new Set([
+  // Top-level fields
+  "title",
+  "description",
+
+  // Title object fields (template and default)
+  "title.template",
+  "title.default",
+
+  // OpenGraph fields
+  "openGraph.title",
+  "openGraph.description",
+  "openGraph.images[*].alt",
+
+  // Twitter fields
+  "twitter.title",
+  "twitter.description",
+  "twitter.images[*].alt",
+
+  // Apple Web App
+  "appleWebApp.title",
+]);
+
+/**
+ * Check if a field path matches a pattern with array indices.
+ * For example: "openGraph.images[0].alt" matches "openGraph.images[*].alt"
+ */
+function matchesArrayPattern(fieldPath: string, pattern: string): boolean {
+  // Replace [number] with [*] for comparison
+  const normalizedPath = fieldPath.replace(/\[\d+\]/g, "[*]");
+  return normalizedPath === pattern;
+}
+
+/**
+ * Check if a metadata field path should be translated
+ */
+function isTranslatableMetadataField(fieldPath: string): boolean {
+  // Direct match
+  if (TRANSLATABLE_METADATA_FIELDS.has(fieldPath)) {
+    return true;
+  }
+
+  // Check for array pattern matches (e.g., images[0].alt matches images[*].alt)
+  for (const pattern of TRANSLATABLE_METADATA_FIELDS) {
+    if (pattern.includes("[*]") && matchesArrayPattern(fieldPath, pattern)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 /**
  * Create a translation entry for metadata
  */
@@ -577,8 +634,11 @@ function transformMetadataObject(
 
     const fieldPath = parentPath ? `${parentPath}.${keyName}` : keyName;
 
-    // Transform string values
-    if (prop.value.type === "StringLiteral") {
+    // Check if this field should be translated
+    const shouldTranslate = isTranslatableMetadataField(fieldPath);
+
+    // Transform string values (only if whitelisted)
+    if (prop.value.type === "StringLiteral" && shouldTranslate) {
       const text = prop.value.value;
       const entry = createMetadataTranslationEntry(
         text,
@@ -596,12 +656,25 @@ function transformMetadataObject(
         t.stringLiteral(text),
       ]);
     }
-    // Transform nested objects
+    // Transform nested objects (always recurse to check nested fields)
     else if (prop.value.type === "ObjectExpression") {
       transformMetadataObject(prop.value, state, hashes, fieldPath);
     }
-    // Handle template literals (basic support)
-    else if (prop.value.type === "TemplateLiteral") {
+    // Handle arrays (e.g., images: [{url: '...', alt: '...'}])
+    else if (prop.value.type === "ArrayExpression") {
+      prop.value.elements.forEach((element, index) => {
+        if (element && element.type === "ObjectExpression") {
+          transformMetadataObject(
+            element,
+            state,
+            hashes,
+            `${fieldPath}[${index}]`,
+          );
+        }
+      });
+    }
+    // Handle template literals (basic support, only if whitelisted)
+    else if (prop.value.type === "TemplateLiteral" && shouldTranslate) {
       if (
         prop.value.expressions.length === 0 &&
         prop.value.quasis.length === 1

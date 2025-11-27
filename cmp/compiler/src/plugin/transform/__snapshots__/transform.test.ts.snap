@@ -49,7 +49,7 @@ exports[`transformComponent > metadata transformation > should handle nested met
   } = await getServerTranslations({
     sourceLocale: "en",
     serverPort: 60000,
-    hashes: ["901706843f7f", "361edde34b28", "361ca57123c6", "db2e1ebf4937", "8d6399a605ab", "727d40b9694a", "6f2dc702c8d1"]
+    hashes: ["901706843f7f", "361edde34b28", "361ca57123c6", "db2e1ebf4937", "727d40b9694a", "6f2dc702c8d1"]
   });
   return {
     title: t("901706843f7f", "Page Title"),
@@ -59,7 +59,7 @@ exports[`transformComponent > metadata transformation > should handle nested met
       description: t("db2e1ebf4937", "OG Description")
     },
     twitter: {
-      card: t("8d6399a605ab", "summary_large_image"),
+      card: "summary_large_image",
       title: t("727d40b9694a", "Twitter Title"),
       description: t("6f2dc702c8d1", "Twitter Description")
     }

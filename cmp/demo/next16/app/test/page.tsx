@@ -12,7 +12,6 @@ export default function CompilerTestPage() {
           </p>
         </header>
 
-        {/* Info Card */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 mb-8">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
             How It Works
@@ -30,7 +29,6 @@ export default function CompilerTestPage() {
           </p>
         </div>
 
-        {/* Features Grid */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
           <FeatureCard
             title="Automatic Detection"
@@ -50,7 +48,6 @@ export default function CompilerTestPage() {
           />
         </div>
 
-        {/* Code Example */}
         <div className="bg-gray-900 rounded-lg p-6 mb-8">
           <h3 className="text-white text-lg font-semibold mb-2">
             Before Transformation
@@ -66,7 +63,6 @@ export default function CompilerTestPage() {
           </pre>
         </div>
 
-        {/* Status Section */}
         <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
           <h3 className="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2">
             Development Status

@@ -617,21 +617,20 @@ export const metadata = {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
 
-      // Should extract all nested strings (7 total including "summary_large_image")
-      expect(result.newEntries).toHaveLength(7);
+      // Should extract only translatable fields (6 total, excluding "twitter.card")
+      expect(result.newEntries).toHaveLength(6);
 
       const metadataEntries = result.newEntries.filter(
         (e) => e.context.type === "metadata",
       );
-      expect(metadataEntries).toHaveLength(7);
+      expect(metadataEntries).toHaveLength(6);
 
-      // Check field paths
+      // Check field paths (twitter.card should be excluded)
       expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
         "title",
         "description",
         "openGraph.title",
         "openGraph.description",
-        "twitter.card",
         "twitter.title",
         "twitter.description",
       ]);
@@ -641,7 +640,6 @@ export const metadata = {
         "Page Description",
         "OG Title",
         "OG Description",
-        "summary_large_image",
         "Twitter Title",
         "Twitter Description",
       ]);
@@ -764,6 +762,166 @@ export const metadata = {
       assert.isDefined(result1.newEntries);
       assert.isDefined(result2.newEntries);
       expect(result1.newEntries[0].hash).toBe(result2.newEntries[0].hash);
+    });
+
+    it("should translate title.template and title.default", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  title: {
+    template: '%s | Acme',
+    default: 'Acme',
+  },
+  description: "Company site",
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/layout.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+
+      const metadataEntries = result.newEntries.filter(
+        (e) => e.context.type === "metadata",
+      );
+      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+        "title.template",
+        "title.default",
+        "description",
+      ]);
+      expect(metadataEntries.map((e) => e.sourceText)).toEqual([
+        // TODO (AleksandrSl 27/11/2025): Ensure correct translation of this, so that the tempalte structure is preserved.
+        "%s | Acme",
+        "Acme",
+        "Company site",
+      ]);
+    });
+
+    it("should translate openGraph.images[].alt", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  openGraph: {
+    images: [
+      {
+        url: 'https://example.com/image1.jpg',
+        alt: 'First image description',
+      },
+      {
+        url: 'https://example.com/image2.jpg',
+        alt: 'Second image description',
+      },
+    ],
+  },
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      const metadataEntries = result.newEntries.filter(
+        (e) => e.context.type === "metadata",
+      );
+      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+        "openGraph.images[0].alt",
+        "openGraph.images[1].alt",
+      ]);
+      expect(metadataEntries.map((e) => e.sourceText)).toEqual([
+        "First image description",
+        "Second image description",
+      ]);
+
+      // URLs should NOT be translated
+      expect(result.code).toContain("'https://example.com/image1.jpg'");
+      expect(result.code).toContain("'https://example.com/image2.jpg'");
+    });
+
+    it("should translate twitter.images[].alt", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  twitter: {
+    card: 'summary_large_image',
+    images: [
+      {
+        url: 'https://example.com/twitter.jpg',
+        alt: 'Twitter card image',
+      },
+    ],
+  },
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const metadataEntry = result.newEntries[0];
+      expect(metadataEntry.context.metadataField).toBe("twitter.images[0].alt");
+      expect(metadataEntry.sourceText).toBe("Twitter card image");
+
+      // URL and card should NOT be translated
+      expect(result.code).toContain("'https://example.com/twitter.jpg'");
+      expect(result.code).toContain("'summary_large_image'");
+    });
+
+    it("should translate appleWebApp.title", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  appleWebApp: {
+    title: 'Apple Web App',
+    statusBarStyle: 'black-translucent',
+  },
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/layout.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const metadataEntry = result.newEntries[0];
+      expect(metadataEntry.context.metadataField).toBe("appleWebApp.title");
+      expect(metadataEntry.sourceText).toBe("Apple Web App");
+
+      // statusBarStyle should NOT be translated
+      expect(result.code).toContain("'black-translucent'");
     });
   });
 
