@@ -82,7 +82,7 @@ export type PathConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
  */
 export interface TranslationContext {
   /**
-   * Name of the React component
+   * Name of the React component (or "metadata" for metadata strings)
    */
   componentName: string;
 
@@ -100,6 +100,17 @@ export interface TranslationContext {
    * Column number in the source file
    */
   column?: number;
+
+  // TODO (AleksandrSl 27/11/2025): Maybe keep metadata and component will be default.
+  /**
+   * Type of translation: component text or metadata
+   */
+  type?: "component" | "metadata";
+
+  /**
+   * For metadata translations, the field path (e.g., "title", "openGraph.title")
+   */
+  metadataField?: string;
 }
 
 /**

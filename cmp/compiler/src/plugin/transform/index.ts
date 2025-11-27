@@ -46,7 +46,7 @@ export interface BabelTransformOptions {
   /**
    * Port of the translation server (if running)
    */
-  serverPort?: number | null;
+  serverPort?: number;
 }
 
 /**
@@ -84,6 +84,8 @@ export function transformComponent({
       serverPort,
       componentsNeedingTranslation: new Set<string>(),
       componentHashes: new Map<string, string[]>(),
+      metadataFunctionsNeedingTranslation: new Set<string>(),
+      metadataHashes: new Map<string, string[]>(),
     } satisfies VisitorsSharedState;
 
     logger.debug(`Transforming ${filePath}, isServer: ${config.isServer}`);

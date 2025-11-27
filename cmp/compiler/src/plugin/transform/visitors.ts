@@ -1,4 +1,5 @@
 import * as t from "@babel/types";
+import { VariableDeclaration } from "@babel/types";
 import type { NodePath } from "@babel/traverse";
 import type {
   ComponentType,
@@ -25,11 +26,15 @@ export interface VisitorsSharedState {
   config: LoaderConfig;
   metadata: MetadataSchema;
   filePath: string;
-  serverPort?: number | null;
+  serverPort?: number;
   /** Track all components that need translation functions injected */
   componentsNeedingTranslation: Set<string>;
   /** Map component names to their translation hashes */
   componentHashes: Map<string, string[]>;
+  /** Track metadata functions that need translation */
+  metadataFunctionsNeedingTranslation: Set<string>;
+  /** Map metadata function names to their translation hashes */
+  metadataHashes: Map<string, string[]>;
 }
 
 const root = "@lingo.dev/_compiler";
@@ -311,82 +316,25 @@ function injectClientHook(
 }
 
 /**
- * Inject `const { t } = await getServerTranslations([...hashes])` at component start (Server Components)
- * Makes the component async if needed
+ * Constructs a server translation hook call using provided configuration, server port, and hashes.
+ * const { t } = await getServerTranslations({ ... })
+ *
+ * @param {Object} options - The input parameters.
+ * @param {Object} options.config - Configuration options for the server translation hook.
+ * @param {string} [options.config.sourceLocale] - Optional source locale for translations.
+ * @param {number} [options.serverPort] - Optional server port where the translation hook is hosted.
+ * @param {string[]} options.hashes - An array of hash strings related to translations.
+ * @return {VariableDeclaration} - Returns an object containing the constructed translation hook code to be used on the server.
  */
-function injectServerHook(
-  componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
-  config: LoaderConfig,
-  serverPort: number | null | undefined,
-  hashes: string[],
-): void {
-  const body = componentPath.get("body");
-
-  // Handle arrow functions with expression bodies: () => <jsx>
-  // Convert to block statement: async () => { const { t } = await ...; return <jsx>; }
-  if (!body.isBlockStatement()) {
-    if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
-      const returnStatement = t.returnStatement(body.node as t.Expression);
-      componentPath.node.body = t.blockStatement([returnStatement]);
-      componentPath.node.async = true;
-      // Re-get the body after conversion
-      const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
-
-      const optionsProperties = [];
-
-      if (config.sourceLocale) {
-        optionsProperties.push(
-          t.objectProperty(
-            t.identifier("sourceLocale"),
-            t.stringLiteral(config.sourceLocale),
-          ),
-        );
-      }
-
-      if (serverPort) {
-        optionsProperties.push(
-          t.objectProperty(
-            t.identifier("serverPort"),
-            t.numericLiteral(serverPort),
-          ),
-        );
-      }
-
-      const hashArray = t.arrayExpression(
-        hashes.map((hash) => t.stringLiteral(hash)),
-      );
-      optionsProperties.push(
-        t.objectProperty(t.identifier("hashes"), hashArray),
-      );
-
-      // Create: const { t } = await getServerTranslations({ ... })
-      const serverCall = t.variableDeclaration("const", [
-        t.variableDeclarator(
-          t.objectPattern([
-            t.objectProperty(
-              t.identifier("t"),
-              t.identifier("t"),
-              false,
-              true, // shorthand
-            ),
-          ]),
-          t.awaitExpression(
-            t.callExpression(t.identifier("getServerTranslations"), [
-              t.objectExpression(optionsProperties),
-            ]),
-          ),
-        ),
-      ]);
-
-      newBody.node.body.unshift(serverCall);
-    }
-    return;
-  }
-
-  if (!componentPath.node.async) {
-    componentPath.node.async = true;
-  }
-
+function constructServerTranslationHookCall({
+  config,
+  serverPort,
+  hashes,
+}: {
+  config: { sourceLocale?: string };
+  serverPort?: number;
+  hashes: string[];
+}): VariableDeclaration {
   const optionsProperties = [];
 
   if (config.sourceLocale) {
@@ -412,8 +360,7 @@ function injectServerHook(
   );
   optionsProperties.push(t.objectProperty(t.identifier("hashes"), hashArray));
 
-  // Create: const { t } = await getServerTranslations({ ... })
-  const serverCall = t.variableDeclaration("const", [
+  return t.variableDeclaration("const", [
     t.variableDeclarator(
       t.objectPattern([
         t.objectProperty(
@@ -430,6 +377,52 @@ function injectServerHook(
       ),
     ),
   ]);
+}
+
+/**
+ * Inject `const { t } = await getServerTranslations([...hashes])` at component start (Server Components)
+ * Makes the component async if needed
+ */
+function injectServerHook(
+  componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+  config: LoaderConfig,
+  serverPort: number | undefined,
+  hashes: string[],
+): void {
+  const body = componentPath.get("body");
+
+  // Handle arrow functions with expression bodies: () => <jsx>
+  // Convert to block statement: async () => { const { t } = await ...; return <jsx>; }
+  if (!body.isBlockStatement()) {
+    if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
+      const returnStatement = t.returnStatement(body.node as t.Expression);
+      componentPath.node.body = t.blockStatement([returnStatement]);
+      componentPath.node.async = true;
+      // Re-get the body after conversion
+      const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
+
+      // Create: const { t } = await getServerTranslations({ ... })
+      const serverCall = constructServerTranslationHookCall({
+        config,
+        serverPort,
+        hashes,
+      });
+
+      newBody.node.body.unshift(serverCall);
+    }
+    return;
+  }
+
+  if (!componentPath.node.async) {
+    componentPath.node.async = true;
+  }
+
+  // Create: const { t } = await getServerTranslations({ ... })
+  const serverCall = constructServerTranslationHookCall({
+    config,
+    serverPort,
+    hashes,
+  });
 
   body.node.body.unshift(serverCall);
 }
@@ -442,7 +435,7 @@ function injectTranslations(
   programPath: NodePath<t.Program>,
   state: VisitorsSharedState,
   config: LoaderConfig,
-  serverPort?: number | null,
+  serverPort?: number,
 ): void {
   // Detect if any component is a server component
   let hasServerComponent = false;
@@ -529,6 +522,254 @@ function injectTranslations(
 }
 
 // ============================================================================
+// METADATA TRANSFORMATION - Handle metadata exports and generateMetadata
+// ============================================================================
+/**
+ * Create a translation entry for metadata
+ */
+function createMetadataTranslationEntry(
+  text: string,
+  fieldPath: string,
+  filePath: string,
+  line?: number,
+  column?: number,
+): TranslationEntry {
+  const hash = generateTranslationHash(text, `metadata:${fieldPath}`, filePath);
+
+  const context: TranslationContext = {
+    componentName: "metadata",
+    filePath,
+    line,
+    column,
+    type: "metadata",
+    metadataField: fieldPath,
+  };
+
+  return {
+    sourceText: text,
+    context,
+    hash,
+    addedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Transform metadata object properties to use t() calls
+ */
+function transformMetadataObject(
+  objectExpression: t.ObjectExpression,
+  state: VisitorsSharedState,
+  hashes: string[],
+  parentPath: string = "",
+): void {
+  for (const prop of objectExpression.properties) {
+    if (prop.type !== "ObjectProperty") continue;
+
+    // Get the key name
+    let keyName: string | null = null;
+    if (prop.key.type === "Identifier") {
+      keyName = prop.key.name;
+    } else if (prop.key.type === "StringLiteral") {
+      keyName = prop.key.value;
+    }
+
+    if (!keyName) continue;
+
+    const fieldPath = parentPath ? `${parentPath}.${keyName}` : keyName;
+
+    // Transform string values
+    if (prop.value.type === "StringLiteral") {
+      const text = prop.value.value;
+      const entry = createMetadataTranslationEntry(
+        text,
+        fieldPath,
+        state.filePath,
+        prop.value.loc?.start.line,
+        prop.value.loc?.start.column,
+      );
+      state.newEntries.push(entry);
+      hashes.push(entry.hash);
+
+      // Replace with t(hash, fallback) call
+      prop.value = t.callExpression(t.identifier("t"), [
+        t.stringLiteral(entry.hash),
+        t.stringLiteral(text),
+      ]);
+    }
+    // Transform nested objects
+    else if (prop.value.type === "ObjectExpression") {
+      transformMetadataObject(prop.value, state, hashes, fieldPath);
+    }
+    // Handle template literals (basic support)
+    else if (prop.value.type === "TemplateLiteral") {
+      if (
+        prop.value.expressions.length === 0 &&
+        prop.value.quasis.length === 1
+      ) {
+        const staticValue = prop.value.quasis[0].value.cooked;
+        if (staticValue) {
+          const entry = createMetadataTranslationEntry(
+            staticValue,
+            fieldPath,
+            state.filePath,
+            prop.value.loc?.start.line,
+            prop.value.loc?.start.column,
+          );
+          state.newEntries.push(entry);
+          hashes.push(entry.hash);
+
+          // Replace with t(hash, fallback) call
+          prop.value = t.callExpression(t.identifier("t"), [
+            t.stringLiteral(entry.hash),
+            t.stringLiteral(staticValue),
+          ]);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Convert static metadata export to generateMetadata function
+ */
+function convertStaticMetadataToFunction(
+  path: NodePath<t.ExportNamedDeclaration>,
+  state: VisitorsSharedState,
+): void {
+  const declaration = path.node.declaration;
+  if (!declaration || declaration.type !== "VariableDeclaration") return;
+
+  const declarator = declaration.declarations[0];
+  if (!declarator || declarator.id.type !== "Identifier") return;
+  if (declarator.id.name !== "metadata") return;
+
+  const init = declarator.init;
+  if (!init || init.type !== "ObjectExpression") return;
+
+  // Extract and transform metadata strings
+  const hashes: string[] = [];
+  const metadataObject = t.cloneNode(init, true);
+  transformMetadataObject(metadataObject, state, hashes);
+
+  if (hashes.length === 0) {
+    // No strings to translate, skip transformation
+    return;
+  }
+
+  // Create generateMetadata function
+  const generateMetadataFunction = t.functionDeclaration(
+    t.identifier("generateMetadata"),
+    [],
+    t.blockStatement([
+      // const { t } = await getServerTranslations({ hashes: [...] })
+      t.variableDeclaration("const", [
+        t.variableDeclarator(
+          t.objectPattern([
+            t.objectProperty(
+              t.identifier("t"),
+              t.identifier("t"),
+              false,
+              true, // shorthand
+            ),
+          ]),
+          t.awaitExpression(
+            t.callExpression(t.identifier("getServerTranslations"), [
+              t.objectExpression(
+                [
+                  state.config.sourceLocale
+                    ? t.objectProperty(
+                        t.identifier("sourceLocale"),
+                        t.stringLiteral(state.config.sourceLocale),
+                      )
+                    : null,
+                  state.serverPort
+                    ? t.objectProperty(
+                        t.identifier("serverPort"),
+                        t.numericLiteral(state.serverPort),
+                      )
+                    : null,
+                  t.objectProperty(
+                    t.identifier("hashes"),
+                    t.arrayExpression(
+                      hashes.map((hash) => t.stringLiteral(hash)),
+                    ),
+                  ),
+                ].filter((prop): prop is t.ObjectProperty => prop !== null),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+      // return { ... }
+      t.returnStatement(metadataObject),
+    ]),
+    false,
+    true, // async
+  );
+
+  // Replace the export
+  path.replaceWith(t.exportNamedDeclaration(generateMetadataFunction, []));
+
+  state.needsTranslationImport = true;
+  state.metadataFunctionsNeedingTranslation.add("generateMetadata");
+  state.metadataHashes.set("generateMetadata", hashes);
+}
+
+/**
+ * Transform existing generateMetadata function
+ */
+function transformGenerateMetadataFunction(
+  path: NodePath<t.FunctionDeclaration>,
+  state: VisitorsSharedState,
+): void {
+  const body = path.get("body");
+  if (!body.isBlockStatement()) return;
+
+  // Find the return statement with metadata object
+  // The cast of the value seems stupid, but otherwise typescript infers metadataReturn to always be null, since it doesn't process the callback.
+  let metadataReturn: NodePath<t.ReturnStatement> | null =
+    null as NodePath<t.ReturnStatement> | null;
+  body.traverse({
+    ReturnStatement(returnPath) {
+      if (!metadataReturn) {
+        metadataReturn = returnPath;
+      }
+    },
+  });
+
+  // TODO (AleksandrSl 27/11/2025): Seems like a TS bug? We do assign the value in the callback
+  if (metadataReturn == null || !metadataReturn.node.argument) return;
+  if (metadataReturn.node.argument.type !== "ObjectExpression") return;
+
+  // Extract and transform metadata strings
+  const hashes: string[] = [];
+  const metadataObject = metadataReturn.node.argument;
+  transformMetadataObject(metadataObject, state, hashes);
+
+  if (hashes.length === 0) {
+    // No strings to translate, skip transformation
+    return;
+  }
+
+  // Make function async if not already
+  if (!path.node.async) {
+    path.node.async = true;
+  }
+
+  const serverCall = constructServerTranslationHookCall({
+    config: state.config,
+    serverPort: state.serverPort,
+    hashes,
+  });
+
+  body.node.body.unshift(serverCall);
+
+  state.needsTranslationImport = true;
+  state.metadataFunctionsNeedingTranslation.add("generateMetadata");
+  state.metadataHashes.set("generateMetadata", hashes);
+}
+
+// ============================================================================
 // VISITOR FACTORY - Compose all visitors into single-pass transformation
 // ============================================================================
 
@@ -592,7 +833,7 @@ export function createBabelVisitors({
 }: {
   config: LoaderConfig;
   visitorState: VisitorsSharedState;
-  serverPort?: number | null;
+  serverPort?: number;
 }) {
   return {
     Program: {
@@ -613,8 +854,34 @@ export function createBabelVisitors({
       },
     },
 
+    // Handle static metadata exports: export const metadata = { ... }
+    ExportNamedDeclaration(path: NodePath<t.ExportNamedDeclaration>) {
+      const declaration = path.node.declaration;
+      if (!declaration || declaration.type !== "VariableDeclaration") return;
+
+      const declarator = declaration.declarations[0];
+      if (!declarator || declarator.id.type !== "Identifier") return;
+      if (declarator.id.name !== "metadata") return;
+
+      convertStaticMetadataToFunction(path, visitorState);
+    },
+
     // All component function types share the same handler
     FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
+      // Check if it's generateMetadata first
+      if (path.node.id?.name === "generateMetadata") {
+        // Check if it's exported
+        const parent = path.parent;
+        if (
+          parent.type === "ExportNamedDeclaration" ||
+          parent.type === "Program"
+        ) {
+          transformGenerateMetadataFunction(path, visitorState);
+          return; // Don't process as component
+        }
+      }
+
+      // Otherwise, handle as component
       handleComponentFunction(path, visitorState, config);
     },
 

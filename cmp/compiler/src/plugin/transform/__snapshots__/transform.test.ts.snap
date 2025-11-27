@@ -26,6 +26,104 @@ export function ListComponent({
 }"
 `;
 
+exports[`transformComponent > metadata transformation > should handle metadata with template literals (static only) 1`] = `
+"export async function generateMetadata() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["474e6dfdb4da", "4bbff2c494fc"]
+  });
+  return {
+    title: t("474e6dfdb4da", "Static Title"),
+    description: t("4bbff2c494fc", "Regular Description")
+  };
+}"
+`;
+
+exports[`transformComponent > metadata transformation > should handle nested metadata objects (openGraph, twitter) 1`] = `
+"export async function generateMetadata() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["901706843f7f", "361edde34b28", "361ca57123c6", "db2e1ebf4937", "8d6399a605ab", "727d40b9694a", "6f2dc702c8d1"]
+  });
+  return {
+    title: t("901706843f7f", "Page Title"),
+    description: t("361edde34b28", "Page Description"),
+    openGraph: {
+      title: t("361ca57123c6", "OG Title"),
+      description: t("db2e1ebf4937", "OG Description")
+    },
+    twitter: {
+      card: t("8d6399a605ab", "summary_large_image"),
+      title: t("727d40b9694a", "Twitter Title"),
+      description: t("6f2dc702c8d1", "Twitter Description")
+    }
+  };
+}"
+`;
+
+exports[`transformComponent > metadata transformation > should transform existing generateMetadata function 1`] = `
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export async function generateMetadata({
+  params
+}) {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["785d876d89df", "d856e529f2c8"]
+  });
+  return {
+    title: t("785d876d89df", "Dynamic Title"),
+    description: t("d856e529f2c8", "Dynamic Description")
+  };
+}
+export default async function Page() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["8e1367664144"]
+  });
+  return <div>{t("8e1367664144", "Content")}</div>;
+}"
+`;
+
+exports[`transformComponent > metadata transformation > should transform static metadata export to generateMetadata 1`] = `
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+import type { Metadata } from "next";
+export async function generateMetadata() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["df9408b365ed", "ab42d69596cc"]
+  });
+  return {
+    title: t("df9408b365ed", "My Page Title"),
+    description: t("ab42d69596cc", "This is my page description")
+  };
+}
+export default async function Page() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["8e1367664144"]
+  });
+  return <div>{t("8e1367664144", "Content")}</div>;
+}"
+`;
+
 exports[`transformComponent > multiple components in one file > should handle nested components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function OuterComponent() {

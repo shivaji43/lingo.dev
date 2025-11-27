@@ -496,6 +496,277 @@ export function Test() {
     });
   });
 
+  describe("metadata transformation", () => {
+    it("should transform static metadata export to generateMetadata", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "My Page Title",
+  description: "This is my page description",
+};
+
+export default function Page() {
+  return <div>Content</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should have 3 entries: 2 metadata strings + 1 component text
+      expect(result.newEntries).toHaveLength(3);
+
+      // Check metadata entries
+      const metadataEntries = result.newEntries.filter(
+        (e) => e.context.type === "metadata",
+      );
+      expect(metadataEntries).toHaveLength(2);
+      expect(metadataEntries.map((e) => e.sourceText)).toEqual([
+        "My Page Title",
+        "This is my page description",
+      ]);
+      expect(metadataEntries[0].context.metadataField).toBe("title");
+      expect(metadataEntries[1].context.metadataField).toBe("description");
+      expect(metadataEntries[0].context.componentName).toBe("metadata");
+      expect(metadataEntries[1].context.componentName).toBe("metadata");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should transform existing generateMetadata function", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export async function generateMetadata({ params }) {
+  return {
+    title: "Dynamic Title",
+    description: "Dynamic Description",
+  };
+}
+
+export default function Page() {
+  return <div>Content</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should have 3 entries: 2 metadata strings + 1 component text
+      expect(result.newEntries).toHaveLength(3);
+
+      // Check metadata entries
+      const metadataEntries = result.newEntries.filter(
+        (e) => e.context.type === "metadata",
+      );
+      expect(metadataEntries).toHaveLength(2);
+      expect(metadataEntries.map((e) => e.sourceText)).toEqual([
+        "Dynamic Title",
+        "Dynamic Description",
+      ]);
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle nested metadata objects (openGraph, twitter)", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  title: "Page Title",
+  description: "Page Description",
+  openGraph: {
+    title: "OG Title",
+    description: "OG Description",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Twitter Title",
+    description: "Twitter Description",
+  },
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/layout.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should extract all nested strings (7 total including "summary_large_image")
+      expect(result.newEntries).toHaveLength(7);
+
+      const metadataEntries = result.newEntries.filter(
+        (e) => e.context.type === "metadata",
+      );
+      expect(metadataEntries).toHaveLength(7);
+
+      // Check field paths
+      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+        "title",
+        "description",
+        "openGraph.title",
+        "openGraph.description",
+        "twitter.card",
+        "twitter.title",
+        "twitter.description",
+      ]);
+
+      expect(metadataEntries.map((e) => e.sourceText)).toEqual([
+        "Page Title",
+        "Page Description",
+        "OG Title",
+        "OG Description",
+        "summary_large_image",
+        "Twitter Title",
+        "Twitter Description",
+      ]);
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle metadata with template literals (static only)", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  title: \`Static Title\`,
+  description: "Regular Description",
+};
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should extract both strings
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Static Title",
+        "Regular Description",
+      ]);
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should skip metadata with no translatable strings", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  robots: { index: true, follow: true },
+  viewport: { width: 1024 },
+};
+
+export default function Page() {
+  return <div>Content</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+      });
+
+      // Only the component text should be transformed
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Content");
+      expect(result.newEntries[0].context.type).not.toBe("metadata");
+
+      // Metadata export should remain unchanged
+      expect(result.code).toContain("export const metadata");
+      expect(result.code).not.toContain("generateMetadata");
+    });
+
+    it("should not transform generateMetadata without translatable content", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export async function generateMetadata() {
+  return {
+    robots: { index: true },
+  };
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/layout.tsx",
+        config: nextConfig,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+
+      // Code should remain unchanged
+      expect(result.code).not.toContain("getServerTranslations");
+    });
+
+    it("should generate consistent hashes for metadata fields", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export const metadata = {
+  title: "Test Title",
+};
+`;
+
+      const result1 = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+      });
+
+      const result2 = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+      });
+
+      assert.isDefined(result1.newEntries);
+      assert.isDefined(result2.newEntries);
+      expect(result1.newEntries[0].hash).toBe(result2.newEntries[0].hash);
+    });
+  });
+
   describe("server components", () => {
     it("should transform server component with multiple text nodes in paragraph", () => {
       // Use Next.js framework config for proper server component detection
