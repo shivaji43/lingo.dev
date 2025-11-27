@@ -11,7 +11,7 @@
  *   plugins: [
  *     lingoCompilerPlugin({
  *       sourceLocale: 'en',
- *       preGenerateLocales: ['es', 'fr'],
+ *       targetLocales: ['es', 'fr'],
  *     }),
  *   ],
  * });

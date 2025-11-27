@@ -34,7 +34,8 @@ export const DEFAULT_CONFIG = {
  * ```
  */
 export function createLoaderConfig(
-  options: Partial<LoaderConfig> = {},
+  options: Partial<Omit<LoaderConfig, "targetLocales">> &
+    Pick<LoaderConfig, "targetLocales">,
 ): LoaderConfig {
   return {
     sourceRoot: options.sourceRoot ?? DEFAULT_CONFIG.sourceRoot,
@@ -45,5 +46,6 @@ export function createLoaderConfig(
     framework: options.framework ?? DEFAULT_CONFIG.framework,
     skipPatterns: options.skipPatterns ?? DEFAULT_CONFIG.skipPatterns,
     translator: options.translator,
+    targetLocales: options.targetLocales,
   };
 }

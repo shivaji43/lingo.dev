@@ -38,7 +38,7 @@ export default defineConfig({
   plugins: [
     lingoCompilerPlugin({
       sourceLocale: "en",
-      preGenerateLocales: ["es", "fr"],
+      targetLocales: ["es", "fr"],
     }),
   ],
 });
@@ -54,7 +54,7 @@ export default {
   plugins: [
     lingoCompilerPlugin({
       sourceLocale: "en",
-      preGenerateLocales: ["es", "fr"],
+      targetLocales: ["es", "fr"],
     }),
   ],
 };
@@ -70,7 +70,7 @@ export default {
   plugins: [
     lingoCompilerPlugin({
       sourceLocale: "en",
-      preGenerateLocales: ["es", "fr"],
+      targetLocales: ["es", "fr"],
     }),
   ],
 };
@@ -87,7 +87,7 @@ await build({
   plugins: [
     lingoCompilerPlugin({
       sourceLocale: "en",
-      preGenerateLocales: ["es", "fr"],
+      targetLocales: ["es", "fr"],
     }),
   ],
 });

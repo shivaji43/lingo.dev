@@ -21,7 +21,6 @@ let exitHandlerRegistered = false;
 
 export interface BuildHookOptions {
   config: LoaderConfig;
-  preGenerateLocales: string[];
   waitForTranslations?: boolean;
 }
 

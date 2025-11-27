@@ -24,6 +24,8 @@ export interface LoaderConfig {
    */
   sourceLocale: string;
 
+  targetLocales: string[];
+
   /**
    * Whether to require 'use i18n' directive
    */

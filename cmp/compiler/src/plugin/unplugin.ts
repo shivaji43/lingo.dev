@@ -21,19 +21,13 @@ import { handleTranslationRequest } from "./shared-middleware";
 import { startTranslationServer } from "../server";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import {
-  getTranslationQueue,
   createQueuedTranslations,
+  getTranslationQueue,
 } from "./translation-queue";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 
 export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
-  /**
-   * Locales to pre-generate during build
-   * @default [] - Generate none at build time
-   */
-  preGenerateLocales?: string[];
-
   /**
    * Build strategy for translations
    * - 'queue': Queue translations during build, process at end (recommended for production)
@@ -150,7 +144,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         }
 
         // Initialize translation queue for production builds
-        if (!config.isDev && options.preGenerateLocales?.length) {
+        if (!config.isDev && options.targetLocales?.length) {
           const buildStrategy = options.buildStrategy ?? "queue";
 
           if (buildStrategy === "queue") {
@@ -158,7 +152,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
 
             const queue = getTranslationQueue();
             queue.initialize({
-              locales: options.preGenerateLocales,
+              locales: options.targetLocales,
               batchSize: options.batchSize ?? 50,
               waitForCompletion: options.waitForTranslations ?? true,
               publicOutputPath: options.publicOutputPath
@@ -252,7 +246,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             if (
               !config.isDev &&
               buildStrategy === "queue" &&
-              options.preGenerateLocales?.length
+              options.targetLocales?.length
             ) {
               const queue = getTranslationQueue();
               const queuedTranslations = createQueuedTranslations(
@@ -288,72 +282,76 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
 
       async buildEnd() {
         // Pre-generate translations for specified locales during build
-        if (!config.isDev && options.preGenerateLocales?.length) {
-          const buildStrategy = options.buildStrategy ?? "queue";
+        try {
+          if (!config.isDev && options.targetLocales?.length) {
+            const buildStrategy = options.buildStrategy ?? "queue";
 
-          if (buildStrategy === "queue") {
-            // Use new queue-based approach
-            logger.info("Processing translation queue...");
+            if (buildStrategy === "queue") {
+              // Use new queue-based approach
+              logger.info("Processing translation queue...");
 
-            const queue = getTranslationQueue();
+              const queue = getTranslationQueue();
 
-            // Add all existing metadata entries to queue if not already queued
-            const metadata = await loadMetadata({
-              sourceRoot: config.sourceRoot,
-              lingoDir: config.lingoDir,
-            });
+              // Add all existing metadata entries to queue if not already queued
+              const metadata = await loadMetadata({
+                sourceRoot: config.sourceRoot,
+                lingoDir: config.lingoDir,
+              });
 
-            if (queue.isEmpty() && Object.keys(metadata.entries).length > 0) {
-              logger.info(
-                `Adding ${Object.keys(metadata.entries).length} existing translations to queue`,
-              );
-              const queuedTranslations = createQueuedTranslations(
-                metadata.entries,
-              );
-              queue.addBatch(queuedTranslations);
-            }
-
-            // Process the queue
-            try {
-              await queue.process();
-
-              // Wait for completion if configured
-              if (options.waitForTranslations !== false) {
-                await queue.waitForCompletion();
+              if (queue.isEmpty() && Object.keys(metadata.entries).length > 0) {
+                logger.info(
+                  `Adding ${Object.keys(metadata.entries).length} existing translations to queue`,
+                );
+                const queuedTranslations = createQueuedTranslations(
+                  metadata.entries,
+                );
+                queue.addBatch(queuedTranslations);
               }
 
-              const stats = queue.getStats();
-              logger.info(`Translation queue completed:`, stats);
-            } catch (error) {
-              logger.error("Failed to process translation queue:", error);
-              throw error;
-            }
-          } else {
-            // Legacy immediate approach
-            logger.info(
-              "Pre-generating translations for build (immediate mode)...",
-            );
-
-            for (const locale of options.preGenerateLocales) {
+              // Process the queue
               try {
-                const response = await handleTranslationRequest(locale, {
-                  sourceRoot: config.sourceRoot,
-                  lingoDir: config.lingoDir,
-                  sourceLocale: config.sourceLocale,
-                  translator: config.translator,
-                  allowProductionGeneration: true,
-                });
+                await queue.process();
 
-                if (response.status !== 200) {
-                  logger.error(
-                    `Failed to pre-generate ${locale}: ${response.body}`,
-                  );
+                // Wait for completion if configured
+                if (options.waitForTranslations !== false) {
+                  await queue.waitForCompletion();
                 }
+
+                const stats = queue.getStats();
+                logger.info(`Translation queue completed:`, stats);
               } catch (error) {
-                logger.error(`Failed to pre-generate ${locale}:`, error);
+                logger.error("Failed to process translation queue:", error);
+                throw error;
+              }
+            } else {
+              // Legacy immediate approach
+              logger.info(
+                "Pre-generating translations for build (immediate mode)...",
+              );
+
+              for (const locale of options.targetLocales) {
+                try {
+                  const response = await handleTranslationRequest(locale, {
+                    sourceRoot: config.sourceRoot,
+                    lingoDir: config.lingoDir,
+                    sourceLocale: config.sourceLocale,
+                    translator: config.translator,
+                    allowProductionGeneration: true,
+                  });
+
+                  if (response.status !== 200) {
+                    logger.error(
+                      `Failed to pre-generate ${locale}: ${response.body}`,
+                    );
+                  }
+                } catch (error) {
+                  logger.error(`Failed to pre-generate ${locale}:`, error);
+                }
               }
             }
           }
+        } finally {
+          globalServer?.stop();
         }
       },
     };

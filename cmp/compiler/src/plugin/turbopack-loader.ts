@@ -33,7 +33,7 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    if (!globalServer) {
+    if (config.isDev) {
       globalServer = await startTranslationServer({
         startPort: 60000,
         onError: (err) => {
@@ -55,7 +55,7 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverPort: globalServer?.getPort() || null,
+      serverPort: globalServer?.getPort(),
     });
 
     // If no transformation occurred, return original source

@@ -104,6 +104,7 @@ export class TranslationServer {
    */
   async stop(): Promise<void> {
     if (!this.server) {
+      logger.debug("Translation server is not running. Nothing to stop.");
       return;
     }
 

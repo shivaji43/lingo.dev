@@ -24,6 +24,19 @@ import type { TranslatorConfig } from "../translate";
 import { getCachePath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
+import { startTranslationServer } from "../server";
+
+// Track global server instance from turbopack-loader
+// We need to shut it down after build to prevent hanging
+let globalServerShutdown: (() => Promise<void>) | null = null;
+
+/**
+ * Register a shutdown function for the global translation server
+ * Called by turbopack-loader when server is started
+ */
+export function registerServerShutdown(shutdownFn: () => Promise<void>) {
+  globalServerShutdown = shutdownFn;
+}
 
 export interface LingoNextPluginOptions {
   /**
@@ -106,16 +119,21 @@ export function withLingo(
         }
 
         logger.info("Running post-build translation generation...");
+        let translationServer;
         try {
-          const config = {
-            sourceRoot: lingoOptions.sourceRoot || process.cwd(),
-            lingoDir: lingoOptions.lingoDir || ".lingo",
-            sourceLocale: lingoOptions.sourceLocale || "en",
-            translator: lingoOptions.translator,
-          };
+          translationServer = await startTranslationServer({
+            startPort: 60000,
+            onError: (err) => {
+              logger.error("Translation server error:", err);
+            },
+            onReady: () => {
+              logger.info("Translation server started");
+            },
+            config: lingoConfig,
+          });
 
           // Load all translation hashes from metadata
-          const metadata = await loadMetadata(config);
+          const metadata = await loadMetadata(lingoConfig);
           const hashes = Object.keys(metadata.entries);
 
           if (hashes.length === 0) {
@@ -124,13 +142,13 @@ export function withLingo(
           }
 
           logger.info(
-            `Processing ${hashes.length} translations for ${lingoOptions.targetLocales.length} locale(s)...`,
+            `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
           );
 
           const batchSize = lingoOptions.batchSize ?? 50;
 
           // Process all locales in parallel
-          const localePromises = lingoOptions.targetLocales.map(
+          const localePromises = lingoConfig.targetLocales.map(
             async (locale) => {
               logger.info(`Translating to ${locale}...`);
 
@@ -148,7 +166,7 @@ export function withLingo(
                   locale,
                   batch,
                   {
-                    ...config,
+                    ...lingoConfig,
                     allowProductionGeneration: true,
                   },
                 );
@@ -183,7 +201,7 @@ export function withLingo(
           await fs.mkdir(publicPath, { recursive: true });
 
           for (const locale of lingoOptions.targetLocales) {
-            const cacheFilePath = getCachePath(config, locale);
+            const cacheFilePath = getCachePath(lingoConfig, locale);
             const publicFilePath = path.join(publicPath, `${locale}.json`);
 
             try {
@@ -198,6 +216,10 @@ export function withLingo(
         } catch (error) {
           logger.error("Translation generation failed:", error);
           throw error;
+        } finally {
+          // This prevents the process from hanging after build completion
+          translationServer?.stop();
+          logger.info("Shutting down translation server...");
         }
       },
     },

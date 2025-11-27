@@ -62,6 +62,7 @@ export function createMockConfig(
     sourceRoot: "src",
     isDev: true,
     framework: "vite", // Default to vite (all client components)
+    targetLocales: ["en", "de"],
     ...overrides,
   });
 }
