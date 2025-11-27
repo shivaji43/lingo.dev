@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { cookies } from "next/headers";
 import "./globals.css";
 import { NextTranslationProvider } from "@lingo.dev/_compiler/react";
 import { getServerTranslations } from "@lingo.dev/_compiler/react/server";

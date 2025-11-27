@@ -7,7 +7,7 @@ export const Counter = () => {
     <div className="flex gap-2">
       <span>{state}</span>
       <button onClick={() => setState((old) => old + 1)}>
-        How are you? 122.
+        How are you tomorrow?.
       </button>
     </div>
   );
