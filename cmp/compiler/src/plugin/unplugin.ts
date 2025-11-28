@@ -81,6 +81,28 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
           config.isDev = resolvedConfig.mode === "development";
         },
 
+        // Inject dev widget into HTML
+        transformIndexHtml: {
+          order: "pre",
+          handler(html) {
+            // Only inject in dev mode
+            if (!config.isDev) return html;
+
+            const {
+              createWidgetInjectionScript,
+            } = require("../widget/inject-widget");
+            const serverPort = globalServer?.getPort() || null;
+
+            const widgetScript = createWidgetInjectionScript({
+              serverPort,
+              position: "bottom-left",
+            });
+
+            // Inject before closing body tag
+            return html.replace("</body>", `${widgetScript}\n</body>`);
+          },
+        },
+
         // TODO: Add dev server middleware for translation API
         // configureServer(server) {
         //   server.middlewares.use(async (req, res, next) => {
