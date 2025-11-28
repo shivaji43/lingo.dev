@@ -1,4 +1,4 @@
-import { isValidElement, type ReactNode } from "react";
+import { Fragment, isValidElement, type ReactNode } from "react";
 
 /**
  * Component renderer function for rich text translation
@@ -36,6 +36,7 @@ export function renderRichText(
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
+  let hasElements = false;
 
   while ((match = regex.exec(text)) !== null && match.groups) {
     // Add text before the match
@@ -62,6 +63,7 @@ export function renderRichText(
         // Recursively parse the content
         const parsedContent = renderRichText(content, params);
         parts.push(renderer(parsedContent));
+        hasElements = true;
       } else {
         parts.push(match[0]); // Keep placeholder if not found
       }
@@ -69,6 +71,7 @@ export function renderRichText(
       const renderer = params[match.groups.selfClosing];
       if (typeof renderer === "function") {
         parts.push(renderer(null));
+        hasElements = true;
       }
     }
 
@@ -85,11 +88,8 @@ export function renderRichText(
     return text;
   }
 
-  // Check if any part is a React element
-  const hasReactElements = parts.some((part) => isValidElement(part));
-
   // If no React elements, concatenate all parts into a string
-  if (!hasReactElements) {
+  if (!hasElements) {
     return parts.join("");
   }
 
@@ -99,5 +99,12 @@ export function renderRichText(
   }
 
   // Return array of nodes wrapped in Fragment
-  return <>{parts}</>;
+  return (
+    <>
+      {parts.map((part, index) => (
+        // TODO (AleksandrSl 29/11/2025): We can actually use the tag names we created, since they are stable
+        <Fragment key={index}>{part}</Fragment>
+      ))}
+    </>
+  );
 }
