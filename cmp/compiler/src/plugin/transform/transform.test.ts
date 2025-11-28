@@ -8,12 +8,12 @@
  * and returns transformed code + new entries. It never touches the filesystem.
  */
 
-import { describe, it, expect, beforeEach, assert } from "vitest";
+import { assert, beforeEach, describe, expect, it } from "vitest";
 import { transformComponent } from "./index";
 import type { LoaderConfig, MetadataSchema } from "../../types";
 import {
-  createMockMetadata,
   createMockConfig,
+  createMockMetadata,
 } from "../../__test-utils__/mocks";
 
 describe("transformComponent", () => {
@@ -953,6 +953,7 @@ export default function Welcome() {
       expect(result.code).toContain("t(");
       expect(result.code).toContain('"Hello {name}, welcome!"');
       expect(result.code).toContain("name");
+      expect(result.code).toMatchSnapshot();
     });
 
     it("should transform JSX with text, expressions, and nested elements", () => {
@@ -981,20 +982,7 @@ export default function Message() {
       );
       expect(entry.context.componentName).toBe("Message");
 
-      // TODO (AleksandrSl 28/11/2025): Use Snapshot
-      // Should generate rich text t() call with component renderer
-      expect(result.code).toContain("t(");
-      expect(result.code).toContain(
-        '"Hello {name}, you have <strong0>{count}</strong0> messages"',
-      );
-      expect(result.code).toContain("name");
-      expect(result.code).toContain("count");
-      expect(result.code).toContain("strong0:");
-      expect(result.code).toContain("chunks =>");
-
-      // Log the actual generated code for debugging
-      console.log("Generated code for nested elements test:");
-      console.log(result.code);
+      expect(result.code).toMatchSnapshot();
     });
 
     it("should handle multiple same-type nested elements", () => {
@@ -1021,6 +1009,24 @@ export default function Links() {
       // Should have two separate component renderers
       expect(result.code).toContain("a0:");
       expect(result.code).toContain("a1:");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should keep text separated by void elements as the single translation", () => {
+      const code = `
+export default function Links() {
+  return <p>Click <br />there</p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Links.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.code).toMatchSnapshot();
     });
 
     it("should not transform simple text-only elements", () => {
@@ -1047,6 +1053,7 @@ export default function Simple() {
       // Should generate simple t() call, not rich text
       expect(result.code).toContain("t(");
       expect(result.code).not.toContain("chunks");
+      expect(result.code).toMatchSnapshot();
     });
 
     it('should handle string literal expressions like {" "}', () => {
@@ -1076,13 +1083,13 @@ export default function Spaced() {
       expect(result.code).toContain("t(");
       expect(result.code).toContain("a0:");
       expect(result.code).toContain("a1:");
+      expect(result.code).toMatchSnapshot();
     });
 
     it("should NOT treat void elements (like Image) as rich text", () => {
       const code = `
 import Image from "next/image";
 
-// TODO (AleksandrSl 28/11/2025): CHeck how this is transformed
 export default function Button() {
   return (
     <a href="/deploy">
@@ -1112,6 +1119,7 @@ export default function Button() {
       // Should NOT generate rich text with Image0
       expect(result.code).not.toContain("Image0:");
       expect(result.code).not.toContain("chunks =>");
+      expect(result.code).toMatchSnapshot();
     });
   });
 
@@ -1220,6 +1228,8 @@ export function Example() {
         metadata,
         serverPort: 60000,
       });
+
+      expect(result.code).toMatchSnapshot();
 
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);

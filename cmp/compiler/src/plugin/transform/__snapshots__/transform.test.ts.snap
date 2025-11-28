@@ -124,6 +124,81 @@ export default async function Page() {
 }"
 `;
 
+exports[`transformComponent > mixed content (rich text) > should NOT treat void elements (like Image) as rich text 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+import Image from "next/image";
+export default function Button() {
+  const t = useTranslation(["4a2ca567e0c8"]);
+  return <a href="/deploy">
+      <Image src="/icon.svg" alt="Icon" width={16} height={16} />{t("4a2ca567e0c8", "Deploy Now")}</a>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should handle multiple same-type nested elements 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Links() {
+  const t = useTranslation(["6a6a7e72a4a7"]);
+  return <p>{t("6a6a7e72a4a7", "Click <a0>here</a0> or <a1>there</a1>", {
+      a0: chunks => <a href="/home">{chunks}</a>,
+      a1: chunks => <a href="/about">{chunks}</a>
+    })}</p>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should handle string literal expressions like {" "} 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Spaced() {
+  const t = useTranslation(["2fd676849081"]);
+  return <p>{t("2fd676849081", "Click <a0>here</a0> or <a1>there</a1>", {
+      a0: chunks => <a href="/home">{chunks}</a>,
+      a1: chunks => <a href="/about">{chunks}</a>
+    })}</p>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should keep text separated by void elements as the single translation 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Links() {
+  const t = useTranslation(["97afd867bba5"]);
+  return <p>{t("97afd867bba5", "Click <br0/>there", {
+      br0: () => <br />
+    })}</p>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should not transform simple text-only elements 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Simple() {
+  const t = useTranslation(["f8b4cfb70018"]);
+  return <div>{t("f8b4cfb70018", "Just plain text")}</div>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should transform JSX with text and expressions 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Welcome() {
+  const t = useTranslation(["c8d40d77d55f"]);
+  const name = "John";
+  return <div>{t("c8d40d77d55f", "Hello {name}, welcome!", {
+      name
+    })}</div>;
+}"
+`;
+
+exports[`transformComponent > mixed content (rich text) > should transform JSX with text, expressions, and nested elements 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Message() {
+  const t = useTranslation(["4a25172a298b"]);
+  const name = "Alice";
+  const count = 5;
+  return <div>{t("4a25172a298b", "Hello {name}, you have <strong0>{count}</strong0> messages", {
+      name,
+      count,
+      strong0: chunks => <strong>{chunks}</strong>
+    })}</div>;
+}"
+`;
+
 exports[`transformComponent > multiple components in one file > should handle nested components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function OuterComponent() {
@@ -258,6 +333,18 @@ export function Card() {
       <h1>{t("ac78456dc11b", "Welcome")}</h1>
       <p>{t("c32ab6fbd661", "This is a description")}</p>
       <button>{t("8ea4da0d08f6", "Click me")}</button>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > skip translation > should skip translation for <code> elements 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export function Example() {
+  const t = useTranslation(["64e588c6127f"]);
+  return <div>
+      <p>{t("64e588c6127f", "Install using <code0/> command", {
+        code0: () => <code>npm install package</code>
+      })}</p>
     </div>;
 }"
 `;

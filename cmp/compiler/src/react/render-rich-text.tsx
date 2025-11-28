@@ -30,31 +30,32 @@ export function renderRichText(
 ): ReactNode {
   // Create a new regex for each call to avoid state conflicts in recursive calls
   // We can't reuse a shared regex because recursive calls would corrupt the parent's state
-  const regex = /\{(\w+)}|<(\w+)>(.*?)<\/\2>/gs;
+  const regex =
+    /\{(?<variable>\w+)}|<(?<openTag>\w+)>(?<content>.*?)<\/\k<openTag>>|<(?<selfClosing>\w+)\/>/gs;
 
   const parts: ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = regex.exec(text)) !== null) {
+  while ((match = regex.exec(text)) !== null && match.groups) {
     // Add text before the match
     if (match.index > lastIndex) {
       parts.push(text.substring(lastIndex, match.index));
     }
 
-    if (match[1]) {
+    if (match.groups.variable) {
       // Variable placeholder: {varName}
-      const varName = match[1];
+      const varName = match.groups.variable;
       const value = params[varName];
       if (value !== undefined && typeof value !== "function") {
         parts.push(value);
       } else {
         parts.push(match[0]); // Keep placeholder if not found
       }
-    } else if (match[2]) {
+    } else if (match.groups.openTag) {
       // Component placeholder: <tag0>content</tag0>
-      const tagName = match[2];
-      const content = match[3];
+      const tagName = match.groups.openTag;
+      const content = match.groups.content;
       const renderer = params[tagName];
 
       if (typeof renderer === "function") {
@@ -63,6 +64,11 @@ export function renderRichText(
         parts.push(renderer(parsedContent));
       } else {
         parts.push(match[0]); // Keep placeholder if not found
+      }
+    } else if (match.groups.selfClosing) {
+      const renderer = params[match.groups.selfClosing];
+      if (typeof renderer === "function") {
+        parts.push(renderer(null));
       }
     }
 

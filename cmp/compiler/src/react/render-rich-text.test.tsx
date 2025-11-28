@@ -99,5 +99,13 @@ describe("renderRichText", () => {
     );
 
     expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
+  });
+
+  it("should render untranslatable content as is", () => {
+    const result = renderRichText("Install using <code0/> command", {
+      code0: () => <code>npm install package</code>,
+    });
+    expect(result).toMatchSnapshot();
   });
 });

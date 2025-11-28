@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderRichText > should handle whitespace around component tags 1`] = `
+<React.Fragment>
+  Looking for help? Head over to 
+  <a>
+    Templates
+  </a>
+   or the 
+  <a>
+    Learning
+  </a>
+   center.
+</React.Fragment>
+`;
+
+exports[`renderRichText > should render untranslatable content as is 1`] = `
+<React.Fragment>
+  Install using 
+  <code>
+    npm install package
+  </code>
+   command
+</React.Fragment>
+`;
