@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { logger } from "../../utils/logger";
+import type { LingoDevState } from "../../widget/types";
 
 /**
  * Translation context type
@@ -52,6 +53,14 @@ export interface TranslationContextType {
    * Port of the translation server (if running)
    */
   serverPort?: number | null;
+
+  /**
+   * Development statistics (only in dev mode)
+   */
+  _devStats?: {
+    pendingCount: number;
+    totalRegisteredCount: number;
+  };
 }
 
 /**
@@ -94,6 +103,23 @@ export interface TranslationProviderProps {
    * This ensures Server Components re-render with new locale
    */
   router?: AppRouterInstance;
+
+  /**
+   * Development widget configuration
+   */
+  devWidget?: {
+    /**
+     * Enable/disable widget (default: true in dev mode)
+     * Set to false to opt-out
+     */
+    enabled?: boolean;
+
+    /**
+     * Widget position on screen
+     * @default 'bottom-left'
+     */
+    position?: "bottom-left" | "bottom-right" | "top-left" | "top-right";
+  };
 
   children: ReactNode;
 }
@@ -193,6 +219,7 @@ function TranslationProvider__Dev({
   batchDelay = 100,
   cookieConfig: customCookieConfig,
   router,
+  devWidget,
   children,
 }: TranslationProviderProps) {
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
@@ -423,7 +450,23 @@ function TranslationProvider__Dev({
     [sourceLocale, cookieConfig, router],
   );
 
-  // TODO (AleksandrSl 24/11/2025): Should I memo the value>
+  // Publish state to window global for Web Component widget
+  useEffect(() => {
+    if (typeof window !== "undefined" && devWidget?.enabled !== false) {
+      window.__LINGO_DEV_STATE__ = {
+        isLoading,
+        locale,
+        sourceLocale,
+        pendingCount: pendingHashesRef.current.size,
+        serverPort: null,
+        position: devWidget?.position || "bottom-left",
+      } satisfies LingoDevState;
+      // Trigger widget update
+      window.__LINGO_DEV_UPDATE__?.();
+    }
+  }, [isLoading, locale, sourceLocale, devWidget]);
+
+  // TODO (AleksandrSl 24/11/2025): Should I memo the value?
   return (
     <TranslationContext.Provider
       value={{
@@ -433,6 +476,10 @@ function TranslationProvider__Dev({
         registerHashes,
         isLoading,
         sourceLocale,
+        _devStats: {
+          pendingCount: pendingHashesRef.current.size,
+          totalRegisteredCount: registeredHashesRef.current.size,
+        },
       }}
     >
       {children}
