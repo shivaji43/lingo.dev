@@ -12,17 +12,38 @@ export class PseudoTranslator implements Translator<any> {
   constructor(readonly config: any) {}
 
   batchTranslate(locale: string, entries: Record<string, TranslatableEntry>) {
-    return Promise.resolve(
-      Object.fromEntries(
-        Object.entries(entries).map(([hash, entry]) => {
-          return [hash, `${locale}/${pseudolocalize(entry.text)}`];
-        }),
-      ),
-    );
+    const delay = this.config?.delayMedian ?? 0;
+
+    return new Promise<Record<string, string>>((resolve) => {
+      setTimeout(() => {
+        resolve(
+          Object.fromEntries(
+            Object.entries(entries).map(([hash, entry]) => {
+              return [hash, `${locale}/${pseudolocalize(entry.text)}`];
+            }),
+          ),
+        );
+      }, this.getRandomDelay(delay));
+    });
   }
 
-  translate(locale: string, entry: TranslatableEntry): Promise<any> {
-    return Promise.resolve(`${locale}/${pseudolocalize(entry.text)}`);
+  translate(locale: string, entry: TranslatableEntry) {
+    const delay = this.config?.delayMedian ?? 0;
+
+    return new Promise<string>((resolve) => {
+      setTimeout(() => {
+        resolve(`${locale}/${pseudolocalize(entry.text)}`);
+      }, this.getRandomDelay(delay));
+    });
+  }
+
+  private getRandomDelay(median: number): number {
+    if (median === 0) return 0;
+    // Generate random delay with distribution around median
+    // Use a simple approach: median ± 50%
+    const min = median * 0.5;
+    const max = median * 1.5;
+    return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 }
 
@@ -87,6 +108,7 @@ const PSEUDO_MAP: Record<string, string> = {
 /**
  * Pseudolocalize a string
  * Adds brackets, expands length by ~30%, and uses accented characters
+ * Preserves variable placeholders {name} and component tags <a0>, </a0>
  */
 export function pseudolocalize(text: string): string {
   // Don't pseudolocalize if it's just whitespace or a variable placeholder
@@ -94,15 +116,59 @@ export function pseudolocalize(text: string): string {
     return text;
   }
 
-  // Convert characters
+  // Regular expression to match patterns we should NOT translate:
+  // - Variable placeholders: {varName}
+  // - Component tags: <tagName> or </tagName>
+  const preserveRegex = /(\{\w+}|<\/?\w+>)/g;
+
+  // Split text into parts that should be preserved and parts that should be translated
+  const parts: Array<{ text: string; preserve: boolean }> = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = preserveRegex.exec(text)) !== null) {
+    // Add text before the match (to be translated)
+    if (match.index > lastIndex) {
+      parts.push({
+        text: text.substring(lastIndex, match.index),
+        preserve: false,
+      });
+    }
+
+    // Add the matched pattern (to be preserved)
+    parts.push({
+      text: match[0],
+      preserve: true,
+    });
+
+    lastIndex = preserveRegex.lastIndex;
+  }
+
+  // Add remaining text (to be translated)
+  if (lastIndex < text.length) {
+    parts.push({
+      text: text.substring(lastIndex),
+      preserve: false,
+    });
+  }
+
+  // Convert characters in translatable parts only
   let result = "";
-  for (const char of text) {
-    result += PSEUDO_MAP[char] || char;
+  for (const part of parts) {
+    if (part.preserve) {
+      // Keep placeholders and tags as-is
+      result += part.text;
+    } else {
+      // Pseudolocalize the text
+      for (const char of part.text) {
+        result += PSEUDO_MAP[char] || char;
+      }
+    }
   }
 
   // Add padding to simulate longer translations (~30% longer)
   const padding = " ".repeat(Math.ceil(text.length * 0.3));
 
   // Wrap in brackets to identify translated strings
-  return `[${result}${padding}]`;
+  return `${result}${padding}`;
 }
