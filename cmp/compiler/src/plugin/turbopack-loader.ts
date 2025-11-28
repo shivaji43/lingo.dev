@@ -33,7 +33,7 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    if (config.isDev) {
+    if (config.isDev && !globalServer) {
       globalServer = await startTranslationServer({
         startPort: 60000,
         onError: (err) => {

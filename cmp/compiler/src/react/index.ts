@@ -3,7 +3,7 @@
  *
  * @module @lingo.dev/_compiler-beta/react
  */
-
+// TODO (AleksandrSl 27/11/2025): Is this needed, I don't think so.
 "use client";
 
 // Export context and provider
@@ -26,7 +26,9 @@ export {
 // Export components
 export {
   LocaleSwitcher,
-  LocaleSwitcher as LocaleSwitcherPure, // Alias for backwards compatibility
   type LocaleSwitcherProps,
   type LocaleConfig,
 } from "./client/LocaleSwitcher";
+
+// Export dev widget for Next.js
+export { NextDevWidget } from "../widget/NextDevWidget";

@@ -25,18 +25,7 @@ import { getCachePath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../server";
-
-// Track global server instance from turbopack-loader
-// We need to shut it down after build to prevent hanging
-let globalServerShutdown: (() => Promise<void>) | null = null;
-
-/**
- * Register a shutdown function for the global translation server
- * Called by turbopack-loader when server is started
- */
-export function registerServerShutdown(shutdownFn: () => Promise<void>) {
-  globalServerShutdown = shutdownFn;
-}
+import { LocaleCode } from "lingo.dev/spec";
 
 export interface LingoNextPluginOptions {
   /**
@@ -52,12 +41,27 @@ export interface LingoNextPluginOptions {
   lingoDir?: string;
 
   /**
-   * Source locale (default language)
-   * @default 'en'
+   * The locale to translate from.
+   *
+   * This must match one of the following formats:
+   *
+   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
+   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
+   *
+   * @default "en"
    */
-  sourceLocale?: string;
-
-  targetLocales: string[];
+  sourceLocale: LocaleCode;
+  /**
+   * The locale(s) to translate to.
+   *
+   * Each locale must match one of the following formats:
+   *
+   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
+   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
+   *
+   * @default ["es"]
+   */
+  targetLocales: LocaleCode[];
 
   /**
    * Only transform files with 'use i18n' directive
@@ -238,6 +242,7 @@ export function withLingo(
                 translator: lingoConfig.translator
                   ? JSON.stringify(lingoConfig.translator)
                   : "null",
+                isDev: lingoConfig.isDev,
                 // TODO (AleksandrSl 24/11/2025): This one should be serialized properly.
                 // skipPatterns: lingoConfig.skipPatterns,
                 framework: lingoConfig.framework,

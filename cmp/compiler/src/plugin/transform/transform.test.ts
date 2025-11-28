@@ -925,6 +925,196 @@ export const metadata = {
     });
   });
 
+  describe("mixed content (rich text)", () => {
+    it("should transform JSX with text and expressions", () => {
+      const code = `
+export default function Welcome() {
+  const name = "John";
+  return <div>Hello {name}, welcome!</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Welcome.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Hello {name}, welcome!");
+      expect(entry.context.componentName).toBe("Welcome");
+
+      // Should generate rich text t() call
+      expect(result.code).toContain("t(");
+      expect(result.code).toContain('"Hello {name}, welcome!"');
+      expect(result.code).toContain("name");
+    });
+
+    it("should transform JSX with text, expressions, and nested elements", () => {
+      const code = `
+export default function Message() {
+  const name = "Alice";
+  const count = 5;
+  return <div>Hello {name}, you have <strong>{count}</strong> messages</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Message.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe(
+        "Hello {name}, you have <strong0>{count}</strong0> messages",
+      );
+      expect(entry.context.componentName).toBe("Message");
+
+      // TODO (AleksandrSl 28/11/2025): Use Snapshot
+      // Should generate rich text t() call with component renderer
+      expect(result.code).toContain("t(");
+      expect(result.code).toContain(
+        '"Hello {name}, you have <strong0>{count}</strong0> messages"',
+      );
+      expect(result.code).toContain("name");
+      expect(result.code).toContain("count");
+      expect(result.code).toContain("strong0:");
+      expect(result.code).toContain("chunks =>");
+
+      // Log the actual generated code for debugging
+      console.log("Generated code for nested elements test:");
+      console.log(result.code);
+    });
+
+    it("should handle multiple same-type nested elements", () => {
+      const code = `
+export default function Links() {
+  return <p>Click <a href="/home">here</a> or <a href="/about">there</a></p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Links.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Click <a0>here</a0> or <a1>there</a1>");
+
+      // Should have two separate component renderers
+      expect(result.code).toContain("a0:");
+      expect(result.code).toContain("a1:");
+    });
+
+    it("should not transform simple text-only elements", () => {
+      const code = `
+export default function Simple() {
+  return <div>Just plain text</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Simple.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Just plain text");
+
+      // Should generate simple t() call, not rich text
+      expect(result.code).toContain("t(");
+      expect(result.code).not.toContain("chunks");
+    });
+
+    it('should handle string literal expressions like {" "}', () => {
+      const code = `
+export default function Spaced() {
+  return <p>Click <a href="/home">here</a>{" "}or{" "}<a href="/about">there</a></p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Spaced.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      // String literals like {" "} should be included directly in the text
+      expect(entry.sourceText).toBe("Click <a0>here</a0> or <a1>there</a1>");
+      expect(entry.sourceText).not.toContain("{expression}");
+
+      // Should generate rich text t() call
+      expect(result.code).toContain("t(");
+      expect(result.code).toContain("a0:");
+      expect(result.code).toContain("a1:");
+    });
+
+    it("should NOT treat void elements (like Image) as rich text", () => {
+      const code = `
+import Image from "next/image";
+
+// TODO (AleksandrSl 28/11/2025): CHeck how this is transformed
+export default function Button() {
+  return (
+    <a href="/deploy">
+      <Image src="/icon.svg" alt="Icon" width={16} height={16} />
+      Deploy Now
+    </a>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate "Deploy Now" as simple text, not as rich text
+      // The Image should remain in its original position
+      expect(result.newEntries).toHaveLength(1);
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Deploy Now");
+
+      // Should NOT generate rich text with Image0
+      expect(result.code).not.toContain("Image0:");
+      expect(result.code).not.toContain("chunks =>");
+    });
+  });
+
   describe("server components", () => {
     it("should transform server component with multiple text nodes in paragraph", () => {
       // Use Next.js framework config for proper server component detection
@@ -1007,6 +1197,275 @@ export async function ServerCard() {
       }
 
       expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  // TODO (AleksandrSl 28/11/2025): I don't understand how these work too?
+  describe("skip translation", () => {
+    it("should skip translation for <code> elements", () => {
+      const code = `
+export function Example() {
+  return (
+    <div>
+      <p>Install using <code>npm install package</code> command</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Example.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate the outer text, not the code content
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toContain("Install using");
+      expect(result.newEntries[0].sourceText).toContain("command");
+
+      // Code element content should remain untransformed
+      expect(result.code).toContain("<code>npm install package</code>");
+    });
+
+    it("should skip translation for <pre> elements", () => {
+      const code = `
+export function CodeBlock() {
+  return (
+    <div>
+      <h2>Example Code</h2>
+      <pre>const x = 10;
+function test() {}</pre>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/CodeBlock.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate the h2 text
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Example Code");
+
+      // Pre element content should remain untransformed
+      expect(result.code).toContain("<pre>const x = 10;");
+    });
+
+    it('should skip translation for elements with translate="no"', () => {
+      const code = `
+export function Product() {
+  return (
+    <div>
+      <h1>Product Name</h1>
+      <p translate="no">SKU-12345-XYZ</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Product.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate the h1 text
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Product Name");
+
+      // SKU should remain untransformed
+      expect(result.code).toContain('translate="no">SKU-12345-XYZ</p>');
+    });
+
+    it("should skip translation for elements with data-lingo-skip", () => {
+      const code = `
+export function ApiDocs() {
+  return (
+    <div>
+      <h1>API Documentation</h1>
+      <div data-lingo-skip>
+        POST /api/users
+      </div>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/ApiDocs.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate the h1 text
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("API Documentation");
+
+      // API endpoint should remain untransformed
+      expect(result.code).toContain("POST /api/users");
+    });
+
+    it("should skip translation for multiple non-translatable element types", () => {
+      const code = `
+export function TechDoc() {
+  return (
+    <div>
+      <p>Press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy</p>
+      <p>Variable <var>x</var> represents the value</p>
+      <p>Sample output: <samp>Hello World</samp></p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/TechDoc.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should translate the outer text but not kbd, var, samp content
+      // The non-translatable elements are skipped from the translation string
+      expect(result.newEntries).toHaveLength(3);
+      const sourceTexts = result.newEntries.map((e) => e.sourceText);
+      expect(sourceTexts[0]).toContain("Press");
+      expect(sourceTexts[0]).toContain("to copy");
+      expect(sourceTexts[1]).toContain("Variable");
+      expect(sourceTexts[1]).toContain("represents the value");
+      expect(sourceTexts[2]).toContain("Sample output:");
+
+      // Technical elements should remain untransformed
+      expect(result.code).toContain("<kbd>Ctrl</kbd>");
+      expect(result.code).toContain("<kbd>C</kbd>");
+      expect(result.code).toContain("<var>x</var>");
+      expect(result.code).toContain("<samp>Hello World</samp>");
+    });
+
+    it("should skip translation for nested code in rich text", () => {
+      const code = `
+export function Tutorial() {
+  return (
+    <div>
+      <p>
+        Run the command <code>npm start</code> to begin.
+        You can also use <code>yarn start</code> instead.
+      </p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Tutorial.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should translate the text but preserve code elements
+      // Code elements are skipped from the translation string
+      expect(result.newEntries).toHaveLength(1);
+      const sourceText = result.newEntries[0].sourceText;
+      expect(sourceText).toContain("Run the command");
+      expect(sourceText).toContain("to begin");
+      expect(sourceText).toContain("You can also use");
+      expect(sourceText).toContain("instead");
+      // Code content should NOT be in the translation string
+      expect(sourceText).not.toContain("npm start");
+      expect(sourceText).not.toContain("yarn start");
+
+      // Code elements should remain untransformed in output
+      expect(result.code).toContain("<code>npm start</code>");
+      expect(result.code).toContain("<code>yarn start</code>");
+    });
+
+    it('should combine translate="no" with other attributes', () => {
+      const code = `
+export function Branded() {
+  return (
+    <div>
+      <h1>Welcome to our app</h1>
+      <span className="brand" translate="no">TechCorp™</span>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Branded.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should only translate the h1
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Welcome to our app");
+
+      // Brand name should remain untransformed with className preserved
+      expect(result.code).toContain('className="brand"');
+      expect(result.code).toContain('translate="no"');
+      expect(result.code).toContain("TechCorp™");
+    });
+
+    it('should not skip translation for translate="yes"', () => {
+      const code = `
+export function ExplicitTranslate() {
+  return <p translate="yes">This should be translated</p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/ExplicitTranslate.tsx",
+        config,
+        metadata,
+        serverPort: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Should translate the text
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("This should be translated");
     });
   });
 });

@@ -8,6 +8,8 @@ import { cookies } from "next/headers";
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
+import { renderRichText, RichTextParams } from "../render-rich-text";
+import type { ReactNode } from "react";
 
 /**
  * Dictionary schema for translation
@@ -147,10 +149,18 @@ async function fetchTranslationsFromDevServer(
  * export default async function Page({ params }: { params: { locale: string } }) {
  *   const { t } = await getServerTranslations({
  *     locale: params.locale,
- *     hashes: ['hash_123', 'hash_456']
+ *     hashes: ['hash_123', 'hash_456', 'hash_789']
  *   });
  *
- *   return <h1>{t('hash_123', 'Welcome')}</h1>;
+ *   return (
+ *     <div>
+ *       <h1>{t('hash_123', 'Welcome')}</h1>
+ *       <p>{t('hash_456', 'Hello {name}', { name: 'Alice' })}</p>
+ *       <p>{t('hash_789', 'Click <a0>here</a0>', {
+ *         a0: (chunks) => <a href="/home">{chunks}</a>
+ *       })}</p>
+ *     </div>
+ *   );
  * }
  * ```
  *
@@ -195,7 +205,11 @@ export async function getServerTranslations(options?: {
    */
   hashes?: string[];
 }): Promise<{
-  t: (hash: string, sourceText: string) => string;
+  t: (
+    hash: string,
+    sourceText: string,
+    params?: RichTextParams,
+  ) => string | ReactNode;
   locale: string;
   translations: Record<string, string>;
 }> {
@@ -210,7 +224,14 @@ export async function getServerTranslations(options?: {
   // For source locale, return source text directly
   if (locale === sourceLocale) {
     return {
-      t: (_hash: string, sourceText: string) => sourceText,
+      t: (_hash: string, sourceText: string, params?: RichTextParams) => {
+        // If no params, return plain text
+        if (!params) {
+          return sourceText;
+        }
+        // Parse rich text with placeholders
+        return renderRichText(sourceText, params);
+      },
       locale,
       translations: {}, // Empty for source locale - client components will show source text
     };
@@ -252,19 +273,28 @@ export async function getServerTranslations(options?: {
 
   // Return translation function, locale, and full translations object
   return {
-    t: (hash: string, sourceText: string) => {
-      // Try to get translation
+    t: (hash: string, sourceText: string, params?: RichTextParams) => {
+      // Get the text (either translation or source)
+      let text: string;
       if (translations[hash]) {
-        return translations[hash];
+        text = translations[hash];
+      } else {
+        // Fallback to source text
+        if (process.env.NODE_ENV === "development") {
+          logger.warn(
+            `Translation not found for hash: ${hash}, using fallback: ${sourceText}`,
+          );
+        }
+        text = sourceText;
       }
 
-      // Fallback to source text
-      if (process.env.NODE_ENV === "development") {
-        logger.warn(
-          `Translation not found for hash: ${hash}, using fallback: ${sourceText}`,
-        );
+      // If no params, return plain text
+      if (!params) {
+        return text;
       }
-      return sourceText;
+
+      // Parse rich text with placeholders
+      return renderRichText(text, params);
     },
     locale,
     translations, // Pass all translations for client components

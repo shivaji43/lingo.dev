@@ -40,6 +40,26 @@ export interface VisitorsSharedState {
 const root = "@lingo.dev/_compiler";
 
 // ============================================================================
+// TEXT NORMALIZATION UTILITIES
+// ============================================================================
+
+// TODO (AleksandrSl 28/11/2025): See jsx-content.ts in the old compiler for future improvements.
+
+/**
+ * Normalize whitespace in translatable text.
+ * - Collapses multiple spaces/tabs/newlines into a single space
+ * - Preserves single spaces between words
+ * - Trims leading and trailing whitespace
+ *
+ * Example: "Hello\n    world  \n  foo" → "Hello world foo"
+ */
+function normalizeWhitespace(text: string): string {
+  return text
+    .replace(/\s+/g, " ") // Collapse all whitespace sequences to single space
+    .trim(); // Remove leading/trailing whitespace
+}
+
+// ============================================================================
 // DETECTION UTILITIES - Pure functions for component analysis
 // ============================================================================
 
@@ -189,6 +209,368 @@ function createTranslationCall(
   return t.jsxExpressionContainer(tCall);
 }
 
+// ============================================================================
+// MIXED CONTENT HANDLING - Handle JSX elements with text + expressions + nested elements
+// ============================================================================
+
+/**
+ * List of void/self-closing HTML elements that cannot have children
+ * These should NOT be treated as rich text components
+ */
+// TODO (AleksandrSl 28/11/2025): I think there should be a better way, we can get this from AST most likely.
+const VOID_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+  // Next.js Image component is also self-closing
+  "Image",
+]);
+
+/**
+ * Elements whose content should not be translated by default.
+ * These are typically code-related or technical elements where translation
+ * would break functionality or meaning.
+ */
+const NON_TRANSLATABLE_ELEMENTS = new Set([
+  "code", // Inline code
+  "pre", // Preformatted text (usually code blocks)
+  "script", // JavaScript code
+  "style", // CSS styles
+  "kbd", // Keyboard input
+  "samp", // Sample output
+  "var", // Variable name
+]);
+
+/**
+ * Check if a JSX element is self-closing (void element)
+ */
+function isVoidElement(element: t.JSXElement): boolean {
+  const openingElement = element.openingElement;
+  if (openingElement.name.type === "JSXIdentifier") {
+    return VOID_ELEMENTS.has(openingElement.name.name);
+  }
+  return false;
+}
+
+// TODO (AleksandrSl 28/11/2025): make this more generic, and think about corner cases where only one part of the complex component is marked with no translate
+/**
+ * Check if a JSX element should skip translation based on:
+ * 1. Element type (code, pre, script, style, etc.)
+ * 2. translate="no" attribute (HTML standard)
+ * 3. data-lingo-skip attribute
+ */
+function shouldSkipTranslation(element: t.JSXElement): boolean {
+  const openingElement = element.openingElement;
+
+  // Check element type
+  if (openingElement.name.type === "JSXIdentifier") {
+    if (NON_TRANSLATABLE_ELEMENTS.has(openingElement.name.name)) {
+      return true;
+    }
+  }
+
+  // Check attributes
+  for (const attr of openingElement.attributes) {
+    if (attr.type === "JSXAttribute" && attr.name.type === "JSXIdentifier") {
+      // Check for translate="no" (HTML standard)
+      if (attr.name.name === "translate") {
+        if (attr.value?.type === "StringLiteral" && attr.value.value === "no") {
+          return true;
+        }
+      }
+
+      // Check for data-lingo-skip attribute (presence is enough)
+      if (attr.name.name === "data-lingo-skip") {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// TODO (AleksandrSl 28/11/2025): I believe this one could be a complex one.
+//  Though it doesn't look recursively, so should be fine.
+/**
+ * Check if a JSX element has mixed content that needs rich text translation
+ * Mixed content = text nodes + expressions + nested JSX elements (excluding void elements)
+ */
+function hasMixedContent(element: t.JSXElement): boolean {
+  const children = element.children;
+  if (children.length === 0) return false;
+
+  let hasText = false;
+  let hasTranslatableContent = false;
+
+  for (const child of children) {
+    if (child.type === "JSXText") {
+      const text = child.value.trim();
+      if (text.length > 0 && !/^[\s\n]*$/.test(text)) {
+        hasText = true;
+      }
+    } else if (child.type === "JSXExpressionContainer") {
+      // Expression containers count as translatable content
+      hasTranslatableContent = true;
+    } else if (child.type === "JSXElement") {
+      // Only count non-void and translatable elements as translatable content
+      // Skip elements like <code>, <pre>, etc. that should not be translated
+      if (!isVoidElement(child) && !shouldSkipTranslation(child)) {
+        hasTranslatableContent = true;
+      }
+    }
+  }
+
+  // Mixed content = has text AND (expressions OR non-void translatable nested elements)
+  return hasText && hasTranslatableContent;
+}
+
+/**
+ * Result of serializing JSX children to a translation string
+ */
+interface SerializedJSX {
+  /** The serialized string with placeholders, e.g. "Hello {name}, you have <strong0>{count}</strong0> messages" */
+  text: string;
+  /** Variable identifiers extracted from expressions, e.g. ["name", "count"] */
+  variables: string[];
+  /** Component mappings for nested elements, e.g. { strong0: <strong>...</strong> } */
+  components: Map<string, t.JSXElement>;
+}
+
+// TODO (AleksandrSl 28/11/2025): Should this be so complex?
+/**
+ * Serialize JSX children to a translation string with placeholders
+ */
+function serializeJSXChildren(
+  children: Array<
+    | t.JSXText
+    | t.JSXExpressionContainer
+    | t.JSXElement
+    | t.JSXSpreadChild
+    | t.JSXFragment
+  >,
+): SerializedJSX {
+  let text = "";
+  const variables: string[] = [];
+  const components = new Map<string, t.JSXElement>();
+  const elementCounts = new Map<string, number>();
+
+  for (const child of children) {
+    if (child.type === "JSXText") {
+      // Normalize whitespace within this text node
+      let normalized = normalizeWhitespace(child.value);
+
+      // If we have accumulated text and this node starts with whitespace,
+      // ensure there's a space separator
+      if (
+        text.length > 0 &&
+        child.value.match(/^\s/) &&
+        normalized.length > 0
+      ) {
+        if (!text.endsWith(" ")) {
+          text += " ";
+        }
+      }
+
+      text += normalized;
+
+      // If this node ends with whitespace and has content, add trailing space
+      if (normalized.length > 0 && child.value.match(/\s$/)) {
+        if (!text.endsWith(" ")) {
+          text += " ";
+        }
+      }
+    } else if (child.type === "JSXExpressionContainer") {
+      // Extract variable name from expression
+      const expr = child.expression;
+      if (expr.type === "Identifier") {
+        text += `{${expr.name}}`;
+        if (!variables.includes(expr.name)) {
+          variables.push(expr.name);
+        }
+      } else if (expr.type === "StringLiteral") {
+        // String literal (like {" "}) - include the literal text directly
+        text += expr.value;
+      } else {
+        // Complex expression - for now, skip or use a placeholder
+        text += "{expression}";
+      }
+    } else if (child.type === "JSXElement") {
+      // Skip void elements (they cannot have children and shouldn't be in rich text)
+      if (isVoidElement(child)) {
+        // Void elements are ignored in the translation string
+        // They will remain in their original position in the JSX tree
+        continue;
+      }
+
+      // Skip elements that should not be translated (code, pre, etc.)
+      // These elements remain in the JSX tree but are not included in translation
+      if (shouldSkipTranslation(child)) {
+        continue;
+      }
+
+      // Get element name
+      const openingElement = child.openingElement;
+      let elementName = "";
+      if (openingElement.name.type === "JSXIdentifier") {
+        elementName = openingElement.name.name;
+      } else {
+        elementName = "element";
+      }
+
+      // Generate unique tag name with index
+      const count = elementCounts.get(elementName) || 0;
+      elementCounts.set(elementName, count + 1);
+      const tagName = `${elementName}${count}`;
+
+      // Recursively serialize nested content
+      const nested = serializeJSXChildren(child.children);
+      text += `<${tagName}>${nested.text}</${tagName}>`;
+
+      // Merge nested variables
+      for (const v of nested.variables) {
+        if (!variables.includes(v)) {
+          variables.push(v);
+        }
+      }
+
+      // Store component mapping
+      components.set(tagName, child);
+
+      // Merge nested component mappings with prefixes to avoid conflicts
+      for (const [nestedTag, nestedElement] of nested.components) {
+        components.set(`${tagName}_${nestedTag}`, nestedElement);
+      }
+    }
+  }
+
+  return { text, variables, components };
+}
+
+/**
+ * Create a rich text translation call: t(hash, fallback, { var1, var2, tag0: (chunks) => <Tag>{chunks}</Tag> })
+ */
+function createRichTextTranslationCall(
+  hash: string,
+  fallbackText: string,
+  variables: string[],
+  components: Map<string, t.JSXElement>,
+): t.CallExpression {
+  const properties: t.ObjectProperty[] = [];
+
+  // Add variable properties (shorthand)
+  for (const varName of variables) {
+    properties.push(
+      t.objectProperty(
+        t.identifier(varName),
+        t.identifier(varName),
+        false,
+        true, // shorthand
+      ),
+    );
+  }
+
+  // Add component renderer functions
+  for (const [tagName, element] of components) {
+    // Create: tagName: (chunks) => <Element>{chunks}</Element>
+    const renderFn = t.arrowFunctionExpression(
+      [t.identifier("chunks")],
+      t.jsxElement(
+        t.jsxOpeningElement(
+          element.openingElement.name,
+          element.openingElement.attributes,
+          false,
+        ),
+        t.jsxClosingElement(
+          element.closingElement?.name || element.openingElement.name,
+        ),
+        [t.jsxExpressionContainer(t.identifier("chunks"))],
+        false,
+      ),
+    );
+
+    properties.push(
+      t.objectProperty(t.identifier(tagName), renderFn, false, false),
+    );
+  }
+
+  // Build the call: t(hash, fallback, params)
+  const args: t.Expression[] = [
+    t.stringLiteral(hash),
+    t.stringLiteral(fallbackText),
+  ];
+
+  if (properties.length > 0) {
+    args.push(t.objectExpression(properties));
+  }
+
+  return t.callExpression(t.identifier("t"), args);
+}
+
+/**
+ * Transform a JSX element with mixed content into a translation call
+ */
+function transformMixedJSXElement(
+  path: NodePath<t.JSXElement>,
+  state: VisitorsSharedState,
+): void {
+  // Check if this element should skip translation
+  if (shouldSkipTranslation(path.node)) {
+    return;
+  }
+
+  // Find the nearest component ancestor
+  const componentPath = getNearestComponentAncestor(path);
+  if (!componentPath) return;
+
+  const componentName = inferComponentName(componentPath);
+  if (!componentName) return;
+
+  // Serialize the JSX children
+  const serialized = serializeJSXChildren(path.node.children);
+  const text = serialized.text.trim();
+  if (text.length === 0) return;
+
+  // Create translation entry
+  const entry = createTranslationEntry(
+    text,
+    componentName,
+    state.filePath,
+    path.node.loc?.start.line,
+    path.node.loc?.start.column,
+  );
+  state.newEntries.push(entry);
+
+  // Track component needs translation
+  state.needsTranslationImport = true;
+  state.componentsNeedingTranslation.add(componentName);
+
+  const hashes = state.componentHashes.get(componentName) || [];
+  hashes.push(entry.hash);
+  state.componentHashes.set(componentName, hashes);
+
+  // Create the rich text translation call
+  const tCall = createRichTextTranslationCall(
+    entry.hash,
+    text,
+    serialized.variables,
+    serialized.components,
+  );
+
+  // Replace the children of the JSX element with the translation call
+  path.node.children = [t.jsxExpressionContainer(tCall)];
+}
+
 /**
  * Transform a JSX text node into a translation call
  */
@@ -196,8 +578,17 @@ function transformJSXText(
   path: NodePath<t.JSXText>,
   state: VisitorsSharedState,
 ): void {
-  const text = path.node.value.trim();
-  if (text.length == 0 || /^[\s\n]*$/.test(text)) return;
+  const text = normalizeWhitespace(path.node.value);
+  if (text.length == 0) return;
+
+  // TODO (AleksandrSl 28/11/2025): If we find the element that is skip translation we should skip all its children
+  // Check if parent JSX element should skip translation
+  const parentPath = path.parentPath;
+  if (parentPath?.isJSXElement()) {
+    if (shouldSkipTranslation(parentPath.node)) {
+      return;
+    }
+  }
 
   // TODO (AleksandrSl 25/11/2025): Ideally we can keep a stack of nested components, to skip this search.
   // Find the nearest component ancestor
@@ -966,7 +1357,19 @@ export function createBabelVisitors({
       handleComponentFunction(path, visitorState, config);
     },
 
+    // Transform JSX elements with mixed content (text + expressions + nested elements)
+    // This runs BEFORE JSXText visitor due to traversal order
+    JSXElement(path: NodePath<t.JSXElement>) {
+      if (hasMixedContent(path.node)) {
+        transformMixedJSXElement(path, visitorState);
+        // Skip traversing children since we've already processed them
+        path.skip();
+      }
+    },
+
+    // TODO (AleksandrSl 28/11/2025): How do we skip this for the mixed cases?
     // Transform JSX text nodes - finds nearest component ancestor
+    // This only runs for simple text nodes (not part of mixed content)
     JSXText(path: NodePath<t.JSXText>) {
       transformJSXText(path, visitorState);
     },

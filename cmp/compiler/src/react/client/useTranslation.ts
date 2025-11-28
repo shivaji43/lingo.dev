@@ -1,20 +1,26 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import React, { ReactNode, useCallback, useEffect } from "react";
 import { useTranslationContext } from "./TranslationContext";
 import { logger } from "../../utils/logger";
+import { renderRichText, RichTextParams } from "../render-rich-text";
 
 /**
  * Translation function type
  */
-export type TranslationFunction = (hash: string, source: string) => string;
+export type TranslationFunction = (
+  hash: string,
+  source: string,
+  params?: RichTextParams,
+) => string | React.ReactNode;
 
 /**
  * useTranslation Hook
  *
- * Returns a translation function `t(hash)` that:
+ * Returns a translation function `t(hash, source, params?)` that:
  * - Returns original text for source locale
  * - Returns translated text for target locales
+ * - Supports rich text with variable and component placeholders
  * - Automatically requests missing translations
  * - Falls back to source text while loading
  *
@@ -33,7 +39,10 @@ export type TranslationFunction = (hash: string, source: string) => string;
  *   return (
  *     <div>
  *       <h1>{t('hash_abc123', 'Welcome')}</h1>
- *       <p>{t('hash_def456', 'Hello world')}</p>
+ *       <p>{t('hash_def456', 'Hello {name}', { name: 'Alice' })}</p>
+ *       <p>{t('hash_def789', 'Click <a0>here</a0>', {
+ *         a0: (chunks) => <a href="/home">{chunks}</a>
+ *       })}</p>
  *     </div>
  *   );
  * }
@@ -56,14 +65,17 @@ export function useTranslation(hashes: string[]): TranslationFunction {
   }, [hashes, registerHashes, locale, sourceLocale]);
 
   return useCallback(
-    (hash: string, source: string): string => {
-      // For source locale, always return source text
-      if (locale === sourceLocale) {
-        return source;
+    (hash: string, source: string, params?: RichTextParams): ReactNode => {
+      // Get the text (either source or translation)
+      const text =
+        locale === sourceLocale ? source : translations[hash] || source;
+
+      // If no params, return plain text
+      if (!params) {
+        return text;
       }
 
-      // Return translation if available, otherwise return source as fallback
-      return translations[hash] || source;
+      return renderRichText(text, params);
     },
     [translations, locale, sourceLocale],
   );
