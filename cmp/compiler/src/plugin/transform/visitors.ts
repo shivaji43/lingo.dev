@@ -365,6 +365,7 @@ interface SerializedJSX {
   text: string;
   /** Variable identifiers extracted from expressions, e.g. ["name", "count"] */
   variables: string[];
+  expressions: Map<string, t.Expression>;
   /** Component mappings for nested elements, e.g. { strong0: <strong>...</strong> } */
   components: Map<string, t.JSXElement>;
 }
@@ -384,6 +385,7 @@ function serializeJSXChildren(
 ): SerializedJSX {
   let text = "";
   const variables: string[] = [];
+  const expressions = new Map<string, t.Expression>();
   const components = new Map<string, t.JSXElement>();
   const elementCounts = new Map<string, number>();
 
@@ -423,10 +425,12 @@ function serializeJSXChildren(
       } else if (expr.type === "StringLiteral") {
         // String literal (like {" "}) - include the literal text directly
         text += expr.value;
-      } else {
+      } else if (expr.type !== "JSXEmptyExpression") {
         // TODO (AleksandrSl 28/11/2025): Should we implement something here?
         // Complex expression - for now, skip or use a placeholder
-        text += "{expression}";
+        const name = `expression${expressions.size}`;
+        text += `{${name}}`;
+        expressions.set(name, expr);
       }
     } else if (child.type === "JSXElement") {
       let shouldTranslate = true;
@@ -487,7 +491,7 @@ function serializeJSXChildren(
     }
   }
 
-  return { text, variables, components };
+  return { text, variables, expressions, components };
 }
 
 /**
@@ -497,6 +501,7 @@ function createRichTextTranslationCall(
   hash: string,
   fallbackText: string,
   variables: string[],
+  expressions: Map<string, t.Expression>,
   components: Map<string, t.JSXElement>,
 ): t.CallExpression {
   const properties: t.ObjectProperty[] = [];
@@ -511,6 +516,10 @@ function createRichTextTranslationCall(
         true, // shorthand
       ),
     );
+  }
+
+  for (const [name, expr] of expressions) {
+    properties.push(t.objectProperty(t.identifier(name), expr, false, false));
   }
 
   // Add component renderer functions
@@ -602,6 +611,7 @@ function transformMixedJSXElement(
     entry.hash,
     text,
     serialized.variables,
+    serialized.expressions,
     serialized.components,
   );
 
@@ -1398,6 +1408,10 @@ export function createBabelVisitors({
     // Transform JSX elements with mixed content (text + expressions + nested elements)
     // This runs BEFORE JSXText visitor due to traversal order
     JSXElement(path: NodePath<t.JSXElement>) {
+      if (shouldSkipTranslation(path.node)) {
+        path.skip();
+        return;
+      }
       if (hasMixedContent(path.node)) {
         transformMixedJSXElement(path, visitorState);
         // Skip traversing children since we've already processed them

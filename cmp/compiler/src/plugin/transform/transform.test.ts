@@ -1121,6 +1121,29 @@ export default function Button() {
       expect(result.code).not.toContain("chunks =>");
       expect(result.code).toMatchSnapshot();
     });
+
+    it("should handle expressions in JSX attributes", () => {
+      const code = `
+function Home() {
+  const { locale, translations } = useTranslationContext();
+  return (
+    <div>
+      <h1>Home Page</h1>
+      <p>Current locale: {locale}</p>
+      <p>Translations loaded: {JSON.stringify(translations)}</p>
+    </div>
+  );
+}`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.code).toMatchSnapshot();
+    });
   });
 
   describe("server components", () => {

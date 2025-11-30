@@ -88,10 +88,6 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.port = port;
-        // Use process.stdout for visibility in loader/worker contexts
-        process.stdout.write(
-          `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Translation server listening on http://127.0.0.1:${port}\n`,
-        );
         logger.info(`Translation server listening on http://127.0.0.1:${port}`);
         this.onReadyCallback?.(port);
         resolve(port);

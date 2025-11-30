@@ -10,7 +10,13 @@ export default defineConfig({
       lingoDir: ".lingo",
       sourceLocale: "en",
       useDirective: false, // Set to true to require 'use i18n' directive
-      translator: { type: "pseudo" }, // Enable pseudolocalization for testing
+      translator: {
+        type: "pseudo",
+        config: {
+          delayMedian: 2000,
+        },
+      }, // Enable pseudolocalization for testing
+      useCache: false,
     }),
     reactRouter(),
     tailwindcss(),

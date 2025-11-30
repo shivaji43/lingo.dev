@@ -14,6 +14,7 @@ import { logger } from "../utils/logger";
 export interface ServerCacheConfig {
   cacheDir: string;
   sourceRoot?: string;
+  useCache?: boolean;
 }
 
 /**

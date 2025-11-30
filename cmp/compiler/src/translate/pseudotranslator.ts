@@ -4,12 +4,16 @@
 
 import type { TranslatableEntry, Translator } from "./api";
 
+export interface PseudoTranslatorConfig {
+  delayMedian?: number;
+}
+
 /**
  * Pseudo-translator that uses pseudolocalization
  * Useful for testing i18n without actual translation APIs
  */
-export class PseudoTranslator implements Translator<any> {
-  constructor(readonly config: any) {}
+export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
+  constructor(readonly config: PseudoTranslatorConfig) {}
 
   batchTranslate(locale: string, entries: Record<string, TranslatableEntry>) {
     const delay = this.config?.delayMedian ?? 0;

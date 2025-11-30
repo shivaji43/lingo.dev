@@ -22,6 +22,7 @@ import { logger } from "../utils/logger";
 
 export interface TranslationMiddlewareConfig extends TranslationConfig {
   allowProductionGeneration?: boolean;
+  useCache?: boolean;
 }
 
 export interface TranslationResponse {
@@ -116,6 +117,7 @@ export async function handleTranslationRequest(
       const translator = createCachedTranslatorFromConfig(config.translator, {
         cacheDir: config.lingoDir,
         sourceRoot: config.sourceRoot,
+        useCache: config.useCache,
       });
 
       // Prepare entries map
@@ -290,6 +292,7 @@ export async function handleHashTranslationRequest(
       const translator = createCachedTranslatorFromConfig(config.translator, {
         cacheDir: config.lingoDir,
         sourceRoot: config.sourceRoot,
+        useCache: config.useCache,
       });
 
       // Batch translate only the missing hashes

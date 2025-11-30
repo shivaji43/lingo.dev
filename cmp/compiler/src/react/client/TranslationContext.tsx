@@ -450,6 +450,16 @@ function TranslationProvider__Dev({
     [sourceLocale, cookieConfig, router],
   );
 
+  // Load widget on client-side only (avoids SSR issues with HTMLElement)
+  useEffect(() => {
+    if (devWidget?.enabled !== false) {
+      // Dynamic import ensures this only runs on the client
+      import("../../widget/lingo-dev-widget").catch((err) => {
+        logger.error("Failed to load dev widget:", err);
+      });
+    }
+  }, [devWidget?.enabled]);
+
   // Publish state to window global for Web Component widget
   useEffect(() => {
     if (typeof window !== "undefined" && devWidget?.enabled !== false) {

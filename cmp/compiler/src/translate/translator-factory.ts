@@ -3,16 +3,17 @@
  */
 
 import type { Translator } from "./api";
-import { PseudoTranslator } from "./pseudotranslator";
+import { PseudoTranslator, PseudoTranslatorConfig } from "./pseudotranslator";
 import { LCPTranslator, type LCPTranslatorConfig } from "./lcp";
 import { createCachedTranslator } from "./cached-translator";
 import type { ServerCacheConfig } from "./cache-server";
+import { logger } from "../utils/logger";
 
 /**
  * Translator configuration types
  */
 export type TranslatorConfig =
-  | { type: "pseudo" }
+  | { type: "pseudo"; config?: PseudoTranslatorConfig }
   | { type: "lcp"; config: LCPTranslatorConfig };
 
 /**
@@ -25,7 +26,7 @@ export function createTranslator(config: TranslatorConfig): Translator<any> {
   }
   switch (config.type) {
     case "pseudo":
-      return new PseudoTranslator({});
+      return new PseudoTranslator(config.config);
 
     case "lcp":
       return new LCPTranslator(config.config);
@@ -45,5 +46,10 @@ export function createCachedTranslatorFromConfig(
   cacheConfig: ServerCacheConfig,
 ): Translator<any> {
   const translator = createTranslator(translatorConfig);
-  return createCachedTranslator(translator, cacheConfig);
+  logger.info(
+    `Using ${translator.constructor.name} translator with cache: ${cacheConfig.useCache}`,
+  );
+  return cacheConfig.useCache
+    ? createCachedTranslator(translator, cacheConfig)
+    : translator;
 }

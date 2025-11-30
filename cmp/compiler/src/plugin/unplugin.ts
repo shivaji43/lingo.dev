@@ -80,52 +80,6 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         configResolved(resolvedConfig) {
           config.isDev = resolvedConfig.mode === "development";
         },
-
-        // Inject dev widget into HTML
-        transformIndexHtml: {
-          order: "pre",
-          handler(html) {
-            // Only inject in dev mode
-            if (!config.isDev) return html;
-
-            const {
-              createWidgetInjectionScript,
-            } = require("../widget/inject-widget");
-            const serverPort = globalServer?.getPort() || null;
-
-            const widgetScript = createWidgetInjectionScript({
-              serverPort,
-              position: "bottom-left",
-            });
-
-            // Inject before closing body tag
-            return html.replace("</body>", `${widgetScript}\n</body>`);
-          },
-        },
-
-        // TODO: Add dev server middleware for translation API
-        // configureServer(server) {
-        //   server.middlewares.use(async (req, res, next) => {
-        //     const url = req.url;
-        //     const match = url?.match(/^\/api\/translations\/(\w+)$/);
-        //     if (!match) return next();
-        //
-        //     const locale = match[1];
-        //     const response = await handleTranslationRequest(locale, {
-        //       sourceRoot: config.sourceRoot,
-        //       lingoDir: config.lingoDir,
-        //       sourceLocale: config.sourceLocale,
-        //       translator: config.translator,
-        //       allowProductionGeneration: true,
-        //     });
-        //
-        //     res.statusCode = response.status;
-        //     Object.entries(response.headers).forEach(([key, value]) => {
-        //       res.setHeader(key, value);
-        //     });
-        //     res.end(response.body);
-        //   });
-        // },
       },
 
       // Webpack-specific hooks
@@ -186,120 +140,113 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         }
       },
 
-      transformInclude(id) {
-        logger.debug(`transformInclude check for: ${id}`);
+      transform: {
+        filter: {
+          id: {
+            include: [/\.[tj]sx$/],
+            exclude: /node_modules/,
+          },
+        },
+        handler: async (code, id) => {
+          try {
+            logger.debug(`transform() called for: ${id}`);
+            logger.debug(
+              `Code length: ${code.length}, First 100 chars: ${code.substring(0, 100)}`,
+            );
 
-        // Only transform .tsx and .jsx files
-        if (!id.match(/\.(tsx|jsx)$/)) {
-          logger.debug(`Skipping ${id} - not tsx/jsx`);
-          return false;
-        }
+            // Get relative path from sourceRoot
+            const relativePath = path
+              .relative(path.join(process.cwd(), config.sourceRoot), id)
+              .split(path.sep)
+              .join("/"); // Normalize for cross-platform consistency
 
-        // Skip node_modules
-        if (id.includes("node_modules")) {
-          logger.debug(`Skipping ${id} - node_modules`);
-          return false;
-        }
+            logger.debug(`Relative path: ${relativePath}`);
+            logger.debug(`Config:`, {
+              sourceRoot: config.sourceRoot,
+              lingoDir: config.lingoDir,
+            });
 
-        logger.debug(`Including ${id} for transformation`);
-        return true;
-      },
+            // Load current metadata
+            const metadata = await loadMetadata({
+              sourceRoot: config.sourceRoot,
+              lingoDir: config.lingoDir,
+            });
 
-      async transform(code, id) {
-        try {
-          logger.debug(`transform() called for: ${id}`);
-          logger.debug(
-            `Code length: ${code.length}, First 100 chars: ${code.substring(0, 100)}`,
-          );
+            logger.debug(
+              `Metadata loaded, entries:`,
+              Object.keys(metadata.entries).length,
+            );
 
-          // Get relative path from sourceRoot
-          const relativePath = path
-            .relative(path.join(process.cwd(), config.sourceRoot), id)
-            .split(path.sep)
-            .join("/"); // Normalize for cross-platform consistency
+            // Transform the component
+            const result = transformComponent({
+              code,
+              filePath: id,
+              config,
+              metadata,
+              serverPort: globalServer?.getPort() || null,
+            });
 
-          logger.debug(`Relative path: ${relativePath}`);
-          logger.debug(`Config:`, {
-            sourceRoot: config.sourceRoot,
-            lingoDir: config.lingoDir,
-          });
+            logger.debug(`Transform result:`, {
+              transformed: result.transformed,
+              newEntriesCount: result.newEntries?.length || 0,
+            });
 
-          // Load current metadata
-          const metadata = await loadMetadata({
-            sourceRoot: config.sourceRoot,
-            lingoDir: config.lingoDir,
-          });
+            // console.debug(result.code);
+            // If no transformation occurred, return original code
+            if (!result.transformed) {
+              logger.debug(`No transformation needed for ${id}`);
+              return null;
+            }
 
-          logger.debug(
-            `Metadata loaded, entries:`,
-            Object.keys(metadata.entries).length,
-          );
+            // Update metadata with new entries
+            if (result.newEntries && result.newEntries.length > 0) {
+              logger.debug(
+                `Updating metadata with ${result.newEntries.length} new entries`,
+              );
+              const updatedMetadata = upsertEntries(
+                metadata,
+                result.newEntries,
+              );
+              await saveMetadata(config, updatedMetadata);
 
-          // Transform the component
-          const result = transformComponent({
-            code,
-            filePath: id,
-            config,
-            metadata,
-            serverPort: globalServer?.getPort() || null,
-          });
+              // Queue translations if using queue strategy in production
+              const buildStrategy = options.buildStrategy ?? "queue";
+              if (
+                !config.isDev &&
+                buildStrategy === "queue" &&
+                options.targetLocales?.length
+              ) {
+                const queue = getTranslationQueue();
+                const queuedTranslations = createQueuedTranslations(
+                  result.newEntries.reduce(
+                    (acc, entry) => {
+                      acc[entry.hash] = entry;
+                      return acc;
+                    },
+                    {} as Record<string, (typeof result.newEntries)[0]>,
+                  ),
+                );
+                queue.addBatch(queuedTranslations);
+              }
 
-          logger.debug(`Transform result:`, {
-            transformed: result.transformed,
-            newEntriesCount: result.newEntries?.length || 0,
-          });
+              // Log new translations discovered (in dev mode)
+              if (config.isDev) {
+                logger.info(
+                  `Found ${result.newEntries.length} translatable text(s) in ${id}`,
+                );
+              }
+            }
 
-          // If no transformation occurred, return original code
-          if (!result.transformed) {
-            logger.debug(`No transformation needed for ${id}`);
+            logger.debug(`Returning transformed code for ${id}`);
+            return {
+              code: result.code,
+              map: result.map,
+            };
+          } catch (error) {
+            logger.error(`Transform error in ${id}:`, error);
             return null;
           }
-
-          // Update metadata with new entries
-          if (result.newEntries && result.newEntries.length > 0) {
-            logger.debug(
-              `Updating metadata with ${result.newEntries.length} new entries`,
-            );
-            const updatedMetadata = upsertEntries(metadata, result.newEntries);
-            await saveMetadata(config, updatedMetadata);
-
-            // Queue translations if using queue strategy in production
-            const buildStrategy = options.buildStrategy ?? "queue";
-            if (
-              !config.isDev &&
-              buildStrategy === "queue" &&
-              options.targetLocales?.length
-            ) {
-              const queue = getTranslationQueue();
-              const queuedTranslations = createQueuedTranslations(
-                result.newEntries.reduce(
-                  (acc, entry) => {
-                    acc[entry.hash] = entry;
-                    return acc;
-                  },
-                  {} as Record<string, (typeof result.newEntries)[0]>,
-                ),
-              );
-              queue.addBatch(queuedTranslations);
-            }
-
-            // Log new translations discovered (in dev mode)
-            if (config.isDev) {
-              logger.info(
-                `Found ${result.newEntries.length} translatable text(s) in ${id}`,
-              );
-            }
-          }
-
-          logger.debug(`Returning transformed code for ${id}`);
-          return {
-            code: result.code,
-            map: result.map,
-          };
-        } catch (error) {
-          logger.error(`Transform error in ${id}:`, error);
-          return null;
-        }
+        },
       },
 
       async buildEnd() {
@@ -358,6 +305,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
                     lingoDir: config.lingoDir,
                     sourceLocale: config.sourceLocale,
                     translator: config.translator,
+                    useCache: config.useCache,
                     allowProductionGeneration: true,
                   });
 

@@ -134,6 +134,24 @@ export default function Button() {
 }"
 `;
 
+exports[`transformComponent > mixed content (rich text) > should handle expressions in JSX attributes 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+function Home() {
+  const t = useTranslation(["f650c56c03c1", "3dd764fe7aab", "cd11ebba9c4b"]);
+  const {
+    locale,
+    translations
+  } = useTranslationContext();
+  return <div>
+      <h1>{t("f650c56c03c1", "Home Page")}</h1>
+      <p>{t("3dd764fe7aab", "Current locale: {locale}", {
+        locale
+      })}</p>
+      <p>{t("cd11ebba9c4b", "Translations loaded: {expression}")}</p>
+    </div>;
+}"
+`;
+
 exports[`transformComponent > mixed content (rich text) > should handle multiple same-type nested elements 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function Links() {
