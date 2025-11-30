@@ -1,29 +1,21 @@
 /**
- * Server-side disk cache for translations
- * Only works in Node.js environments (Server Components)
+ * Local disk-based translation cache implementation
  */
 
 import * as fs from "fs/promises";
 import * as path from "path";
+import type { TranslationCache, LocalCacheConfig } from "./cache";
 import type { DictionarySchema } from "../react/server";
 import { logger } from "../utils/logger";
 
 /**
- * Server-side cache configuration
+ * Local file system cache for translations
+ * Stores translations as JSON files in .lingo/cache/
  */
-export interface ServerCacheConfig {
-  cacheDir: string;
-  sourceRoot?: string;
-  useCache?: boolean;
-}
+export class LocalTranslationCache implements TranslationCache {
+  private config: LocalCacheConfig;
 
-/**
- * Server-side translation cache (disk-based)
- */
-export class ServerTranslationCache {
-  private config: ServerCacheConfig;
-
-  constructor(config: ServerCacheConfig) {
+  constructor(config: LocalCacheConfig) {
     this.config = config;
   }
 
@@ -39,22 +31,11 @@ export class ServerTranslationCache {
   }
 
   /**
-   * Check if translations exist in cache for a locale
+   * Read dictionary file from disk
    */
-  async has(locale: string): Promise<boolean> {
-    try {
-      const cachePath = this.getCachePath(locale);
-      await fs.access(cachePath);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Get cached translations for a locale
-   */
-  async get(locale: string): Promise<DictionarySchema | null> {
+  private async readDictionary(
+    locale: string,
+  ): Promise<DictionarySchema | null> {
     try {
       const cachePath = this.getCachePath(locale);
       const content = await fs.readFile(cachePath, "utf-8");
@@ -65,29 +46,12 @@ export class ServerTranslationCache {
   }
 
   /**
-   * Extract flat hash -> translation map from dictionary
+   * Write dictionary file to disk
    */
-  private extractTranslations(
+  private async writeDictionary(
+    locale: string,
     dictionary: DictionarySchema,
-  ): Record<string, string> {
-    return dictionary.entries || {};
-  }
-
-  /**
-   * Get flat hash -> translation map from cache
-   */
-  async getTranslations(locale: string): Promise<Record<string, string>> {
-    const dictionary = await this.get(locale);
-    if (!dictionary) {
-      return {};
-    }
-    return this.extractTranslations(dictionary);
-  }
-
-  /**
-   * Save translations to cache
-   */
-  async set(locale: string, dictionary: DictionarySchema): Promise<void> {
+  ): Promise<void> {
     try {
       const cachePath = this.getCachePath(locale);
       const cacheDir = path.dirname(cachePath);
@@ -103,6 +67,64 @@ export class ServerTranslationCache {
       );
     } catch (error) {
       logger.error(`Failed to write cache for locale ${locale}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get cached translations for a locale
+   */
+  async get(locale: string): Promise<Record<string, string>> {
+    const dictionary = await this.readDictionary(locale);
+    if (!dictionary) {
+      return {};
+    }
+    return dictionary.entries || {};
+  }
+
+  /**
+   * Update cache with new translations (merge)
+   */
+  async update(
+    locale: string,
+    translations: Record<string, string>,
+  ): Promise<void> {
+    // Read existing cache
+    const existing = await this.get(locale);
+
+    // Merge with new translations
+    const merged = { ...existing, ...translations };
+
+    // Write back
+    await this.set(locale, merged);
+  }
+
+  /**
+   * Replace entire cache for a locale
+   */
+  async set(
+    locale: string,
+    translations: Record<string, string>,
+  ): Promise<void> {
+    const dictionary: DictionarySchema = {
+      version: 0.1,
+      locale,
+      entries: translations,
+    };
+
+    await this.writeDictionary(locale, dictionary);
+  }
+
+  /**
+   * Check if cache exists for a locale
+   */
+  async has(locale: string): Promise<boolean> {
+    try {
+      const cachePath = this.getCachePath(locale);
+      await fs.access(cachePath);
+      return true;
+    } catch {
+      return false;
     }
   }
 

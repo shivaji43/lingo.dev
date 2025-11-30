@@ -56,6 +56,12 @@ export interface LoaderConfig {
    * Framework being used (affects component detection)
    */
   framework?: Framework;
+
+  /**
+   * Whether to use caching for translations
+   * @default true
+   */
+  useCache?: boolean;
 }
 
 /**
@@ -70,7 +76,7 @@ export type MetadataConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
  */
 export type TranslationConfig = Pick<
   LoaderConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "translator"
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "translator" | "useCache"
 >;
 
 /**

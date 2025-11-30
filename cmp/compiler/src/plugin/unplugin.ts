@@ -19,7 +19,7 @@ import { transformComponent } from "./transform";
 import type { LoaderConfig } from "../types";
 import { handleTranslationRequest } from "./shared-middleware";
 import { startTranslationServer } from "../server";
-import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
+import { loadMetadata, saveMetadataWithEntries } from "../metadata/manager";
 import {
   createQueuedTranslations,
   getTranslationQueue,
@@ -198,16 +198,15 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               return null;
             }
 
-            // Update metadata with new entries
+            // Update metadata with new entries (thread-safe)
             if (result.newEntries && result.newEntries.length > 0) {
               logger.debug(
                 `Updating metadata with ${result.newEntries.length} new entries`,
               );
-              const updatedMetadata = upsertEntries(
-                metadata,
-                result.newEntries,
-              );
-              await saveMetadata(config, updatedMetadata);
+
+              // TODO (AleksandrSl 30/11/2025): Could make async in the future, so we don't pause the main transform, translation server should be able to know if the metadata is finished writing then.
+              // Thread-safe atomic update
+              await saveMetadataWithEntries(config, result.newEntries);
 
               // Queue translations if using queue strategy in production
               const buildStrategy = options.buildStrategy ?? "queue";

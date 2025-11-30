@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import lockfile from "proper-lockfile";
 import type {
   MetadataConfig,
   MetadataSchema,
@@ -66,6 +67,62 @@ export async function saveMetadata(
   };
 
   await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
+}
+
+/**
+ * Thread-safe save operation that atomically updates metadata with new entries
+ * Uses file locking to prevent concurrent write corruption
+ *
+ * @param config - Metadata configuration
+ * @param entries - Translation entries to add/update
+ * @returns The updated metadata schema
+ */
+export async function saveMetadataWithEntries(
+  config: MetadataConfig,
+  entries: TranslationEntry[],
+): Promise<MetadataSchema> {
+  const metadataPath = getMetadataPath(config);
+  const lockDir = path.dirname(metadataPath);
+
+  // Ensure directory exists before locking
+  await fs.mkdir(lockDir, { recursive: true });
+
+  // Create lock file if it doesn't exist (lockfile needs a file to lock)
+  try {
+    await fs.access(metadataPath);
+  } catch {
+    await fs.writeFile(
+      metadataPath,
+      JSON.stringify(createEmptyMetadata(), null, 2),
+      "utf-8",
+    );
+  }
+
+  // Acquire lock with retry options
+  const release = await lockfile.lock(metadataPath, {
+    retries: {
+      retries: 10,
+      minTimeout: 50,
+      maxTimeout: 1000,
+    },
+    stale: 5000, // Consider lock stale after 5 seconds
+  });
+
+  try {
+    // Re-load metadata inside lock to get latest state
+    const currentMetadata = await loadMetadata(config);
+
+    // Apply updates
+    const updatedMetadata = upsertEntries(currentMetadata, entries);
+
+    // Save
+    await saveMetadata(config, updatedMetadata);
+
+    return updatedMetadata;
+  } finally {
+    // Always release lock
+    await release();
+  }
 }
 
 /**

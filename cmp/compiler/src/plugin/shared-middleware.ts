@@ -9,15 +9,14 @@
  */
 
 import fs from "fs/promises";
-import path from "path";
 import type { DictionarySchema } from "../react/server";
-import type { TranslationConfig } from "../types";
-import { createCachedTranslatorFromConfig } from "../translate";
-import { getCachePath, getMetadataPath } from "../utils/path-helpers";
+import type { MetadataSchema, TranslationConfig } from "../types";
 import {
-  createDictionary,
-  createDictionaryFromMetadata,
-} from "../utils/dictionary";
+  createTranslator,
+  LocalTranslationCache,
+  TranslationService,
+} from "../translate";
+import { getMetadataPath } from "../utils/path-helpers";
 import { logger } from "../utils/logger";
 
 export interface TranslationMiddlewareConfig extends TranslationConfig {
@@ -37,6 +36,41 @@ export interface HashTranslationRequest {
 }
 
 /**
+ * Create translation service instance
+ */
+function createTranslationService(
+  config: TranslationMiddlewareConfig,
+): TranslationService {
+  // Create translator (no caching wrapper needed anymore)
+  const translator = config.translator
+    ? createTranslator(config.translator)
+    : createTranslator({ type: "pseudo" }); // Fallback to pseudo
+
+  // Create cache
+  const cache = new LocalTranslationCache({
+    cacheDir: config.lingoDir,
+    sourceRoot: config.sourceRoot,
+  });
+
+  // Create service
+  return new TranslationService(translator, cache, {
+    sourceLocale: config.sourceLocale,
+    useCache: config.useCache,
+  });
+}
+
+/**
+ * Load metadata from disk
+ */
+async function loadMetadata(
+  config: TranslationMiddlewareConfig,
+): Promise<MetadataSchema> {
+  const metadataPath = getMetadataPath(config);
+  const metadataContent = await fs.readFile(metadataPath, "utf-8");
+  return JSON.parse(metadataContent);
+}
+
+/**
  * Handle translation request
  * Returns a normalized response that can be adapted to any framework
  */
@@ -44,32 +78,7 @@ export async function handleTranslationRequest(
   locale: string,
   config: TranslationMiddlewareConfig,
 ): Promise<TranslationResponse> {
-  const startTime = performance.now();
-
   logger.info(`Translation requested for locale: ${locale}`);
-
-  // Get cache path
-  const cachePath = getCachePath(config, locale);
-
-  // Check if cached
-  try {
-    const cached = await fs.readFile(cachePath, "utf-8");
-    const endTime = performance.now();
-    logger.info(
-      `Cache hit for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
-    );
-
-    return {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600, s-maxage=86400",
-      },
-      body: cached,
-    };
-  } catch (error) {
-    // Cache miss - continue to generation
-  }
 
   // Check if we're in production and generation is disabled
   const isDev = process.env.NODE_ENV === "development";
@@ -92,69 +101,29 @@ export async function handleTranslationRequest(
     };
   }
 
-  // Load metadata
-  const metadataPath = getMetadataPath(config);
-
   try {
-    const metadataContent = await fs.readFile(metadataPath, "utf-8");
-    const metadata = JSON.parse(metadataContent);
+    // Load metadata
+    const metadata = await loadMetadata(config);
 
-    // Build source dictionary
-    const sourceDictionary = createDictionaryFromMetadata(
-      metadata,
-      config.sourceLocale,
-    );
+    // Create service
+    const service = createTranslationService(config);
 
-    // Generate translations
-    let translated: DictionarySchema;
+    // Translate (service handles caching internally)
+    const result = await service.translate(locale, metadata);
 
-    if (config.translator) {
-      logger.info(
-        `Generating translations for ${locale} using ${config.translator.type} translator...`,
+    // Check for errors
+    if (result.errors.length > 0) {
+      logger.warn(
+        `Translation completed with ${result.errors.length} errors for ${locale}`,
       );
-
-      // Create cached translator
-      const translator = createCachedTranslatorFromConfig(config.translator, {
-        cacheDir: config.lingoDir,
-        sourceRoot: config.sourceRoot,
-        useCache: config.useCache,
-      });
-
-      // Prepare entries map
-      const entriesMap: Record<
-        string,
-        { text: string; context: Record<string, any> }
-      > = {};
-      for (const [hash, sourceText] of Object.entries(
-        sourceDictionary.entries,
-      )) {
-        entriesMap[hash] = {
-          text: sourceText,
-          context: {},
-        };
-      }
-
-      // Batch translate
-      const translatedEntries = await translator.batchTranslate(
-        locale,
-        entriesMap,
-      );
-
-      translated = createDictionary(translatedEntries, locale);
-    } else {
-      // Return source dictionary if no translator configured
-      translated = sourceDictionary;
     }
 
-    // Save to cache
-    await fs.mkdir(path.dirname(cachePath), { recursive: true });
-    const translatedJson = JSON.stringify(translated, null, 2);
-    await fs.writeFile(cachePath, translatedJson);
-
-    const endTime = performance.now();
-    logger.info(
-      `Translation generated for ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
-    );
+    // Format as DictionarySchema for response
+    const dictionary: DictionarySchema = {
+      version: 0.1,
+      locale,
+      entries: result.translations,
+    };
 
     return {
       status: 200,
@@ -162,7 +131,7 @@ export async function handleTranslationRequest(
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=3600, s-maxage=86400",
       },
-      body: translatedJson,
+      body: JSON.stringify(dictionary, null, 2),
     };
   } catch (error) {
     logger.error(`Error generating translations:`, error);
@@ -189,51 +158,9 @@ export async function handleHashTranslationRequest(
   hashes: string[],
   config: TranslationMiddlewareConfig,
 ): Promise<TranslationResponse> {
-  const startTime = performance.now();
-
   logger.info(
     `Translation requested for ${hashes.length} hashes in locale: ${locale}`,
   );
-
-  // Get cache path
-  const cachePath = getCachePath(config, locale);
-
-  // Check if we have cached translations
-  let cachedTranslations: Record<string, string> = {};
-  try {
-    const cached = await fs.readFile(cachePath, "utf-8");
-    const cachedDict = JSON.parse(cached);
-
-    // Extract all translations from cached dictionary
-    Object.assign(cachedTranslations, cachedDict.entries || {});
-  } catch (error) {
-    // Cache doesn't exist or is invalid - will generate
-  }
-
-  // Check which hashes we already have
-  const missingHashes = hashes.filter((hash) => !cachedTranslations[hash]);
-
-  if (missingHashes.length === 0) {
-    // All hashes are cached!
-    const endTime = performance.now();
-    logger.info(
-      `Cache hit for all ${hashes.length} hashes in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
-    );
-
-    const result: Record<string, string> = {};
-    for (const hash of hashes) {
-      result[hash] = cachedTranslations[hash];
-    }
-
-    return {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=3600, s-maxage=86400",
-      },
-      body: JSON.stringify(result),
-    };
-  }
 
   // Check if we're in production and generation is disabled
   const isDev = process.env.NODE_ENV === "development";
@@ -241,7 +168,7 @@ export async function handleHashTranslationRequest(
 
   if (!canGenerate) {
     logger.warn(
-      `Translations not found for ${missingHashes.length} hashes in ${locale} and production generation is disabled`,
+      `Translations not found for ${hashes.length} hashes in ${locale} and production generation is disabled`,
     );
     return {
       status: 404,
@@ -252,72 +179,27 @@ export async function handleHashTranslationRequest(
         error: "Translation not available",
         message: `Translations for locale "${locale}" are not pre-generated. Please run a build to generate translations.`,
         locale,
-        missingHashes,
+        missingHashes: hashes,
       }),
     };
   }
 
-  // Load metadata
-  const metadataPath = getMetadataPath(config);
-
   try {
-    const metadataContent = await fs.readFile(metadataPath, "utf-8");
-    const metadata = JSON.parse(metadataContent);
+    // Load metadata
+    const metadata = await loadMetadata(config);
 
-    // Build entries map for ONLY the missing hashes
-    const entriesMap: Record<
-      string,
-      { text: string; context: Record<string, any> }
-    > = {};
+    // Create service
+    const service = createTranslationService(config);
 
-    for (const hash of missingHashes) {
-      const entry = metadata.entries[hash];
-      if (entry) {
-        entriesMap[hash] = {
-          text: entry.sourceText,
-          context: entry.context || {},
-        };
-      }
-    }
+    // Translate only requested hashes (service handles caching internally)
+    const result = await service.translate(locale, metadata, hashes);
 
-    // Generate translations for missing hashes only
-    let newTranslations: Record<string, string> = {};
-
-    if (config.translator && Object.keys(entriesMap).length > 0) {
-      logger.info(
-        `Generating translations for ${Object.keys(entriesMap).length} missing hashes in ${locale} using ${config.translator.type} translator...`,
+    // Check for errors
+    if (result.errors.length > 0) {
+      logger.warn(
+        `Translation completed with ${result.errors.length} errors for ${locale}`,
       );
-
-      // Create cached translator
-      const translator = createCachedTranslatorFromConfig(config.translator, {
-        cacheDir: config.lingoDir,
-        sourceRoot: config.sourceRoot,
-        useCache: config.useCache,
-      });
-
-      // Batch translate only the missing hashes
-      newTranslations = await translator.batchTranslate(locale, entriesMap);
     }
-
-    // Merge with cached translations
-    const allTranslations = { ...cachedTranslations, ...newTranslations };
-
-    // Update cache with merged translations
-    const updatedDictionary = createDictionary(allTranslations, locale);
-
-    await fs.mkdir(path.dirname(cachePath), { recursive: true });
-    await fs.writeFile(cachePath, JSON.stringify(updatedDictionary, null, 2));
-
-    // Return only the requested hashes
-    const result: Record<string, string> = {};
-    for (const hash of hashes) {
-      result[hash] = allTranslations[hash] || "";
-    }
-
-    const endTime = performance.now();
-    logger.info(
-      `Translation generated for ${hashes.length} hashes (${missingHashes.length} new) in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
-    );
 
     return {
       status: 200,
@@ -325,7 +207,7 @@ export async function handleHashTranslationRequest(
         "Content-Type": "application/json",
         "Cache-Control": "public, max-age=3600, s-maxage=86400",
       },
-      body: JSON.stringify(result),
+      body: JSON.stringify(result.translations),
     };
   } catch (error) {
     logger.error(`Error generating translations for hashes:`, error);

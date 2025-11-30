@@ -5,9 +5,6 @@
 import type { Translator } from "./api";
 import { PseudoTranslator, PseudoTranslatorConfig } from "./pseudotranslator";
 import { LCPTranslator, type LCPTranslatorConfig } from "./lcp";
-import { createCachedTranslator } from "./cached-translator";
-import type { ServerCacheConfig } from "./cache-server";
-import { logger } from "../utils/logger";
 
 /**
  * Translator configuration types
@@ -18,6 +15,9 @@ export type TranslatorConfig =
 
 /**
  * Create a translator instance based on configuration
+ *
+ * Note: Translators are stateless and don't handle caching.
+ * Caching is handled by TranslationService layer.
  */
 export function createTranslator(config: TranslatorConfig): Translator<any> {
   // TODO (AleksandrSl 26/11/2025): Why the config can be a string?
@@ -26,7 +26,7 @@ export function createTranslator(config: TranslatorConfig): Translator<any> {
   }
   switch (config.type) {
     case "pseudo":
-      return new PseudoTranslator(config.config);
+      return new PseudoTranslator(config.config || {});
 
     case "lcp":
       return new LCPTranslator(config.config);
@@ -36,20 +36,4 @@ export function createTranslator(config: TranslatorConfig): Translator<any> {
         `Unknown translator type: ${(config as any).type}. Config: ${JSON.stringify(config)}`,
       );
   }
-}
-
-/**
- * Create a cached translator based on configuration
- */
-export function createCachedTranslatorFromConfig(
-  translatorConfig: TranslatorConfig,
-  cacheConfig: ServerCacheConfig,
-): Translator<any> {
-  const translator = createTranslator(translatorConfig);
-  logger.info(
-    `Using ${translator.constructor.name} translator with cache: ${cacheConfig.useCache}`,
-  );
-  return cacheConfig.useCache
-    ? createCachedTranslator(translator, cacheConfig)
-    : translator;
 }
