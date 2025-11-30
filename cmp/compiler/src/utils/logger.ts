@@ -6,7 +6,9 @@ interface LoggerConfig {
 
 class Logger {
   private config: LoggerConfig = {
-    enableDebug: process.env.LINGO_DEBUG === "true",
+    // Safe check that works in both Node.js and browser environments
+    enableDebug:
+      typeof process !== "undefined" && process.env?.LINGO_DEBUG === "true",
   };
 
   private readonly prefix = "\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m";
