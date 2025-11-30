@@ -15,7 +15,7 @@ import {
   createTranslator,
   LocalTranslationCache,
   TranslationService,
-} from "../translate";
+} from "../translators";
 import { getMetadataPath } from "../utils/path-helpers";
 import { logger } from "../utils/logger";
 

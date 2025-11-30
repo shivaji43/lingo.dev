@@ -27,11 +27,6 @@
       "import": "./build/react/server/index.mjs",
       "require": "./build/react/server/index.cjs"
     },
-    "./translate": {
-      "types": "./build/translate/index.d.ts",
-      "import": "./build/translate/index.mjs",
-      "require": "./build/translate/index.cjs"
-    },
     "./next": {
       "types": "./build/plugin/next.d.ts",
       "import": "./build/plugin/next.mjs",

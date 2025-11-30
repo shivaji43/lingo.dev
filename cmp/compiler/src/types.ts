@@ -2,7 +2,7 @@
  * Core types for the compiler-beta translation system
  */
 
-import type { TranslatorConfig } from "./translate";
+import type { TranslatorConfig } from "./translators";
 import type { Framework } from "./types/framework";
 
 /**

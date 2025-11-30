@@ -13,7 +13,7 @@ import {
   TranslationServer,
 } from "./translation-server";
 
-import type { TranslatorConfig } from "../translate";
+import type { TranslatorConfig } from "../translators";
 import { logger } from "../utils/logger";
 
 function parseArgs() {

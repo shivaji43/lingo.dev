@@ -20,11 +20,11 @@ import path from "path";
 import { loadMetadata } from "../metadata/manager";
 import { handleHashTranslationRequest } from "./shared-middleware";
 import fs from "fs/promises";
-import type { TranslatorConfig } from "../translate";
+import type { TranslatorConfig } from "../translators";
 import { getCachePath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
-import { startTranslationServer } from "../server";
+import { startTranslationServer } from "../translation-server";
 import { LocaleCode } from "lingo.dev/spec";
 
 export interface LingoNextPluginOptions {

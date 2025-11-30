@@ -18,7 +18,7 @@ import path from "path";
 import { transformComponent } from "./transform";
 import type { LoaderConfig } from "../types";
 import { handleTranslationRequest } from "./shared-middleware";
-import { startTranslationServer } from "../server";
+import { startTranslationServer } from "../translation-server";
 import { loadMetadata, saveMetadataWithEntries } from "../metadata/manager";
 import {
   createQueuedTranslations,
