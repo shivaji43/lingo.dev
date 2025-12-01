@@ -14,12 +14,15 @@
  */
 
 import type { ReactNode } from "react";
-import { cache, use } from "react";
+import { use } from "react";
 import { localeResolver } from "@lingo.dev/_compiler/config";
-import { fetchTranslationsOnServer } from "./server-only/translations";
-import { renderRichText, type RichTextParams } from "./render-rich-text";
-import { logger } from "../utils/logger";
-import type { TranslationHook } from "./types";
+import { fetchTranslationsOnServer } from "../server-only/translations";
+import {
+  renderRichText,
+  type RichTextParams,
+} from "../shared/render-rich-text";
+import { logger } from "../../utils/logger";
+import type { TranslationHook } from "../types";
 
 // TODO (AleksandrSl 01/12/2025): Should we add back the cache?
 const getTranslations = async (hashes: string[], serverUrl?: string) => {
@@ -103,3 +106,4 @@ export const useTranslation: TranslationHook = (
 };
 
 export { TranslationProvider } from "./ServerTranslationProvider";
+export { LocaleSwitcher } from "../shared/LocaleSwitcher";

@@ -9,7 +9,7 @@
  */
 
 import { fetchTranslationsOnServer } from "./translations";
-import { renderRichText, RichTextParams } from "../render-rich-text";
+import { renderRichText, RichTextParams } from "../shared/render-rich-text";
 import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.

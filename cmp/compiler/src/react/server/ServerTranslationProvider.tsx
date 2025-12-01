@@ -1,9 +1,9 @@
 import {
   TranslationProvider as BaseTranslationProvider,
   TranslationProviderProps,
-} from "./client/TranslationContext";
-import { getServerTranslations } from "./server-only";
-import { logger } from "../utils/logger";
+} from "../shared/TranslationContext";
+import { getServerTranslations } from "../server-only";
+import { logger } from "../../utils/logger";
 
 export async function TranslationProvider({
   initialLocale,

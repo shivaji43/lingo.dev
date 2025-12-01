@@ -9,10 +9,6 @@ import type {
   TranslationEntry,
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
-import {
-  detectComponentType as detectComponentTypeByFramework,
-  getFrameworkConfig,
-} from "../../types/framework";
 
 /**
  * State shared between all the visitors.
@@ -112,7 +108,7 @@ function inferComponentName(path: NodePath<any>): string | null {
   }
 
   // TODO (AleksandrSl 25/11/2025): It should support export const $NAME$
-  // Export: export default function() {} or export const MyComponent = ...
+  // Export: export default function() {}
   if (parent.type === "ExportDefaultDeclaration") {
     return "default";
   }
@@ -128,41 +124,6 @@ function hasUseI18nDirective(program: NodePath<t.Program>): boolean {
   return directives.some(
     (directive: t.Directive) => directive.value.value === "use i18n",
   );
-}
-
-// TODO (AleksandrSl 25/11/2025): Allow to add support for other frameworks
-/**
- * Detect component type (Client vs Server) based on framework and directives
- * If config.isServer is explicitly set, it overrides auto-detection
- */
-function detectComponentType(
-  path: NodePath<unknown>,
-  config: LoaderConfig,
-): ComponentType {
-  // If isServer is explicitly set in config, use it to override detection
-  if (config.isServer !== undefined) {
-    return config.isServer ? "server" : "client";
-  }
-
-  const frameworkConfig = getFrameworkConfig(config.framework || "unknown");
-
-  const program = path.findParent((p) => p.isProgram());
-  let hasUseClientDirective = false;
-
-  // TODO (AleksandrSl 25/11/2025): Nullish coalescence operator
-  if (program && program.isProgram()) {
-    const directives = program.node.directives || [];
-    for (const directive of directives) {
-      if (directive.value.value === "use client") {
-        hasUseClientDirective = true;
-      }
-    }
-  }
-
-  return detectComponentTypeByFramework(
-    frameworkConfig,
-    hasUseClientDirective,
-  ) as ComponentType;
 }
 
 // ============================================================================

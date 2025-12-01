@@ -6,24 +6,14 @@
  *
  * @module @lingo.dev/_compiler/react (client)
  */
-// TODO (AleksandrSl 27/11/2025): Is this needed, I don't think so.
-"use client";
-
-// Export context and provider
 export {
   TranslationProvider,
   useTranslationContext,
   getLocaleFromCookies,
   type TranslationContextType,
   type TranslationProviderProps,
-} from "./client/TranslationContext";
+} from "../shared/TranslationContext";
 
-// Export hooks
-export { useTranslation } from "./client/useTranslation";
+export { useTranslation } from "./useTranslation";
 
-// Export components
-export {
-  LocaleSwitcher,
-  type LocaleSwitcherProps,
-  type LocaleConfig,
-} from "./client/LocaleSwitcher";
+export { LocaleSwitcher } from "../shared/LocaleSwitcher";

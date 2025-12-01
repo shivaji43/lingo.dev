@@ -19,14 +19,14 @@
     },
     "./react": {
       "react-server": {
-        "types": "./build/react/server.d.ts",
-        "import": "./build/react/server.mjs",
-        "default": "./build/react/server.cjs"
+        "types": "./build/react/server/index.d.ts",
+        "import": "./build/react/server/index.mjs",
+        "default": "./build/react/server/index.cjs"
       },
       "default": {
-        "types": "./build/react/index.d.ts",
-        "import": "./build/react/index.mjs",
-        "default": "./build/react/index.cjs"
+        "types": "./build/react/client/index.d.ts",
+        "import": "./build/react/client/index.mjs",
+        "default": "./build/react/client/index.cjs"
       }
     },
     "./config": {

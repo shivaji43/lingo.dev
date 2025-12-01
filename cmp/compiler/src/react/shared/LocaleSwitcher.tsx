@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslationContext } from "./TranslationContext";
+import { useTranslationContext } from "../shared/TranslationContext";
+import { CSSProperties } from "react";
 
 /**
  * Locale configuration
@@ -30,7 +31,7 @@ export interface LocaleSwitcherProps {
   /**
    * Custom styles for the select element
    */
-  style?: React.CSSProperties;
+  style?: CSSProperties;
 
   /**
    * Custom class name

@@ -1,4 +1,4 @@
-import { Fragment, isValidElement, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 /**
  * Component renderer function for rich text translation

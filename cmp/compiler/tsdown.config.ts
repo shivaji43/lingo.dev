@@ -5,8 +5,8 @@ export default defineConfig({
   target: "esnext",
   entry: [
     "src/index.ts",
-    "src/react/index.ts",
-    "src/react/server.ts",
+    "src/react/server/index.ts",
+    "src/react/client/index.ts",
     "src/config.ts",
     "src/react/server-only/index.ts",
     "src/react/next/client.tsx",

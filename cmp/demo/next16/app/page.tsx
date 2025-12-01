@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Counter } from "@/components/counter";
-import { LocaleSwitcher } from "@lingo.dev/_compiler/react/client";
+import { LocaleSwitcher } from "@lingo.dev/_compiler/react";
 import Link from "next/link";
 
 export default function Home() {

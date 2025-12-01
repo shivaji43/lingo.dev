@@ -7,7 +7,6 @@
  *
  * @module @lingo.dev/_compiler/react/next
  */
-
 import type { CookieConfig } from "../../types";
 import { cookies } from "next/headers";
 

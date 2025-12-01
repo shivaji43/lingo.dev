@@ -11,7 +11,7 @@
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
-import { fetchTranslations as fetchFromDevServer } from "../utils";
+import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
 
 /**
  * Configuration for translation fetching

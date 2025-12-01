@@ -13,7 +13,7 @@ import {
 } from "react";
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
-import { fetchTranslations } from "../utils";
+import { fetchTranslations } from "./utils";
 import type { CookieConfig } from "../../types";
 import { defaultCookieConfig } from "../../utils/cookies";
 
