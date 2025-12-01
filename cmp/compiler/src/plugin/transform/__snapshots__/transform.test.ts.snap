@@ -277,6 +277,46 @@ export default function Message() {
 }"
 `;
 
+exports[`transformComponent > multiple components in one file > should handle deeply nested components 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+function OuterComponent() {
+  const t = useTranslation(["9daad18b3a29"]);
+  function InnerComponent1() {
+    const t = useTranslation(["d29e145fdbdb"]);
+    function InnerComponent2() {
+      const t = useTranslation(["a4ea15505ab7", "a4ea15505ab7"]);
+      return <span>{t("a4ea15505ab7", "Inner Text")}</span>;
+    }
+    function InnerComponent3() {
+      const t = useTranslation(["6247541f7059", "6247541f7059"]);
+      return <span>{t("6247541f7059", "Inner Text")}</span>;
+    }
+    return <span>{t("d29e145fdbdb", "Inner Text")}<InnerComponent2 />
+      <InnerComponent3 />
+    </span>;
+  }
+  function InnerComponent1_2() {
+    const t = useTranslation(["a014192c44bd"]);
+    function InnerComponent2() {
+      const t = useTranslation(["a4ea15505ab7", "a4ea15505ab7"]);
+      return <span>{t("a4ea15505ab7", "Inner Text")}</span>;
+    }
+    function InnerComponent3() {
+      const t = useTranslation(["6247541f7059", "6247541f7059"]);
+      return <span>{t("6247541f7059", "Inner Text")}</span>;
+    }
+    return <span>{t("a014192c44bd", "Inner Text")}<InnerComponent2 />
+      <InnerComponent3 />
+    </span>;
+  }
+  return <div>
+      <h1>{t("9daad18b3a29", "Outer Text")}</h1>
+      <InnerComponent />
+    </div>;
+}
+export default OuterComponent;"
+`;
+
 exports[`transformComponent > multiple components in one file > should handle nested components 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function OuterComponent() {

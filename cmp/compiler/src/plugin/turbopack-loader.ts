@@ -1,10 +1,13 @@
 import type { LoaderConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
-import { startTranslationServer } from "../translation-server";
+import {
+  startTranslationServer,
+  type TranslationServer,
+} from "../translation-server";
 import { logger } from "../utils/logger";
 
-let globalServer: any;
+let globalServer: TranslationServer;
 
 /**
  * Turbopack/Webpack loader for automatic translation

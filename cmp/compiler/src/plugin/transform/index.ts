@@ -72,25 +72,20 @@ export function transformComponent({
       plugins: ["jsx", "typescript"],
     });
 
+    // TODO (AleksandrSl 01/12/2025): Probably search for use i18n directives with regex, probably will be faster to skip the files
+
     const visitorState = {
-      componentName: null as string | null,
-      componentType: "unknown",
-      hasUseI18nDirective: false,
-      newEntries: [] as any[],
-      config,
-      metadata,
       filePath: relativeFilePath,
       serverUrl,
-      componentsNeedingTranslation: new Set<string>(),
-      componentHashes: new Map<string, string[]>(),
-      metadataFunctionsNeedingTranslation: new Set<string>(),
-      metadataHashes: new Map<string, string[]>(),
+      metadata,
+      config,
+      newEntries: [] as any[],
     } satisfies VisitorsSharedState;
 
     logger.debug(`Transforming ${filePath}, isServer: ${config.isServer}`);
 
+    // TODO (AleksandrSl 02/12/2025): Can I pass state to the traverse here as well?
     const visitors = createBabelVisitors({
-      config,
       visitorState,
     });
 

@@ -1,6 +1,6 @@
 import * as t from "@babel/types";
 import { VariableDeclaration } from "@babel/types";
-import type { NodePath } from "@babel/traverse";
+import type { NodePath, TraverseOptions } from "@babel/traverse";
 import type {
   ComponentType,
   LoaderConfig,
@@ -10,18 +10,24 @@ import type {
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
 
+type ComponentEntry = {
+  name: string;
+  type: ComponentType;
+};
+
+export interface VisitorsSharedState {
+  newEntries: TranslationEntry[];
+  filePath: string;
+  serverUrl?: string;
+  metadata: MetadataSchema;
+  config: LoaderConfig;
+}
+
 /**
  * State shared between all the visitors.
  */
-export interface VisitorsSharedState {
-  componentName: string | null;
-  componentType: ComponentType;
-  hasUseI18nDirective: boolean;
-  newEntries: TranslationEntry[];
-  config: LoaderConfig;
-  metadata: MetadataSchema;
-  filePath: string;
-  serverUrl?: string;
+export interface VisitorsInternalState extends VisitorsSharedState {
+  componentsStack: ComponentEntry[];
   /** Track all components that need translation functions injected */
   componentsNeedingTranslation: Set<string>;
   /** Map component names to their translation hashes */
@@ -76,6 +82,7 @@ function isReactComponent(
 
   // TODO (AleksandrSl 25/11/2025): In which order does it traverse? If it's DFS it may find the incorrect return?
   // Check for explicit return statements with JSX
+  // We could also check for the first JSX?
   let returnsJSX = false;
   path.traverse({
     ReturnStatement(returnPath) {
@@ -188,6 +195,18 @@ const NON_TRANSLATABLE_ELEMENTS = new Set([
   "var", // Variable name
 ]);
 
+const TRANSLATABLE_ATTRIBUTES = new Set([
+  "title",
+  "aria-label",
+  "aria-description",
+  "alt",
+  "label",
+  "description",
+  "placeholder",
+  "content",
+  "subtitle",
+]);
+
 /**
  * Check if a JSX element is self-closing or empty
  */
@@ -231,6 +250,51 @@ function shouldSkipTranslation(element: t.JSXElement): boolean {
 
   return false;
 }
+
+// // Called even on the element which are not translatable.
+// function translateAttributes(element: t.JSXElement): void {
+//   const openingElement = element.openingElement;
+//
+//   // TODO (AleksandrSl 25/11/2025): Ideally we can keep a stack of nested components, to skip this search.
+//   // Find the nearest component ancestor
+//   const componentPath = getNearestComponentAncestor(path);
+//   if (!componentPath) return;
+//
+//   const componentName = inferComponentName(componentPath);
+//   // TODO (AleksandrSl 25/11/2025): WHy do we require component name? We should be able to transform the default export as well.
+//   if (!componentName) return;
+//
+//   for (const attr of openingElement.attributes) {
+//     if (attr.type === "JSXAttribute" && attr.name.type === "JSXIdentifier") {
+//       // Check for translate="no" (HTML standard)
+//       if (
+//         TRANSLATABLE_ATTRIBUTES.has(attr.name.name) &&
+//         attr.value?.type === "StringLiteral"
+//       ) {
+//         const text = normalizeWhitespace(attr.value.value);
+//         if (text.length == 0) return;
+//
+//         const entry = createTranslationEntry(
+//           text,
+//           componentName,
+//           state.filePath,
+//           path.node.loc?.start.line,
+//           path.node.loc?.start.column,
+//         );
+//         state.newEntries.push(entry);
+//
+//         // Track component needs translation
+//         state.componentsNeedingTranslation.add(componentName);
+//
+//         const hashes = state.componentHashes.get(componentName) || [];
+//         hashes.push(entry.hash);
+//         state.componentHashes.set(componentName, hashes);
+//
+//         path.replaceWith(createTranslationCall(entry.hash, text));
+//       }
+//     }
+//   }
+// }
 
 // TODO (AleksandrSl 28/11/2025): I believe this one could be a complex one.
 //  Though it doesn't look recursively, so should be fine.
@@ -529,19 +593,17 @@ function createRichTextTranslationCall(
  */
 function transformMixedJSXElement(
   path: NodePath<t.JSXElement>,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
 ): void {
   // Check if this element should skip translation
   if (shouldSkipTranslation(path.node)) {
+    path.skip();
     return;
   }
 
   // Find the nearest component ancestor
-  const componentPath = getNearestComponentAncestor(path);
-  if (!componentPath) return;
-
-  const componentName = inferComponentName(componentPath);
-  if (!componentName) return;
+  const component = state.componentsStack.at(-1);
+  if (!component) return;
 
   // Serialize the JSX children
   const serialized = serializeJSXChildren(path.node.children);
@@ -551,7 +613,7 @@ function transformMixedJSXElement(
   // Create translation entry
   const entry = createTranslationEntry(
     text,
-    componentName,
+    component.name,
     state.filePath,
     path.node.loc?.start.line,
     path.node.loc?.start.column,
@@ -559,11 +621,11 @@ function transformMixedJSXElement(
   state.newEntries.push(entry);
 
   // Track component needs translation
-  state.componentsNeedingTranslation.add(componentName);
+  state.componentsNeedingTranslation.add(component.name);
 
-  const hashes = state.componentHashes.get(componentName) || [];
+  const hashes = state.componentHashes.get(component.name) || [];
   hashes.push(entry.hash);
-  state.componentHashes.set(componentName, hashes);
+  state.componentHashes.set(component.name, hashes);
 
   // Create the rich text translation call
   const tCall = createRichTextTranslationCall(
@@ -583,32 +645,20 @@ function transformMixedJSXElement(
  */
 function transformJSXText(
   path: NodePath<t.JSXText>,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
 ): void {
   const text = normalizeWhitespace(path.node.value);
   if (text.length == 0) return;
 
-  // TODO (AleksandrSl 28/11/2025): If we find the element that is skip translation we should skip all its children
-  // Check if parent JSX element should skip translation
-  const parentPath = path.parentPath;
-  if (parentPath?.isJSXElement()) {
-    if (shouldSkipTranslation(parentPath.node)) {
-      return;
-    }
-  }
+  // This function is not called for the nodes that should be skipped. So we don't have to make the check here.
 
-  // TODO (AleksandrSl 25/11/2025): Ideally we can keep a stack of nested components, to skip this search.
   // Find the nearest component ancestor
-  const componentPath = getNearestComponentAncestor(path);
-  if (!componentPath) return;
-
-  const componentName = inferComponentName(componentPath);
-  // TODO (AleksandrSl 25/11/2025): WHy do we require component name? We should be able to transform the default export as well.
-  if (!componentName) return;
+  const component = state.componentsStack.at(-1);
+  if (!component) return;
 
   const entry = createTranslationEntry(
     text,
-    componentName,
+    component.name,
     state.filePath,
     path.node.loc?.start.line,
     path.node.loc?.start.column,
@@ -616,11 +666,11 @@ function transformJSXText(
   state.newEntries.push(entry);
 
   // Track component needs translation
-  state.componentsNeedingTranslation.add(componentName);
+  state.componentsNeedingTranslation.add(component.name);
 
-  const hashes = state.componentHashes.get(componentName) || [];
+  const hashes = state.componentHashes.get(component.name) || [];
   hashes.push(entry.hash);
-  state.componentHashes.set(componentName, hashes);
+  state.componentHashes.set(component.name, hashes);
 
   path.replaceWith(createTranslationCall(entry.hash, text));
 }
@@ -842,7 +892,7 @@ function injectServerHook(
  */
 function injectTranslations(
   programPath: NodePath<t.Program>,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
 ): void {
   // Detect which imports are needed based on component types
   let hasAsyncComponent = false; // Needs getServerTranslations (async API)
@@ -1021,7 +1071,7 @@ function createMetadataTranslationEntry(
  */
 function transformMetadataObject(
   objectExpression: t.ObjectExpression,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
   hashes: string[],
   parentPath: string = "",
 ): void {
@@ -1113,7 +1163,7 @@ function transformMetadataObject(
  */
 function convertStaticMetadataToFunction(
   path: NodePath<t.ExportNamedDeclaration>,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
 ): void {
   const declaration = path.node.declaration;
   if (!declaration || declaration.type !== "VariableDeclaration") return;
@@ -1198,7 +1248,7 @@ function convertStaticMetadataToFunction(
  */
 function transformGenerateMetadataFunction(
   path: NodePath<t.FunctionDeclaration>,
-  state: VisitorsSharedState,
+  state: VisitorsInternalState,
 ): void {
   const body = path.get("body");
   if (!body.isBlockStatement()) return;
@@ -1250,101 +1300,95 @@ function transformGenerateMetadataFunction(
 // ============================================================================
 
 /**
- * Get the nearest component ancestor of a given path
- */
-function getNearestComponentAncestor(
-  path: NodePath<any>,
-): NodePath<
-  t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
-> | null {
-  let current = path.parentPath;
-
-  while (current) {
-    if (
-      current.isFunctionDeclaration() ||
-      current.isFunctionExpression() ||
-      current.isArrowFunctionExpression()
-    ) {
-      // Check if this function is a React component
-      if (isReactComponent(current)) {
-        return current;
-      }
-    }
-    current = current.parentPath;
-  }
-
-  return null;
-}
-
-/**
  * Handle component function detection and state update
  */
 function handleComponentFunction(
   path: NodePath<
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
-  state: VisitorsSharedState,
-  // TODO (AleksandrSl 25/11/2025): Remove the param
-  config: LoaderConfig,
+  state: VisitorsInternalState,
 ): void {
-  if (!isReactComponent(path)) return;
+  if (!isReactComponent(path)) {
+    path.skip();
+    return;
+  }
 
   const componentName = inferComponentName(path);
-  if (!componentName) return;
+  if (!componentName) {
+    path.skip();
+    return;
+  }
 
   // Store component info for later hook injection
-  // We don't set state.componentName here because JSXText visitors will handle that
   if (!state.componentHashes.has(componentName)) {
     state.componentHashes.set(componentName, []);
   }
+  state.componentsStack.push({ name: componentName, type: "unknown" });
+  console.debug(`Component ${componentName} entered`);
+  path.setData("componentName", componentName);
+  path.traverse(componentVisitors, { visitorState: state });
+  path.skip();
+  state.componentsStack.pop();
 }
 
-/**
- * Create Babel visitors for auto-translation (single-pass transformation)
- */
-export function createBabelVisitors({
-  config,
-  visitorState,
-}: {
-  config: LoaderConfig;
-  visitorState: VisitorsSharedState;
-}) {
-  return {
-    Program: {
-      enter(path: NodePath<t.Program>) {
-        visitorState.hasUseI18nDirective = hasUseI18nDirective(path);
-
-        // Skip if directive required but not present
-        if (config.useDirective && !visitorState.hasUseI18nDirective) {
-          path.skip();
-        }
-      },
-
-      exit(path: NodePath<t.Program>) {
-        // Inject imports and hooks after collecting all translations
-        if (
-          visitorState.componentsNeedingTranslation.size > 0 ||
-          visitorState.metadataFunctionsNeedingTranslation.size > 0
-        ) {
-          injectTranslations(path, visitorState);
-        }
-      },
+const componentVisitors = {
+  FunctionDeclaration: {
+    enter(path: NodePath<t.FunctionDeclaration>) {
+      handleComponentFunction(path, this.visitorState);
     },
+  },
 
-    // Handle static metadata exports: export const metadata = { ... }
-    ExportNamedDeclaration(path: NodePath<t.ExportNamedDeclaration>) {
-      const declaration = path.node.declaration;
-      if (!declaration || declaration.type !== "VariableDeclaration") return;
-
-      const declarator = declaration.declarations[0];
-      if (!declarator || declarator.id.type !== "Identifier") return;
-      if (declarator.id.name !== "metadata") return;
-
-      convertStaticMetadataToFunction(path, visitorState);
+  ArrowFunctionExpression: {
+    enter(path: NodePath<t.ArrowFunctionExpression>) {
+      handleComponentFunction(path, this.visitorState);
     },
+  },
 
-    // All component function types share the same handler
-    FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
+  FunctionExpression: {
+    enter(path: NodePath<t.FunctionExpression>) {
+      handleComponentFunction(path, this.visitorState);
+    },
+  },
+
+  // Transform JSX elements with mixed content (text + expressions + nested elements)
+  // This runs BEFORE JSXText visitor due to traversal order
+  JSXElement(path: NodePath<t.JSXElement>) {
+    // translateAttributes(path.node);
+
+    if (shouldSkipTranslation(path.node)) {
+      path.skip();
+      return;
+    }
+    if (hasMixedContent(path.node)) {
+      transformMixedJSXElement(path, this.visitorState);
+      // Skip traversing children since we've already processed them
+      path.skip();
+    }
+  },
+
+  // Transform JSX text nodes - finds nearest component ancestor
+  // This only runs for simple text nodes (not part of mixed content)
+  JSXText(path: NodePath<t.JSXText>) {
+    transformJSXText(path, this.visitorState);
+  },
+} satisfies TraverseOptions<{ visitorState: VisitorsInternalState }>;
+
+const fileVisitors = {
+  // Handle static metadata exports: export const metadata = { ... }
+  ExportNamedDeclaration(path: NodePath<t.ExportNamedDeclaration>) {
+    const declaration = path.node.declaration;
+    if (!declaration || declaration.type !== "VariableDeclaration") return;
+
+    const declarator = declaration.declarations[0];
+    if (!declarator || declarator.id.type !== "Identifier") return;
+    if (declarator.id.name !== "metadata") return;
+
+    convertStaticMetadataToFunction(path, this.visitorState);
+  },
+
+  // All component function types share the same handler
+  FunctionDeclaration: {
+    enter(path: NodePath<t.FunctionDeclaration>) {
       // Check if it's generateMetadata first
       if (path.node.id?.name === "generateMetadata") {
         // Check if it's exported
@@ -1353,42 +1397,68 @@ export function createBabelVisitors({
           parent.type === "ExportNamedDeclaration" ||
           parent.type === "Program"
         ) {
-          transformGenerateMetadataFunction(path, visitorState);
+          transformGenerateMetadataFunction(path, this.visitorState);
           return; // Don't process as component
         }
       }
 
       // Otherwise, handle as component
-      handleComponentFunction(path, visitorState, config);
+      handleComponentFunction(path, this.visitorState);
     },
+  },
 
-    ArrowFunctionExpression(path: NodePath<t.ArrowFunctionExpression>) {
-      handleComponentFunction(path, visitorState, config);
+  ArrowFunctionExpression: {
+    enter(path: NodePath<t.ArrowFunctionExpression>) {
+      handleComponentFunction(path, this.visitorState);
     },
+  },
 
-    FunctionExpression(path: NodePath<t.FunctionExpression>) {
-      handleComponentFunction(path, visitorState, config);
+  FunctionExpression: {
+    enter(path: NodePath<t.FunctionExpression>) {
+      handleComponentFunction(path, this.visitorState);
     },
+  },
+} satisfies TraverseOptions<{ visitorState: VisitorsInternalState }>;
 
-    // Transform JSX elements with mixed content (text + expressions + nested elements)
-    // This runs BEFORE JSXText visitor due to traversal order
-    JSXElement(path: NodePath<t.JSXElement>) {
-      if (shouldSkipTranslation(path.node)) {
-        path.skip();
-        return;
-      }
-      if (hasMixedContent(path.node)) {
-        transformMixedJSXElement(path, visitorState);
-        // Skip traversing children since we've already processed them
-        path.skip();
-      }
-    },
+/**
+ * Create Babel visitors for auto-translation (single-pass transformation)
+ */
+export function createBabelVisitors({
+  visitorState,
+}: {
+  visitorState: VisitorsSharedState;
+}) {
+  const state = {
+    ...visitorState,
+    componentsStack: [],
+    componentsNeedingTranslation: new Set<string>(),
+    componentHashes: new Map<string, string[]>(),
+    metadataFunctionsNeedingTranslation: new Set<string>(),
+    metadataHashes: new Map<string, string[]>(),
+  };
+  return {
+    Program: {
+      enter(path: NodePath<t.Program>) {
+        // Skip if directive required but not present
+        if (visitorState.config.useDirective && !hasUseI18nDirective(path)) {
+          path.skip();
+          return;
+        }
 
-    // TODO (AleksandrSl 28/11/2025): How do we skip this for the mixed cases?
-    // Transform JSX text nodes - finds nearest component ancestor
-    // This only runs for simple text nodes (not part of mixed content)
-    JSXText(path: NodePath<t.JSXText>) {
-      transformJSXText(path, visitorState);
+        path.traverse(fileVisitors, {
+          visitorState: state,
+        });
+      },
+
+      exit(path: NodePath<t.Program>) {
+        // Inject imports and hooks after collecting all translations
+        if (
+          state.componentsNeedingTranslation.size > 0 ||
+          state.metadataFunctionsNeedingTranslation.size > 0
+        ) {
+          injectTranslations(path, state);
+        }
+      },
     },
   };
 }

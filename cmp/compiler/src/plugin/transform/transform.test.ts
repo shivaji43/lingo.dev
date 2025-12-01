@@ -267,6 +267,63 @@ export default OuterComponent;
 
       expect(result.code).toMatchSnapshot();
     });
+
+    it("should handle deeply nested components", () => {
+      const code = `
+function OuterComponent() {
+  function InnerComponent1() {
+    function InnerComponent2() {
+        return <span>Inner Text</span>;
+    }
+
+    function InnerComponent3() {
+        return <span>Inner Text</span>;
+    }
+
+    return <span>
+      Inner Text
+      <InnerComponent2 />
+      <InnerComponent3 />
+    </span>;
+  }
+
+  function InnerComponent1_2() {
+    function InnerComponent2() {
+        return <span>Inner Text</span>;
+    }
+
+    function InnerComponent3() {
+        return <span>Inner Text</span>;
+    }
+
+    return <span>
+      Inner Text
+      <InnerComponent2 />
+      <InnerComponent3 />
+    </span>;
+  }
+
+  return (
+    <div>
+      <h1>Outer Text</h1>
+      <InnerComponent />
+    </div>
+  );
+}
+
+export default OuterComponent;
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Nested.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      expect(result.code).toMatchSnapshot();
+    });
   });
 
   describe("component with existing translation calls", () => {

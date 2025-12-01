@@ -18,7 +18,10 @@ import path from "path";
 import { transformComponent } from "./transform";
 import type { LoaderConfig } from "../types";
 import { handleTranslationRequest } from "./shared-middleware";
-import { startTranslationServer } from "../translation-server";
+import {
+  startTranslationServer,
+  type TranslationServer,
+} from "../translation-server";
 import { loadMetadata, saveMetadataWithEntries } from "../metadata/manager";
 import {
   createQueuedTranslations,
@@ -75,7 +78,7 @@ export interface LingoPluginOptions extends LoaderConfig {
   };
 }
 
-let globalServer: any;
+let globalServer: TranslationServer;
 
 /**
  * Universal plugin for Lingo.dev compiler
@@ -174,7 +177,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               filePath: id,
               config,
               metadata,
-              serverUrl: globalServer?.getPort() || null,
+              serverUrl: globalServer?.getUrl(),
             });
 
             logger.debug(`Transform result:`, {
