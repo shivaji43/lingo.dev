@@ -135,7 +135,6 @@ async function main() {
         lingoDir: options.lingoDir,
         sourceLocale: options.sourceLocale,
         translator: translatorConfig,
-        allowProductionGeneration: true,
       },
       onReady: (port) => {
         process.stdout.write("[lingo.dev] Server ready!\n");

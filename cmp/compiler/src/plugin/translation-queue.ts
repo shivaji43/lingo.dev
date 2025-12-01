@@ -259,7 +259,6 @@ export class TranslationQueue extends EventEmitter {
           lingoDir: config.lingoDir,
           sourceLocale: config.sourceLocale,
           translator: config.translator,
-          allowProductionGeneration: true,
         });
 
         if (response.status === 200) {

@@ -23,6 +23,7 @@ export default async function lingoCompilerTurbopackLoader(
     throw new Error("This module must be run as a loader");
   }
   const callback = this.async();
+  const isDev = process.env.NODE_ENV === "development";
 
   try {
     const config: LoaderConfig = this.getOptions();
@@ -32,7 +33,7 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    if (config.isDev && !globalServer) {
+    if (isDev && !globalServer) {
       globalServer = await startTranslationServer({
         startPort: 60000,
         onError: (err) => {
@@ -69,7 +70,7 @@ export default async function lingoCompilerTurbopackLoader(
 
       // Log new translations discovered (in dev mode)
       // Note: In production, translations are generated after build via runAfterProductionCompile
-      if (config.isDev) {
+      if (isDev) {
         logger.debug(
           `Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
         );

@@ -101,7 +101,6 @@ const server = await startTranslationServer({
     lingoDir: ".lingo",
     sourceLocale: "en",
     translator: "pseudo",
-    allowProductionGeneration: true,
   },
   onReady: (port) => {
     console.log(`Server running on port ${port}`);
@@ -133,7 +132,6 @@ const server = new TranslationServer({
     lingoDir: ".lingo",
     sourceLocale: "en",
     translator: "pseudo",
-    allowProductionGeneration: true,
   },
 });
 

@@ -26,6 +26,7 @@ import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
 import { LocaleCode } from "lingo.dev/spec";
+import { CookieConfig } from "../types";
 
 export interface LingoNextPluginOptions {
   /**
@@ -93,18 +94,7 @@ export interface LingoNextPluginOptions {
    * Shared between client-side LocaleSwitcher and server-side locale resolver
    * @default { name: 'locale', maxAge: 31536000 }
    */
-  cookieConfig?: {
-    /**
-     * Name of the cookie to store the locale
-     * @default 'locale'
-     */
-    name: string;
-    /**
-     * Maximum age of the cookie in seconds
-     * @default 31536000 (1 year)
-     */
-    maxAge: number;
-  };
+  cookieConfig?: CookieConfig;
 }
 
 // TODO (AleksandrSl 24/11/2025):
@@ -117,16 +107,13 @@ export interface LingoNextPluginOptions {
  * Next.js plugin that automatically adds the Lingo loader
  */
 export function withLingo(
-  nextConfig: NextConfig = {},
+  nextConfig: NextConfig,
   lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
   const lingoConfig = createLoaderConfig({
     ...lingoOptions,
-    isDev: process.env.NODE_ENV !== "production",
     framework: "next",
   });
-
-  console.debug("Lingo next plugin", getConfigPath(lingoConfig));
 
   return {
     ...nextConfig,
@@ -189,10 +176,7 @@ export function withLingo(
                 const response = await handleHashTranslationRequest(
                   locale,
                   batch,
-                  {
-                    ...lingoConfig,
-                    allowProductionGeneration: true,
-                  },
+                  lingoConfig,
                 );
 
                 if (response.status !== 200) {
@@ -260,7 +244,6 @@ export function withLingo(
                 sourceLocale: lingoConfig.sourceLocale,
                 useDirective: lingoConfig.useDirective,
                 translator: lingoConfig.translator,
-                isDev: lingoConfig.isDev,
                 // TODO (AleksandrSl 24/11/2025): This one should be serialized properly.
                 // skipPatterns: lingoConfig.skipPatterns,
                 framework: lingoConfig.framework,

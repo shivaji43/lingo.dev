@@ -27,7 +27,7 @@ import {
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 
-export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
+export interface LingoPluginOptions extends LoaderConfig {
   /**
    * Build strategy for translations
    * - 'queue': Queue translations during build, process at end (recommended for production)
@@ -86,42 +86,15 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
     const config: LoaderConfig = createLoaderConfig({
       ...options,
       sourceRoot: options.sourceRoot ?? "src",
-      isDev: false, // Will be set correctly in buildStart
     });
+
+    const isDev = process.env.NODE_ENV === "development";
 
     return {
       name: "lingo-compiler",
       enforce: "pre", // Run before other plugins (especially before React plugin)
 
-      // Vite-specific hooks
-      vite: {
-        configResolved(resolvedConfig) {
-          config.isDev = resolvedConfig.mode === "development";
-        },
-      },
-
-      // Webpack-specific hooks
-      webpack(compiler) {
-        config.isDev = compiler.options.mode === "development";
-      },
-
-      // Rollup-specific hooks
-      rollup: {
-        buildStart() {
-          // Detect dev mode from command
-          config.isDev = process.env.NODE_ENV === "development";
-        },
-      },
-
       // esbuild-specific hooks
-      esbuild: {
-        setup(build) {
-          // esbuild doesn't have a clear dev/prod distinction
-          // We'll default to production unless explicitly set
-          config.isDev = process.env.NODE_ENV === "development";
-        },
-      },
-
       async buildStart() {
         // Start translation server if not already running
         if (!globalServer) {
@@ -138,7 +111,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         }
 
         // Initialize translation queue for production builds
-        if (!config.isDev && options.targetLocales?.length) {
+        if (!isDev && options.targetLocales?.length) {
           const buildStrategy = options.buildStrategy ?? "queue";
 
           if (buildStrategy === "queue") {
@@ -229,7 +202,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               // Queue translations if using queue strategy in production
               const buildStrategy = options.buildStrategy ?? "queue";
               if (
-                !config.isDev &&
+                !isDev &&
                 buildStrategy === "queue" &&
                 options.targetLocales?.length
               ) {
@@ -247,7 +220,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               }
 
               // Log new translations discovered (in dev mode)
-              if (config.isDev) {
+              if (isDev) {
                 logger.info(
                   `Found ${result.newEntries.length} translatable text(s) in ${id}`,
                 );
@@ -269,7 +242,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
       async buildEnd() {
         // Pre-generate translations for specified locales during build
         try {
-          if (!config.isDev && options.targetLocales?.length) {
+          if (!isDev && options.targetLocales?.length) {
             const buildStrategy = options.buildStrategy ?? "queue";
 
             if (buildStrategy === "queue") {
@@ -323,7 +296,6 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
                     sourceLocale: config.sourceLocale,
                     translator: config.translator,
                     useCache: config.useCache,
-                    allowProductionGeneration: true,
                   });
 
                   if (response.status !== 200) {

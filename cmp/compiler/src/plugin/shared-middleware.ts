@@ -20,7 +20,6 @@ import { getMetadataPath } from "../utils/path-helpers";
 import { logger } from "../utils/logger";
 
 export interface TranslationMiddlewareConfig extends TranslationConfig {
-  allowProductionGeneration?: boolean;
   useCache?: boolean;
 }
 
@@ -28,11 +27,6 @@ export interface TranslationResponse {
   status: number;
   headers: Record<string, string>;
   body: string;
-}
-
-export interface HashTranslationRequest {
-  locale: string;
-  hashes: string[];
 }
 
 /**
@@ -79,27 +73,6 @@ export async function handleTranslationRequest(
   config: TranslationMiddlewareConfig,
 ): Promise<TranslationResponse> {
   logger.info(`Translation requested for locale: ${locale}`);
-
-  // Check if we're in production and generation is disabled
-  const isDev = process.env.NODE_ENV === "development";
-  const canGenerate = isDev || config.allowProductionGeneration;
-
-  if (!canGenerate) {
-    logger.warn(
-      `Translation not found for ${locale} and production generation is disabled`,
-    );
-    return {
-      status: 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        error: "Translation not available",
-        message: `Translations for locale "${locale}" are not pre-generated. Please run a build to generate translations.`,
-        locale,
-      }),
-    };
-  }
 
   try {
     // Load metadata
@@ -161,28 +134,6 @@ export async function handleHashTranslationRequest(
   logger.info(
     `Translation requested for ${hashes.length} hashes in locale: ${locale}`,
   );
-
-  // Check if we're in production and generation is disabled
-  const isDev = process.env.NODE_ENV === "development";
-  const canGenerate = isDev || config.allowProductionGeneration;
-
-  if (!canGenerate) {
-    logger.warn(
-      `Translations not found for ${hashes.length} hashes in ${locale} and production generation is disabled`,
-    );
-    return {
-      status: 404,
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        error: "Translation not available",
-        message: `Translations for locale "${locale}" are not pre-generated. Please run a build to generate translations.`,
-        locale,
-        missingHashes: hashes,
-      }),
-    };
-  }
 
   try {
     // Load metadata
