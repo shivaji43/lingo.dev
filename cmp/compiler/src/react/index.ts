@@ -14,7 +14,6 @@ export {
   TranslationProvider,
   useTranslationContext,
   getLocaleFromCookies,
-  defaultCookieConfig,
   type TranslationContextType,
   type TranslationProviderProps,
 } from "./client/TranslationContext";

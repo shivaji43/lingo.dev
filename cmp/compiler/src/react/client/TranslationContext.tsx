@@ -15,6 +15,7 @@ import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "../utils";
 import type { CookieConfig } from "../../types";
+import { defaultCookieConfig } from "../../utils/cookies";
 
 /**
  * Translation context type
@@ -125,16 +126,6 @@ export interface TranslationProviderProps {
 
   children: ReactNode;
 }
-
-/**
- * Default cookie configuration
- * - name: 'locale'
- * - maxAge: 31536000 (1 year)
- */
-export const defaultCookieConfig: CookieConfig = {
-  name: "locale",
-  maxAge: 31536000,
-};
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
