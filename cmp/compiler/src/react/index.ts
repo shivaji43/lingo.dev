@@ -1,7 +1,10 @@
 /**
  * React components for Lingo.dev translation runtime
  *
- * @module @lingo.dev/_compiler-beta/react
+ * This file serves as the CLIENT-SIDE entry point via conditional exports.
+ * The server-side entry point is in ./server.ts
+ *
+ * @module @lingo.dev/_compiler/react (client)
  */
 // TODO (AleksandrSl 27/11/2025): Is this needed, I don't think so.
 "use client";
@@ -15,13 +18,8 @@ export {
   type TranslationProviderProps,
 } from "./client/TranslationContext";
 
-export { NextTranslationProvider } from "./client/NextTranslationContext";
-
 // Export hooks
-export {
-  useTranslation,
-  type TranslationFunction,
-} from "./client/useTranslation";
+export { useTranslation } from "./client/useTranslation";
 
 // Export components
 export {
@@ -30,5 +28,6 @@ export {
   type LocaleConfig,
 } from "./client/LocaleSwitcher";
 
-// Export dev widget for Next.js
-export { NextDevWidget } from "../widget/NextDevWidget";
+// Export config utilities (work on both client and server)
+export { setLocaleResolver, getLocaleResolver } from "./config";
+export type { LocaleResolver } from "./config";

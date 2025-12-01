@@ -1,4 +1,4 @@
-import type { DictionarySchema } from "../../react/server";
+import { DictionarySchema } from "../api";
 
 /**
  * Few-shot examples for LLM translation

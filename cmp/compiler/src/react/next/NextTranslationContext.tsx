@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  TranslationProvider,
-  TranslationProviderProps,
-} from "./TranslationContext";
+import { TranslationProvider, TranslationProviderProps } from "../";
 import { useRouter } from "next/navigation";
 
 /**
@@ -34,5 +31,6 @@ import { useRouter } from "next/navigation";
  * ```
  */
 export const NextTranslationProvider = (props: TranslationProviderProps) => {
+  // So far we are just injecting the router to reload server components when the locale changes.
   return <TranslationProvider {...props} router={useRouter()} />;
 };

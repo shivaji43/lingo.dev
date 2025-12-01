@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import {
-  NextTranslationProvider,
-  NextDevWidget,
-} from "@lingo.dev/_compiler/react";
+import { NextTranslationProvider } from "@lingo.dev/_compiler/react/next";
 import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
 
 const geistSans = Geist({
@@ -27,7 +24,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { locale, translations } = await getServerTranslations();
+  // TODO (AleksandrSl 30/11/2025): Should be next specific too.
+  const { locale, translations } = await getServerTranslations({
+    locale: "en",
+  });
 
   return (
     <NextTranslationProvider
@@ -39,7 +39,6 @@ export default async function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           {children}
-          <NextDevWidget />
         </body>
       </html>
     </NextTranslationProvider>

@@ -55,7 +55,7 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverPort: globalServer?.getPort(),
+      serverUrl: globalServer?.getUrl(),
     });
 
     // If no transformation occurred, return original source

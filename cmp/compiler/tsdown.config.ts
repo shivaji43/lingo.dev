@@ -6,10 +6,10 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/react/index.ts",
-    "src/react/client/*.tsx",
-    "src/react/client/*.ts",
-    "src/react/server/*.ts",
-    "src/translate/index.ts",
+    "src/react/server.ts",
+    "src/react/config.ts",
+    "src/react/server/index.ts",
+    "src/react/next/index.ts",
     "src/plugin/next.ts",
     "src/plugin/vite.ts",
     "src/plugin/webpack.ts",
@@ -20,4 +20,6 @@ export default defineConfig({
   outDir: "build",
   format: ["cjs", "esm"],
   dts: true,
+  // When bundling, components lose the directives. As far as I see in other projects, like next-intl, they also use `preserveModules` which is kinda similar.
+  unbundle: true,
 });

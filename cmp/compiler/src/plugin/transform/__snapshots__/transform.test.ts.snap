@@ -26,6 +26,72 @@ export function ListComponent({
 }"
 `;
 
+exports[`transformComponent > isomorphic hooks (unified useTranslation) > should handle mixed async and non-async components in same file 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export async function AsyncCard() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["56b193071692"]
+  });
+  const data = await fetchData();
+  return <div>{t("56b193071692", "Async: {data}", {
+      data
+    })}</div>;
+}
+export function RegularCard() {
+  const t = useTranslation(["af2755dd997d"]);
+  return <div>{t("af2755dd997d", "Regular Hello")}</div>;
+}"
+`;
+
+exports[`transformComponent > isomorphic hooks (unified useTranslation) > should still use async API for truly async server components 1`] = `
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export default async function AsyncServerPage() {
+  const {
+    t
+  } = await getServerTranslations({
+    sourceLocale: "en",
+    serverPort: 60000,
+    hashes: ["bb41c668afe3", "f5569fd96497"]
+  });
+  const data = await fetchData();
+  return <div>
+      <h1>{t("bb41c668afe3", "Async Server Component")}</h1>
+      <p>{t("f5569fd96497", "Data: {data}", {
+        data
+      })}</p>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > isomorphic hooks (unified useTranslation) > should use unified hook for client component with 'use client' directive 1`] = `
+"'use client';
+
+import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function ClientPage() {
+  const t = useTranslation(["29e7d8d8f044", "4076d9ecece2"]);
+  return <div>
+      <h1>{t("29e7d8d8f044", "Client Component")}</h1>
+      <p>{t("4076d9ecece2", "This uses the same API")}</p>
+    </div>;
+}"
+`;
+
+exports[`transformComponent > isomorphic hooks (unified useTranslation) > should use unified hook for non-async server component 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function ServerPage() {
+  const t = useTranslation(["73688ae8699f", "b89ddadd8c99"]);
+  return <div>
+      <h1>{t("73688ae8699f", "Welcome")}</h1>
+      <p>{t("b89ddadd8c99", "This is a non-async server component")}</p>
+    </div>;
+}"
+`;
+
 exports[`transformComponent > metadata transformation > should handle metadata with template literals (static only) 1`] = `
 "export async function generateMetadata() {
   const {
@@ -68,7 +134,7 @@ exports[`transformComponent > metadata transformation > should handle nested met
 `;
 
 exports[`transformComponent > metadata transformation > should transform existing generateMetadata function 1`] = `
-"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+"import { useTranslation } from "@lingo.dev/_compiler/react";
 export async function generateMetadata({
   params
 }) {
@@ -84,20 +150,14 @@ export async function generateMetadata({
     description: t("d856e529f2c8", "Dynamic Description")
   };
 }
-export default async function Page() {
-  const {
-    t
-  } = await getServerTranslations({
-    sourceLocale: "en",
-    serverPort: 60000,
-    hashes: ["8e1367664144"]
-  });
+export default function Page() {
+  const t = useTranslation(["8e1367664144"]);
   return <div>{t("8e1367664144", "Content")}</div>;
 }"
 `;
 
 exports[`transformComponent > metadata transformation > should transform static metadata export to generateMetadata 1`] = `
-"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+"import { useTranslation } from "@lingo.dev/_compiler/react";
 import type { Metadata } from "next";
 export async function generateMetadata() {
   const {
@@ -112,14 +172,8 @@ export async function generateMetadata() {
     description: t("ab42d69596cc", "This is my page description")
   };
 }
-export default async function Page() {
-  const {
-    t
-  } = await getServerTranslations({
-    sourceLocale: "en",
-    serverPort: 60000,
-    hashes: ["8e1367664144"]
-  });
+export default function Page() {
+  const t = useTranslation(["8e1367664144"]);
   return <div>{t("8e1367664144", "Content")}</div>;
 }"
 `;
@@ -137,7 +191,7 @@ export default function Button() {
 exports[`transformComponent > mixed content (rich text) > should handle expressions in JSX attributes 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 function Home() {
-  const t = useTranslation(["f650c56c03c1", "3dd764fe7aab", "cd11ebba9c4b"]);
+  const t = useTranslation(["f650c56c03c1", "3dd764fe7aab", "0b7248388d4d"]);
   const {
     locale,
     translations
@@ -147,7 +201,9 @@ function Home() {
       <p>{t("3dd764fe7aab", "Current locale: {locale}", {
         locale
       })}</p>
-      <p>{t("cd11ebba9c4b", "Translations loaded: {expression}")}</p>
+      <p>{t("0b7248388d4d", "Translations loaded: {expression0}", {
+        expression0: JSON.stringify(translations)
+      })}</p>
     </div>;
 }"
 `;

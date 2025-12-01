@@ -45,7 +45,7 @@ export interface TranslationServerOptions {
 
 export class TranslationServer {
   private server: http.Server | null = null;
-  private port: number | null = null;
+  private url: string | undefined = undefined;
   private config: TranslationMiddlewareConfig;
   private startPort: number;
   private onReadyCallback?: (port: number) => void;
@@ -87,7 +87,7 @@ export class TranslationServer {
       });
 
       this.server.listen(port, "127.0.0.1", () => {
-        this.port = port;
+        this.url = `http://127.0.0.1:${port}`;
         logger.info(`Translation server listening on http://127.0.0.1:${port}`);
         this.onReadyCallback?.(port);
         resolve(port);
@@ -111,7 +111,7 @@ export class TranslationServer {
         } else {
           logger.info(`Translation server stopped`);
           this.server = null;
-          this.port = null;
+          this.url = undefined;
           resolve();
         }
       });
@@ -121,15 +121,15 @@ export class TranslationServer {
   /**
    * Get the current port (null if not running)
    */
-  getPort(): number | null {
-    return this.port;
+  getUrl(): string | undefined {
+    return this.url;
   }
 
   /**
    * Check if server is running
    */
   isRunning(): boolean {
-    return this.server !== null && this.port !== null;
+    return this.server !== null && this.url !== null;
   }
 
   /**
@@ -205,7 +205,7 @@ export class TranslationServer {
       // Health check endpoint
       if (url.pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", port: this.port }));
+        res.end(JSON.stringify({ status: "ok", port: this.url }));
         return;
       }
 

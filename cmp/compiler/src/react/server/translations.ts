@@ -1,0 +1,145 @@
+/**
+ * Core translation service - framework-agnostic
+ * Handles fetching translations from dev server or filesystem
+ *
+ * This is the UNIVERSAL pattern that works across all frameworks:
+ * Given a locale, fetch the translation dictionary for that locale.
+ *
+ * @module @lingo.dev/_compiler/react/server/translations
+ */
+
+import { readFile } from "fs/promises";
+import { join } from "path";
+import { logger } from "../../utils/logger";
+import { fetchTranslations as fetchFromDevServer } from "../utils";
+
+/**
+ * Configuration for translation fetching
+ */
+export interface TranslationFetchConfig {
+  /**
+   * Base path for translation files (default: process.cwd())
+   */
+  basePath?: string;
+
+  /**
+   * Dev server port (if running in development)
+   */
+  devServerPort?: number | null;
+
+  /**
+   * Source locale (default: 'en')
+   * If the requested locale matches source, returns empty dictionary
+   */
+  sourceLocale?: string;
+}
+
+/**
+ * Read translations from filesystem
+ * Used in production builds or as fallback in development
+ *
+ * Tries multiple common locations for translation files:
+ * - .next/standalone/{locale}.json (Next.js standalone)
+ * - .next/{locale}.json (Next.js)
+ * - public/translations/{locale}.json (standard)
+ * - public/{locale}.json (alternative)
+ * - .lingo/cache/{locale}.json (dev cache)
+ * - {locale}.json (root)
+ *
+ * @param locale - Target locale
+ * @param basePath - Base directory to search from (default: cwd)
+ * @returns Translation dictionary (hash -> translated text)
+ */
+async function readFromFilesystem(
+  locale: string,
+  basePath: string = process.cwd(),
+): Promise<Record<string, string>> {
+  const possiblePaths = [
+    join(basePath, ".next", "standalone", `${locale}.json`),
+    join(basePath, ".next", `${locale}.json`),
+    join(basePath, "public", "translations", `${locale}.json`),
+    join(basePath, "public", `${locale}.json`),
+    join(basePath, ".lingo", "cache", `${locale}.json`),
+    join(basePath, `${locale}.json`),
+  ];
+
+  // Try each path until we find the file
+  for (const filePath of possiblePaths) {
+    try {
+      const fileContent = await readFile(filePath, "utf-8");
+      const data = JSON.parse(fileContent);
+      const translations = data.entries || {};
+
+      logger.debug(
+        `Loaded ${Object.keys(translations).length} translations from ${filePath}`,
+      );
+      return translations;
+    } catch {
+      // File doesn't exist at this path, try next one
+      continue;
+    }
+  }
+
+  // No translations found
+  if (process.env.NODE_ENV === "development") {
+    logger.warn(
+      `Translation file not found for locale: ${locale}. Tried: ${possiblePaths.join(", ")}`,
+    );
+  }
+
+  return {};
+}
+
+/**
+ * Fetch translations for a given locale
+ *
+ * This is the CORE UNIVERSAL function that works across all frameworks.
+ * It handles the logic of fetching translations from either:
+ * - Development server (if running)
+ * - Filesystem (production or fallback)
+ *
+ * Framework-specific code should NOT duplicate this logic.
+ * Instead, they should:
+ * 1. Resolve the locale (framework-specific: cookies, URL, headers, etc.)
+ * 2. Call this function to get translations
+ *
+ * @param locale - Target locale to fetch
+ * @param hashes
+ * @param serverUrl
+ * @param config - Configuration options
+ * @returns Translation dictionary (hash -> translated text)
+ *
+ * @example
+ * ```typescript
+ * // In Next.js locale resolver
+ * const locale = await getLocaleFromCookies();
+ * const translations = await fetchTranslations(locale, { devServerPort: 60000 });
+ * ```
+ *
+ * @example
+ * ```typescript
+ * // In React Router loader
+ * const locale = getLocaleFromUrl(request.url);
+ * const translations = await fetchTranslations(locale);
+ * ```
+ */
+export async function fetchTranslations(
+  locale: string,
+  hashes: string[],
+  serverUrl?: string,
+  config: TranslationFetchConfig = {},
+): Promise<Record<string, string>> {
+  const isDev = process.env.NODE_ENV === "development";
+
+  // Development mode: Try dev server first, then filesystem
+  if (isDev && serverUrl) {
+    logger.debug(
+      `Fetching translations for ${locale} from dev server (${serverUrl})`,
+    );
+    return await fetchFromDevServer(locale, hashes);
+  }
+
+  // Production or dev fallback: Read from filesystem
+  logger.debug(`Reading translations for ${locale} from filesystem`);
+  return await readFromFilesystem(locale, config.basePath);
+}

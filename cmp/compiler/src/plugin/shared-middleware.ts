@@ -9,10 +9,10 @@
  */
 
 import fs from "fs/promises";
-import type { DictionarySchema } from "../react/server";
 import type { MetadataSchema, TranslationConfig } from "../types";
 import {
   createTranslator,
+  type DictionarySchema,
   LocalTranslationCache,
   TranslationService,
 } from "../translators";

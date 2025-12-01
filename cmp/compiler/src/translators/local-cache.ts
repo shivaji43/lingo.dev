@@ -5,8 +5,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { TranslationCache, LocalCacheConfig } from "./cache";
-import type { DictionarySchema } from "../react/server";
 import { logger } from "../utils/logger";
+import { DictionarySchema } from "./api";
 
 /**
  * Local file system cache for translations

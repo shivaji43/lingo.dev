@@ -18,9 +18,31 @@
       "require": "./build/plugin/index.cjs"
     },
     "./react": {
+      "react-server": {
+        "types": "./build/react/server.d.ts",
+        "import": "./build/react/server.mjs",
+        "default": "./build/react/server.cjs"
+      },
+      "default": {
+        "types": "./build/react/index.d.ts",
+        "import": "./build/react/index.mjs",
+        "default": "./build/react/index.cjs"
+      }
+    },
+    "./react/client": {
       "types": "./build/react/index.d.ts",
       "import": "./build/react/index.mjs",
       "require": "./build/react/index.cjs"
+    },
+    "./react/next": {
+      "types": "./build/react/next/index.d.ts",
+      "import": "./build/react/next/index.mjs",
+      "require": "./build/react/next/index.cjs"
+    },
+    "./react/config": {
+      "types": "./build/react/config.d.ts",
+      "import": "./build/react/config.mjs",
+      "require": "./build/react/config.cjs"
     },
     "./react/server": {
       "types": "./build/react/server/index.d.ts",

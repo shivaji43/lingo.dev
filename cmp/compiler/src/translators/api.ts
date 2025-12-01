@@ -9,3 +9,13 @@ export interface Translator<Config> {
     entriesMap: Record<string, TranslatableEntry>,
   ) => Promise<Record<string, string>>;
 }
+
+/**
+ * Dictionary schema for translation
+ * Simple flat structure with direct access to translations
+ */
+export interface DictionarySchema {
+  version: number;
+  locale: string;
+  entries: Record<string, string>;
+}

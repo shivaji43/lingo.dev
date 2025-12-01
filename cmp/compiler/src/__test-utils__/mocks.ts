@@ -9,8 +9,8 @@ import type {
   TranslationEntry,
   TranslationContext,
 } from "../types";
-import type { DictionarySchema } from "../react/server";
 import { createLoaderConfig } from "../utils/config-factory";
+import { DictionarySchema } from "../translators";
 
 /**
  * Create a mock metadata schema for testing

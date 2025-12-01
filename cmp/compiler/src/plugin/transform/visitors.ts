@@ -26,7 +26,7 @@ export interface VisitorsSharedState {
   config: LoaderConfig;
   metadata: MetadataSchema;
   filePath: string;
-  serverPort?: number;
+  serverUrl?: string;
   /** Track all components that need translation functions injected */
   componentsNeedingTranslation: Set<string>;
   /** Map component names to their translation hashes */
@@ -673,9 +673,13 @@ function transformJSXText(
 // ============================================================================
 
 /**
- * Create import for client components: import { useTranslation } from "..."
+ * Create unified import: import { useTranslation } from "@lingo.dev/_compiler/react"
+ *
+ * Via conditional exports, this resolves to:
+ * - server.ts in Server Components (React cache + use)
+ * - index.ts in Client Components (Context)
  */
-function createClientImport(): t.ImportDeclaration {
+function createUnifiedImport(): t.ImportDeclaration {
   return t.importDeclaration(
     [
       t.importSpecifier(
@@ -707,11 +711,18 @@ function createServerImport(): t.ImportDeclaration {
 // ============================================================================
 
 /**
- * Inject `const t = useTranslation([...hashes])` at component start (Client Components)
+ * Inject unified `const t = useTranslation([...hashes])` at component start
+ *
+ * This hook works in BOTH Server and Client Components via conditional exports:
+ * - In Server Components: loads server.ts (uses React cache() + use())
+ * - In Client Components: loads index.ts (uses Context)
+ *
+ * This is the new default for non-async components!
  */
-function injectClientHook(
+function injectUnifiedHook(
   componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
   hashes: string[],
+  translationServerUrl?: string,
 ): void {
   const body = componentPath.get("body");
 
@@ -721,6 +732,7 @@ function injectClientHook(
     if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
       const returnStatement = t.returnStatement(body.node as t.Expression);
       componentPath.node.body = t.blockStatement([returnStatement]);
+      // TODO (AleksandrSl 30/11/2025): Why do we need this? why not just componentPath.node.body
       // Re-get the body after conversion
       const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
 
@@ -744,10 +756,14 @@ function injectClientHook(
     hashes.map((hash) => t.stringLiteral(hash)),
   );
 
+  const callArgs = translationServerUrl
+    ? [hashArray, t.stringLiteral(translationServerUrl)]
+    : [hashArray];
+
   const hookCall = t.variableDeclaration("const", [
     t.variableDeclarator(
       t.identifier("t"),
-      t.callExpression(t.identifier("useTranslation"), [hashArray]),
+      t.callExpression(t.identifier("useTranslation"), callArgs),
     ),
   ]);
 
@@ -761,17 +777,17 @@ function injectClientHook(
  * @param {Object} options - The input parameters.
  * @param {Object} options.config - Configuration options for the server translation hook.
  * @param {string} [options.config.sourceLocale] - Optional source locale for translations.
- * @param {number} [options.serverPort] - Optional server port where the translation hook is hosted.
+ * @param {string} [options.serverUrl] - Optional server port where the translation hook is hosted.
  * @param {string[]} options.hashes - An array of hash strings related to translations.
  * @return {VariableDeclaration} - Returns an object containing the constructed translation hook code to be used on the server.
  */
 function constructServerTranslationHookCall({
   config,
-  serverPort,
+  serverUrl,
   hashes,
 }: {
   config: { sourceLocale?: string };
-  serverPort?: number;
+  serverUrl?: string;
   hashes: string[];
 }): VariableDeclaration {
   const optionsProperties = [];
@@ -785,12 +801,9 @@ function constructServerTranslationHookCall({
     );
   }
 
-  if (serverPort) {
+  if (serverUrl) {
     optionsProperties.push(
-      t.objectProperty(
-        t.identifier("serverPort"),
-        t.numericLiteral(serverPort),
-      ),
+      t.objectProperty(t.identifier("serverUrl"), t.stringLiteral(serverUrl)),
     );
   }
 
@@ -825,7 +838,7 @@ function constructServerTranslationHookCall({
 function injectServerHook(
   componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
   config: LoaderConfig,
-  serverPort: number | undefined,
+  serverUrl: string | undefined,
   hashes: string[],
 ): void {
   const body = componentPath.get("body");
@@ -843,7 +856,7 @@ function injectServerHook(
       // Create: const { t } = await getServerTranslations({ ... })
       const serverCall = constructServerTranslationHookCall({
         config,
-        serverPort,
+        serverUrl,
         hashes,
       });
 
@@ -859,7 +872,7 @@ function injectServerHook(
   // Create: const { t } = await getServerTranslations({ ... })
   const serverCall = constructServerTranslationHookCall({
     config,
-    serverPort,
+    serverUrl,
     hashes,
   });
 
@@ -873,12 +886,10 @@ function injectServerHook(
 function injectTranslations(
   programPath: NodePath<t.Program>,
   state: VisitorsSharedState,
-  config: LoaderConfig,
-  serverPort?: number,
 ): void {
-  // Detect if any component is a server component
-  let hasServerComponent = false;
-  let hasClientComponent = false;
+  // Detect which imports are needed based on component types
+  let hasAsyncComponent = false; // Needs getServerTranslations (async API)
+  let hasNonAsyncComponent = false; // Needs useTranslation (unified hook)
 
   programPath.traverse({
     FunctionDeclaration(path) {
@@ -887,11 +898,10 @@ function injectTranslations(
         componentName &&
         state.componentsNeedingTranslation.has(componentName)
       ) {
-        const componentType = detectComponentType(path, config);
-        if (componentType === "server") {
-          hasServerComponent = true;
+        if (path.node.async === true) {
+          hasAsyncComponent = true;
         } else {
-          hasClientComponent = true;
+          hasNonAsyncComponent = true;
         }
       }
     },
@@ -903,11 +913,10 @@ function injectTranslations(
       ) {
         const componentName = parent.id.name;
         if (state.componentsNeedingTranslation.has(componentName)) {
-          const componentType = detectComponentType(path, config);
-          if (componentType === "server") {
-            hasServerComponent = true;
+          if (path.node.async === true) {
+            hasAsyncComponent = true;
           } else {
-            hasClientComponent = true;
+            hasNonAsyncComponent = true;
           }
         }
       }
@@ -915,11 +924,12 @@ function injectTranslations(
   });
 
   // Add appropriate import(s)
-  // For now, we assume a file has either server or client components, not both
-  if (hasServerComponent) {
+  // A file can have both async and non-async components!
+  if (hasAsyncComponent) {
     programPath.node.body.unshift(createServerImport());
-  } else if (hasClientComponent) {
-    programPath.node.body.unshift(createClientImport());
+  }
+  if (hasNonAsyncComponent) {
+    programPath.node.body.unshift(createUnifiedImport());
   }
 
   // Inject hooks into all components that need translation
@@ -931,11 +941,12 @@ function injectTranslations(
         state.componentsNeedingTranslation.has(componentName)
       ) {
         const hashes = state.componentHashes.get(componentName) || [];
-        const componentType = detectComponentType(path, config);
-        if (componentType === "server") {
-          injectServerHook(path, state.config, serverPort, hashes);
+        // Async functions need the async API (getServerTranslations)
+        // Non-async functions use the unified hook (works for both server/client via conditional exports)
+        if (path.node.async === true) {
+          injectServerHook(path, state.config, state.serverUrl, hashes);
         } else {
-          injectClientHook(path, hashes);
+          injectUnifiedHook(path, hashes, state.serverUrl);
         }
       }
     },
@@ -948,11 +959,10 @@ function injectTranslations(
         const componentName = parent.id.name;
         if (state.componentsNeedingTranslation.has(componentName)) {
           const hashes = state.componentHashes.get(componentName) || [];
-          const componentType = detectComponentType(path, config);
-          if (componentType === "server") {
-            injectServerHook(path, state.config, serverPort, hashes);
+          if (path.node.async === true) {
+            injectServerHook(path, state.config, state.serverUrl, hashes);
           } else {
-            injectClientHook(path, hashes);
+            injectUnifiedHook(path, hashes, state.serverUrl);
           }
         }
       }
@@ -1194,10 +1204,10 @@ function convertStaticMetadataToFunction(
                         t.stringLiteral(state.config.sourceLocale),
                       )
                     : null,
-                  state.serverPort
+                  state.serverUrl
                     ? t.objectProperty(
-                        t.identifier("serverPort"),
-                        t.numericLiteral(state.serverPort),
+                        t.identifier("serverUrl"),
+                        t.stringLiteral(state.serverUrl),
                       )
                     : null,
                   t.objectProperty(
@@ -1270,7 +1280,7 @@ function transformGenerateMetadataFunction(
 
   const serverCall = constructServerTranslationHookCall({
     config: state.config,
-    serverPort: state.serverPort,
+    serverUrl: state.serverUrl,
     hashes,
   });
 
@@ -1341,11 +1351,9 @@ function handleComponentFunction(
 export function createBabelVisitors({
   config,
   visitorState,
-  serverPort,
 }: {
   config: LoaderConfig;
   visitorState: VisitorsSharedState;
-  serverPort?: number;
 }) {
   return {
     Program: {
@@ -1361,7 +1369,7 @@ export function createBabelVisitors({
       exit(path: NodePath<t.Program>) {
         // Inject imports and hooks after collecting all translations
         if (visitorState.needsTranslationImport) {
-          injectTranslations(path, visitorState, config, serverPort);
+          injectTranslations(path, visitorState);
         }
       },
     },

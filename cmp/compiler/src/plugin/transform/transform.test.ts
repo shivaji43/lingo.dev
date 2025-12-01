@@ -518,7 +518,7 @@ export default function Page() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -565,7 +565,7 @@ export default function Page() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -611,7 +611,7 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -662,7 +662,7 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -782,7 +782,7 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -830,7 +830,7 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -876,7 +876,7 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -909,7 +909,7 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1168,7 +1168,7 @@ export default async function ServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1214,7 +1214,7 @@ export async function ServerCard() {
         filePath: "src/components/ServerCard.tsx",
         config: nextConfig,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1226,6 +1226,167 @@ export async function ServerCard() {
       for (const hash of hashes) {
         expect(result.code).toContain(hash);
       }
+
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("isomorphic hooks (unified useTranslation)", () => {
+    it("should use unified hook for non-async server component", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export default function ServerPage() {
+  return (
+    <div>
+      <h1>Welcome</h1>
+      <p>This is a non-async server component</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverUrl: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Should use unified hook import (not getServerTranslations!)
+      expect(result.code).toContain("import { useTranslation } from");
+      expect(result.code).not.toContain("import { getServerTranslations }");
+
+      // Should use useTranslation hook (not await getServerTranslations!)
+      expect(result.code).toContain("const t = useTranslation(");
+      expect(result.code).not.toContain("await getServerTranslations");
+
+      // Function should NOT be made async
+      expect(result.code).toContain("function ServerPage()");
+      expect(result.code).not.toContain("async function ServerPage()");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should use unified hook for client component with 'use client' directive", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+'use client';
+
+export default function ClientPage() {
+  return (
+    <div>
+      <h1>Client Component</h1>
+      <p>This uses the same API</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/components/ClientPage.tsx",
+        config: nextConfig,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Should use unified hook (same as server!)
+      expect(result.code).toContain("import { useTranslation } from");
+      expect(result.code).toContain("const t = useTranslation(");
+
+      // Should NOT use async API
+      expect(result.code).not.toContain("getServerTranslations");
+      expect(result.code).not.toContain("async function");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should still use async API for truly async server components", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export default async function AsyncServerPage() {
+  const data = await fetchData();
+  return (
+    <div>
+      <h1>Async Server Component</h1>
+      <p>Data: {data}</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverUrl: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Should use async API (getServerTranslations)
+      expect(result.code).toContain("import { getServerTranslations } from");
+      expect(result.code).toContain("await getServerTranslations");
+
+      // Should remain async
+      expect(result.code).toContain("async function AsyncServerPage");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle mixed async and non-async components in same file", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export async function AsyncCard() {
+  const data = await fetchData();
+  return <div>Async: {data}</div>;
+}
+
+export function RegularCard() {
+  return <div>Regular Hello</div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/components/Cards.tsx",
+        config: nextConfig,
+        metadata,
+        serverUrl: 60000,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Should have BOTH imports!
+      expect(result.code).toContain("import { useTranslation } from");
+      expect(result.code).toContain("import { getServerTranslations } from");
+
+      // AsyncCard uses async API
+      expect(result.code).toMatch(
+        /async function AsyncCard.*await getServerTranslations/s,
+      );
+
+      // RegularCard uses unified hook
+      expect(result.code).toMatch(
+        /function RegularCard.*const t = useTranslation/s,
+      );
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1249,7 +1410,7 @@ export function Example() {
         filePath: "src/Example.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.code).toMatchSnapshot();
@@ -1284,7 +1445,7 @@ function test() {}</pre>
         filePath: "src/CodeBlock.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1315,7 +1476,7 @@ export function Product() {
         filePath: "src/Product.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1348,7 +1509,7 @@ export function ApiDocs() {
         filePath: "src/ApiDocs.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1380,7 +1541,7 @@ export function TechDoc() {
         filePath: "src/TechDoc.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1422,7 +1583,7 @@ export function Tutorial() {
         filePath: "src/Tutorial.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1462,7 +1623,7 @@ export function Branded() {
         filePath: "src/Branded.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);
@@ -1490,7 +1651,7 @@ export function ExplicitTranslate() {
         filePath: "src/ExplicitTranslate.tsx",
         config,
         metadata,
-        serverPort: 60000,
+        serverUrl: 60000,
       });
 
       expect(result.transformed).toBe(true);

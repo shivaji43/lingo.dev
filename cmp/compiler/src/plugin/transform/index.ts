@@ -46,7 +46,7 @@ export interface BabelTransformOptions {
   /**
    * Port of the translation server (if running)
    */
-  serverPort?: number;
+  serverUrl?: string;
 }
 
 /**
@@ -57,7 +57,7 @@ export function transformComponent({
   filePath,
   config,
   metadata,
-  serverPort,
+  serverUrl,
 }: BabelTransformOptions): TransformResult {
   // Get relative file path for consistent hashing
   const relativeFilePath = path
@@ -81,7 +81,7 @@ export function transformComponent({
       config,
       metadata,
       filePath: relativeFilePath,
-      serverPort,
+      serverUrl,
       componentsNeedingTranslation: new Set<string>(),
       componentHashes: new Map<string, string[]>(),
       metadataFunctionsNeedingTranslation: new Set<string>(),
@@ -93,7 +93,6 @@ export function transformComponent({
     const visitors = createBabelVisitors({
       config,
       visitorState,
-      serverPort,
     });
 
     traverse(ast, visitors);

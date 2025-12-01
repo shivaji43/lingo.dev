@@ -1,18 +1,10 @@
 "use client";
 
-import React, { ReactNode, useCallback, useEffect } from "react";
+import { ReactNode, useCallback, useEffect } from "react";
 import { useTranslationContext } from "./TranslationContext";
 import { logger } from "../../utils/logger";
 import { renderRichText, RichTextParams } from "../render-rich-text";
-
-/**
- * Translation function type
- */
-export type TranslationFunction = (
-  hash: string,
-  source: string,
-  params?: RichTextParams,
-) => string | React.ReactNode;
+import { TranslationHook } from "../types";
 
 /**
  * useTranslation Hook
@@ -48,7 +40,10 @@ export type TranslationFunction = (
  * }
  * ```
  */
-export function useTranslation(hashes: string[]): TranslationFunction {
+export const useTranslation: TranslationHook = (
+  hashes: string[],
+  serverUrl?: string,
+) => {
   const { translations, registerHashes, locale, sourceLocale } =
     useTranslationContext();
 
@@ -79,4 +74,4 @@ export function useTranslation(hashes: string[]): TranslationFunction {
     },
     [translations, locale, sourceLocale],
   );
-}
+};

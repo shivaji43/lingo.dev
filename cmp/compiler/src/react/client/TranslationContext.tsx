@@ -13,6 +13,7 @@ import {
 } from "react";
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
+import { fetchTranslations } from "../utils";
 
 /**
  * Translation context type
@@ -253,37 +254,6 @@ function TranslationProvider__Dev({
   }, [locale]);
 
   /**
-   * Default fetch function - calls batch translation endpoint
-   */
-  const fetchTranslations = useCallback(
-    async (targetLocale: string, hashes?: string[]) => {
-      // TODO (AleksandrSl 24/11/2025): Replace with a real port during AST generation
-      const __serverPort__ = 60000;
-      const url = `http://127.0.0.1:${__serverPort__}/translations/${targetLocale}`;
-
-      let response;
-      if (!hashes || hashes.length === 0) {
-        response = await fetch(url);
-      } else {
-        response = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ hashes }),
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`Translation API error: ${response.statusText}`);
-      }
-
-      return await response.json();
-    },
-    [],
-  );
-
-  /**
    * Register a hash as being used in a component
    * Called during render - must not trigger state updates immediately
    */
@@ -377,14 +347,7 @@ function TranslationProvider__Dev({
         setIsLoading(false);
       }
     }, batchDelay);
-  }, [
-    allSeenHashes,
-    locale,
-    sourceLocale,
-    batchDelay,
-    fetchTranslations,
-    translations,
-  ]);
+  }, [allSeenHashes, locale, sourceLocale, batchDelay, translations]);
 
   /**
    * Clear batch timer on unmount

@@ -3,7 +3,7 @@
  * Centralizes common dictionary manipulation logic
  */
 
-import type { DictionarySchema } from "../react/server";
+import type { DictionarySchema } from "../translators";
 import type { MetadataSchema } from "../types";
 
 /**

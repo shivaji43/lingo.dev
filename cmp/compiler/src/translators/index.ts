@@ -22,6 +22,8 @@ export type {
   TranslationError,
 } from "./translation-service";
 
+export type { DictionarySchema } from "./api";
+
 // Cache abstractions
 export type { TranslationCache, LocalCacheConfig } from "./cache";
 export { LocalTranslationCache } from "./local-cache";

@@ -183,7 +183,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               filePath: id,
               config,
               metadata,
-              serverPort: globalServer?.getPort() || null,
+              serverUrl: globalServer?.getPort() || null,
             });
 
             logger.debug(`Transform result:`, {
