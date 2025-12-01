@@ -8,9 +8,12 @@
  * @module @lingo.dev/_compiler-beta/react/server
  */
 
-import { fetchTranslations } from "./translations";
+import { fetchTranslationsOnServer } from "./translations";
 import { renderRichText, RichTextParams } from "../render-rich-text";
 import type { ReactNode } from "react";
+import { logger } from "../../utils/logger";
+// Keep this import full for replacement during build.
+import { localeResolver } from "@lingo.dev/_compiler/config";
 
 /**
  * Get server-side translations function
@@ -52,7 +55,7 @@ export async function getServerTranslations(options: {
   /**
    * Target locale for translations (required)
    */
-  locale: string;
+  locale?: string;
 
   /**
    * Source locale (default language)
@@ -62,9 +65,8 @@ export async function getServerTranslations(options: {
 
   /**
    * Development server port (for dev mode)
-   * @default 60000
    */
-  serverPort?: number | null;
+  serverUrl?: string;
 
   /**
    * List of translation hashes needed for this component
@@ -87,7 +89,7 @@ export async function getServerTranslations(options: {
   translations: Record<string, string>;
 }> {
   const sourceLocale = options.sourceLocale || "en";
-  const locale = options.locale;
+  const locale = options.locale || (await localeResolver()) || "en";
 
   // For source locale, return source text directly
   if (locale === sourceLocale) {
@@ -103,12 +105,18 @@ export async function getServerTranslations(options: {
     };
   }
 
+  logger.debug(`Async Server. Fetching translations for ${locale}`);
+
   // Fetch translations using core service
-  const translations = await fetchTranslations(locale, options.hashes ?? [], {
-    sourceLocale,
-    devServerPort: options.serverPort,
-    basePath: options.basePath,
-  });
+  const translations = await fetchTranslationsOnServer(
+    locale,
+    options.hashes ?? [],
+    options.serverUrl,
+    {
+      sourceLocale,
+      basePath: options.basePath,
+    },
+  );
 
   // Return translation function
   return {

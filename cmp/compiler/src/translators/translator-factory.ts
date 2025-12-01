@@ -20,10 +20,6 @@ export type TranslatorConfig =
  * Caching is handled by TranslationService layer.
  */
 export function createTranslator(config: TranslatorConfig): Translator<any> {
-  // TODO (AleksandrSl 26/11/2025): Why the config can be a string?
-  if (typeof config === "string") {
-    config = JSON.parse(config);
-  }
   switch (config.type) {
     case "pseudo":
       return new PseudoTranslator(config.config || {});

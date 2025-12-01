@@ -55,6 +55,24 @@ export interface LingoPluginOptions extends Omit<LoaderConfig, "isDev"> {
    * @default true in production, false in development
    */
   waitForTranslations?: boolean;
+
+  /**
+   * Cookie configuration for locale persistence
+   * Shared between client-side LocaleSwitcher and server-side locale resolver
+   * @default { name: 'locale', maxAge: 31536000 }
+   */
+  cookieConfig?: {
+    /**
+     * Name of the cookie to store the locale
+     * @default 'locale'
+     */
+    name: string;
+    /**
+     * Maximum age of the cookie in seconds
+     * @default 31536000 (1 year)
+     */
+    maxAge: number;
+  };
 }
 
 let globalServer: any;

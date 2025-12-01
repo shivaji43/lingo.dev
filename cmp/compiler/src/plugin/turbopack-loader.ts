@@ -25,7 +25,6 @@ export default async function lingoCompilerTurbopackLoader(
   const callback = this.async();
 
   try {
-    // Log available methods on loader context
     const config: LoaderConfig = this.getOptions();
 
     // Check if this file should be transformed

@@ -21,7 +21,7 @@ import { loadMetadata } from "../metadata/manager";
 import { handleHashTranslationRequest } from "./shared-middleware";
 import fs from "fs/promises";
 import type { TranslatorConfig } from "../translators";
-import { getCachePath } from "../utils/path-helpers";
+import { getCachePath, getConfigPath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
@@ -87,6 +87,24 @@ export interface LingoNextPluginOptions {
    * @default 50
    */
   batchSize?: number;
+
+  /**
+   * Cookie configuration for locale persistence
+   * Shared between client-side LocaleSwitcher and server-side locale resolver
+   * @default { name: 'locale', maxAge: 31536000 }
+   */
+  cookieConfig?: {
+    /**
+     * Name of the cookie to store the locale
+     * @default 'locale'
+     */
+    name: string;
+    /**
+     * Maximum age of the cookie in seconds
+     * @default 31536000 (1 year)
+     */
+    maxAge: number;
+  };
 }
 
 // TODO (AleksandrSl 24/11/2025):
@@ -107,6 +125,8 @@ export function withLingo(
     isDev: process.env.NODE_ENV !== "production",
     framework: "next",
   });
+
+  console.debug("Lingo next plugin", getConfigPath(lingoConfig));
 
   return {
     ...nextConfig,
@@ -239,9 +259,7 @@ export function withLingo(
                 lingoDir: lingoConfig.lingoDir,
                 sourceLocale: lingoConfig.sourceLocale,
                 useDirective: lingoConfig.useDirective,
-                translator: lingoConfig.translator
-                  ? JSON.stringify(lingoConfig.translator)
-                  : "null",
+                translator: lingoConfig.translator,
                 isDev: lingoConfig.isDev,
                 // TODO (AleksandrSl 24/11/2025): This one should be serialized properly.
                 // skipPatterns: lingoConfig.skipPatterns,
@@ -250,6 +268,10 @@ export function withLingo(
             },
           ],
         },
+      },
+      // TODO (AleksandrSl 01/12/2025): Add support for this in webpack
+      resolveAlias: {
+        "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
       },
     },
     webpack(config: any, options: any) {

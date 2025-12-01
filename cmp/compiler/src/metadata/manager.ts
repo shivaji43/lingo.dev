@@ -105,7 +105,7 @@ export async function saveMetadataWithEntries(
       minTimeout: 50,
       maxTimeout: 1000,
     },
-    stale: 5000, // Consider lock stale after 5 seconds
+    stale: 2000, // Consider lock stale after 5 seconds
   });
 
   try {

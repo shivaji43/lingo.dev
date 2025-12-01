@@ -14,6 +14,7 @@ export {
   TranslationProvider,
   useTranslationContext,
   getLocaleFromCookies,
+  defaultCookieConfig,
   type TranslationContextType,
   type TranslationProviderProps,
 } from "./client/TranslationContext";
@@ -27,7 +28,3 @@ export {
   type LocaleSwitcherProps,
   type LocaleConfig,
 } from "./client/LocaleSwitcher";
-
-// Export config utilities (work on both client and server)
-export { setLocaleResolver, getLocaleResolver } from "./config";
-export type { LocaleResolver } from "./config";

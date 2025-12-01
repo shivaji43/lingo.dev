@@ -6,4 +6,5 @@ export type {
   TranslationContext,
   TranslationEntry,
   MetadataSchema,
+  CookieConfig,
 } from "./types";

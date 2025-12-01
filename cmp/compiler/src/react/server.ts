@@ -15,46 +15,33 @@
 
 import type { ReactNode } from "react";
 import { cache, use } from "react";
-import { getLocaleResolver } from "./config";
-import { fetchTranslations } from "./server/translations";
+import { localeResolver } from "@lingo.dev/_compiler/config";
+import { fetchTranslationsOnServer } from "./server-only/translations";
 import { renderRichText, type RichTextParams } from "./render-rich-text";
 import { logger } from "../utils/logger";
-import { TranslationHook } from "./types";
+import type { TranslationHook } from "./types";
 
-/**
- * Get default locale resolver (framework-specific)
- * By default, uses Next.js resolver, but can be overridden with setLocaleResolver()
- */
-function getDefaultLocaleResolver() {
-  // Lazy import to avoid bundling Next.js code in non-Next.js projects
-  try {
-    // Try to import Next.js resolver
-    const {
-      createNextCookieLocaleResolver,
-    } = require("./next/cookie-locale-resolver");
-    logger.debug("Using Next.js locale resolver (reading from cookies)");
-    return createNextCookieLocaleResolver();
-  } catch {
-    // Fallback: return a basic resolver that just returns 'en'
-    logger.debug("No framework-specific resolver found, defaulting to 'en'");
-    return async () => "en";
-  }
-}
-
-const getTranslations = cache(async (hashes: string[], serverUrl?: string) => {
+// TODO (AleksandrSl 01/12/2025): Should we add back the cache?
+const getTranslations = async (hashes: string[], serverUrl?: string) => {
   // 1. Resolve locale (framework-specific)
-  const customResolver = getLocaleResolver();
-  const localeResolver = customResolver || getDefaultLocaleResolver();
   const locale = await localeResolver();
 
   // 2. Fetch translations (universal)
-  const translations = await fetchTranslations(locale, hashes, serverUrl);
+  const translations = await fetchTranslationsOnServer(
+    locale,
+    hashes,
+    serverUrl,
+  );
+
+  logger.debug(
+    `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
+  );
 
   return {
     locale,
     translations,
   };
-});
+};
 
 /**
  * Server-side translation hook
@@ -91,7 +78,10 @@ export const useTranslation: TranslationHook = (
 ) => {
   // Use React's use() to unwrap the cached promise
   // This appears synchronous in Server Components!
-  const { translations } = use(getTranslations(hashes, serverUrl));
+  const { locale, translations } = use(getTranslations(hashes, serverUrl));
+  logger.debug(
+    `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
+  );
 
   // Return translation function matching client signature
   return (
@@ -112,6 +102,4 @@ export const useTranslation: TranslationHook = (
   };
 };
 
-// Re-export config utilities
-export { setLocaleResolver, getLocaleResolver } from "./config";
-export type { LocaleResolver } from "./config";
+export { TranslationProvider } from "./ServerTranslationProvider";

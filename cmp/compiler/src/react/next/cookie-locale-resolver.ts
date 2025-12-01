@@ -8,7 +8,7 @@
  * @module @lingo.dev/_compiler/react/next
  */
 
-import type { LocaleResolver } from "../config";
+import type { CookieConfig } from "../../types";
 import { cookies } from "next/headers";
 
 /**
@@ -16,10 +16,10 @@ import { cookies } from "next/headers";
  */
 export interface NextLocaleResolverConfig {
   /**
-   * Cookie name to read locale from
-   * @default 'locale'
+   * Cookie configuration (name and maxAge)
+   * @default { name: 'locale', maxAge: 31536000 }
    */
-  cookieName?: string;
+  cookieConfig?: CookieConfig;
 
   /**
    * Default locale if cookie is not set
@@ -40,22 +40,22 @@ export interface NextLocaleResolverConfig {
  * @example
  * ```typescript
  * import { setLocaleResolver } from '@lingo.dev/_compiler/react';
- * import { createNextLocaleResolver } from '@lingo.dev/_compiler/react/next';
+ * import { createNextCookieLocaleResolver } from '@lingo.dev/_compiler/react/next';
  *
  * // Use default config (cookie name: 'locale', default: 'en')
- * setLocaleResolver(createNextLocaleResolver());
+ * setLocaleResolver(createNextCookieLocaleResolver());
  *
- * // Or customize
- * setLocaleResolver(createNextLocaleResolver({
- *   cookieName: 'user_language',
+ * // Or customize with cookie config
+ * setLocaleResolver(createNextCookieLocaleResolver({
+ *   cookieConfig: { name: 'user_language', maxAge: 2592000 },
  *   defaultLocale: 'de'
  * }));
  * ```
  */
 export function createNextCookieLocaleResolver(
   config: NextLocaleResolverConfig = {},
-): LocaleResolver {
-  const cookieName = config.cookieName || "locale";
+): () => Promise<string> {
+  const cookieName = config.cookieConfig?.name || "locale";
   const defaultLocale = config.defaultLocale || "en";
 
   return async () => {

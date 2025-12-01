@@ -6,6 +6,23 @@ import type { TranslatorConfig } from "./translators";
 import type { Framework } from "./types/framework";
 
 /**
+ * Cookie configuration for locale persistence
+ */
+export interface CookieConfig {
+  /**
+   * Name of the cookie to store the locale
+   * @default 'locale'
+   */
+  name: string;
+
+  /**
+   * Maximum age of the cookie in seconds
+   * @default 31536000 (1 year)
+   */
+  maxAge: number;
+}
+
+/**
  * Configuration for the translation loader
  */
 export interface LoaderConfig {
@@ -62,6 +79,12 @@ export interface LoaderConfig {
    * @default true
    */
   useCache?: boolean;
+
+  /**
+   * Cookie configuration for locale persistence
+   * Used by both client-side LocaleSwitcher and server-side locale resolver
+   */
+  cookieConfig?: CookieConfig;
 }
 
 /**

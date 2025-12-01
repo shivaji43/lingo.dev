@@ -14,6 +14,7 @@ import {
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "../utils";
+import type { CookieConfig } from "../../types";
 
 /**
  * Translation context type
@@ -76,7 +77,7 @@ export interface TranslationProviderProps {
   /**
    * Initial locale to use
    */
-  initialLocale: string;
+  initialLocale?: string;
 
   /**
    * Source locale (default language)
@@ -125,9 +126,15 @@ export interface TranslationProviderProps {
   children: ReactNode;
 }
 
-type CookieConfig = { name: string; maxAge: number };
-
-const defaultCookieConfig: CookieConfig = { name: "locale", maxAge: 31536000 };
+/**
+ * Default cookie configuration
+ * - name: 'locale'
+ * - maxAge: 31536000 (1 year)
+ */
+export const defaultCookieConfig: CookieConfig = {
+  name: "locale",
+  maxAge: 31536000,
+};
 
 const IS_DEV = process.env.NODE_ENV === "development";
 
@@ -169,7 +176,8 @@ function TranslationProvider__Prod({
   children,
 }: TranslationProviderProps) {
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
-  const [locale, setLocaleState] = useState(initialLocale);
+  // TODO (AleksandrSl 01/12/2025): Correctly provide default locale.
+  const [locale, setLocaleState] = useState(initialLocale ?? "en");
 
   logger.debug(
     `TranslationProvider initialized with locale: ${locale}`,
@@ -224,7 +232,7 @@ function TranslationProvider__Dev({
   children,
 }: TranslationProviderProps) {
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
-  const [locale, setLocaleState] = useState(initialLocale);
+  const [locale, setLocaleState] = useState(initialLocale ?? "en");
   const [translations, setTranslations] =
     useState<Record<string, string>>(initialTranslations);
   const [isLoading, setIsLoading] = useState(false);

@@ -123,7 +123,7 @@ async function readFromFilesystem(
  * const translations = await fetchTranslations(locale);
  * ```
  */
-export async function fetchTranslations(
+export async function fetchTranslationsOnServer(
   locale: string,
   hashes: string[],
   serverUrl?: string,
@@ -134,9 +134,9 @@ export async function fetchTranslations(
   // Development mode: Try dev server first, then filesystem
   if (isDev && serverUrl) {
     logger.debug(
-      `Fetching translations for ${locale} from dev server (${serverUrl})`,
+      `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${serverUrl})`,
     );
-    return await fetchFromDevServer(locale, hashes);
+    return await fetchFromDevServer(locale, hashes, serverUrl);
   }
 
   // Production or dev fallback: Read from filesystem

@@ -20,7 +20,6 @@ import {
 export interface VisitorsSharedState {
   componentName: string | null;
   componentType: ComponentType;
-  needsTranslationImport: boolean;
   hasUseI18nDirective: boolean;
   newEntries: TranslationEntry[];
   config: LoaderConfig;
@@ -599,7 +598,6 @@ function transformMixedJSXElement(
   state.newEntries.push(entry);
 
   // Track component needs translation
-  state.needsTranslationImport = true;
   state.componentsNeedingTranslation.add(componentName);
 
   const hashes = state.componentHashes.get(componentName) || [];
@@ -656,9 +654,7 @@ function transformJSXText(
   );
   state.newEntries.push(entry);
 
-  // TODO (AleksandrSl 25/11/2025): How do we use this?
   // Track component needs translation
-  state.needsTranslationImport = true;
   state.componentsNeedingTranslation.add(componentName);
 
   const hashes = state.componentHashes.get(componentName) || [];
@@ -925,7 +921,7 @@ function injectTranslations(
 
   // Add appropriate import(s)
   // A file can have both async and non-async components!
-  if (hasAsyncComponent) {
+  if (hasAsyncComponent || state.metadataFunctionsNeedingTranslation.size > 0) {
     programPath.node.body.unshift(createServerImport());
   }
   if (hasNonAsyncComponent) {
@@ -1232,7 +1228,6 @@ function convertStaticMetadataToFunction(
   // Replace the export
   path.replaceWith(t.exportNamedDeclaration(generateMetadataFunction, []));
 
-  state.needsTranslationImport = true;
   state.metadataFunctionsNeedingTranslation.add("generateMetadata");
   state.metadataHashes.set("generateMetadata", hashes);
 }
@@ -1259,7 +1254,6 @@ function transformGenerateMetadataFunction(
     },
   });
 
-  // TODO (AleksandrSl 27/11/2025): Seems like a TS bug? We do assign the value in the callback
   if (metadataReturn == null || !metadataReturn.node.argument) return;
   if (metadataReturn.node.argument.type !== "ObjectExpression") return;
 
@@ -1286,7 +1280,6 @@ function transformGenerateMetadataFunction(
 
   body.node.body.unshift(serverCall);
 
-  state.needsTranslationImport = true;
   state.metadataFunctionsNeedingTranslation.add("generateMetadata");
   state.metadataHashes.set("generateMetadata", hashes);
 }
@@ -1368,7 +1361,10 @@ export function createBabelVisitors({
 
       exit(path: NodePath<t.Program>) {
         // Inject imports and hooks after collecting all translations
-        if (visitorState.needsTranslationImport) {
+        if (
+          visitorState.componentsNeedingTranslation.size > 0 ||
+          visitorState.metadataFunctionsNeedingTranslation.size > 0
+        ) {
           injectTranslations(path, visitorState);
         }
       },
