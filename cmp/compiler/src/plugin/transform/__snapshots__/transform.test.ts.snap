@@ -34,7 +34,7 @@ export async function AsyncCard() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["56b193071692"]
   });
   const data = await fetchData();
@@ -43,7 +43,7 @@ export async function AsyncCard() {
     })}</div>;
 }
 export function RegularCard() {
-  const t = useTranslation(["af2755dd997d"]);
+  const t = useTranslation(["af2755dd997d"], "http://127.0.0.1:60000");
   return <div>{t("af2755dd997d", "Regular Hello")}</div>;
 }"
 `;
@@ -55,7 +55,7 @@ export default async function AsyncServerPage() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["bb41c668afe3", "f5569fd96497"]
   });
   const data = await fetchData();
@@ -84,7 +84,7 @@ export default function ClientPage() {
 exports[`transformComponent > isomorphic hooks (unified useTranslation) > should use unified hook for non-async server component 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function ServerPage() {
-  const t = useTranslation(["73688ae8699f", "b89ddadd8c99"]);
+  const t = useTranslation(["73688ae8699f", "b89ddadd8c99"], "http://127.0.0.1:60000");
   return <div>
       <h1>{t("73688ae8699f", "Welcome")}</h1>
       <p>{t("b89ddadd8c99", "This is a non-async server component")}</p>
@@ -93,12 +93,13 @@ export default function ServerPage() {
 `;
 
 exports[`transformComponent > metadata transformation > should handle metadata with template literals (static only) 1`] = `
-"export async function generateMetadata() {
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export async function generateMetadata() {
   const {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["474e6dfdb4da", "4bbff2c494fc"]
   });
   return {
@@ -109,12 +110,13 @@ exports[`transformComponent > metadata transformation > should handle metadata w
 `;
 
 exports[`transformComponent > metadata transformation > should handle nested metadata objects (openGraph, twitter) 1`] = `
-"export async function generateMetadata() {
+"import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+export async function generateMetadata() {
   const {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["901706843f7f", "361edde34b28", "361ca57123c6", "db2e1ebf4937", "727d40b9694a", "6f2dc702c8d1"]
   });
   return {
@@ -135,6 +137,7 @@ exports[`transformComponent > metadata transformation > should handle nested met
 
 exports[`transformComponent > metadata transformation > should transform existing generateMetadata function 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
+import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
 export async function generateMetadata({
   params
 }) {
@@ -142,7 +145,7 @@ export async function generateMetadata({
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["785d876d89df", "d856e529f2c8"]
   });
   return {
@@ -151,20 +154,21 @@ export async function generateMetadata({
   };
 }
 export default function Page() {
-  const t = useTranslation(["8e1367664144"]);
+  const t = useTranslation(["8e1367664144"], "http://127.0.0.1:60000");
   return <div>{t("8e1367664144", "Content")}</div>;
 }"
 `;
 
 exports[`transformComponent > metadata transformation > should transform static metadata export to generateMetadata 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
+import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
 import type { Metadata } from "next";
 export async function generateMetadata() {
   const {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["df9408b365ed", "ab42d69596cc"]
   });
   return {
@@ -173,7 +177,7 @@ export async function generateMetadata() {
   };
 }
 export default function Page() {
-  const t = useTranslation(["8e1367664144"]);
+  const t = useTranslation(["8e1367664144"], "http://127.0.0.1:60000");
   return <div>{t("8e1367664144", "Content")}</div>;
 }"
 `;
@@ -350,7 +354,7 @@ export async function ServerCard() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["37e8a52e4028", "54ee3cde38cd", "82e802cc4b0f"]
   });
   return <div>
@@ -368,7 +372,7 @@ export default async function ServerPage() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverPort: 60000,
+    serverUrl: "http://127.0.0.1:60000",
     hashes: ["4b1203f723d1", "b68747a48800", "ecaa2508bfa5"]
   });
   return <div>
@@ -414,7 +418,7 @@ export function Card() {
 exports[`transformComponent > skip translation > should skip translation for <code> elements 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Example() {
-  const t = useTranslation(["64e588c6127f"]);
+  const t = useTranslation(["64e588c6127f"], "http://127.0.0.1:60000");
   return <div>
       <p>{t("64e588c6127f", "Install using <code0/> command", {
         code0: () => <code>npm install package</code>

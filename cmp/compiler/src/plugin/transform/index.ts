@@ -75,7 +75,6 @@ export function transformComponent({
     const visitorState = {
       componentName: null as string | null,
       componentType: "unknown",
-      needsTranslationImport: false,
       hasUseI18nDirective: false,
       newEntries: [] as any[],
       config,
