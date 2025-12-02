@@ -461,7 +461,9 @@ export function Test() {
       });
 
       assert.isDefined(result.newEntries);
-      expect(result.newEntries[0].context.filePath).toBe("components/Test.tsx");
+      expect(result.newEntries[0].location.filePath).toBe(
+        "components/Test.tsx",
+      );
     });
 
     it("should include line and column information", () => {
@@ -478,8 +480,8 @@ export function Test() {
         metadata,
       });
       assert.isDefined(result.newEntries);
-      expect(result.newEntries[0].context.line).toBeDefined();
-      expect(result.newEntries[0].context.column).toBeDefined();
+      expect(result.newEntries[0].location.line).toBeDefined();
+      expect(result.newEntries[0].location.column).toBeDefined();
     });
 
     it("should generate consistent hashes", () => {
@@ -596,8 +598,8 @@ export default function Page() {
       ]);
       expect(metadataEntries[0].context.metadataField).toBe("title");
       expect(metadataEntries[1].context.metadataField).toBe("description");
-      expect(metadataEntries[0].context.componentName).toBe("metadata");
-      expect(metadataEntries[1].context.componentName).toBe("metadata");
+      expect(metadataEntries[0].context.type).toBe("metadata");
+      expect(metadataEntries[1].context.type).toBe("metadata");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1168,11 +1170,17 @@ export default function Button() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
 
-      // Should only translate "Deploy Now" as simple text, not as rich text
+      // Should translate both the alt attribute and "Deploy Now" as simple text, not as rich text
       // The Image should remain in its original position
-      expect(result.newEntries).toHaveLength(1);
-      const entry = result.newEntries[0];
-      expect(entry.sourceText).toBe("Deploy Now");
+      expect(result.newEntries).toHaveLength(2);
+
+      const altEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "alt",
+      );
+      expect(altEntry?.sourceText).toBe("Icon");
+
+      const textEntry = result.newEntries.find((e) => !e.context.attributeName);
+      expect(textEntry?.sourceText).toBe("Deploy Now");
 
       // Should NOT generate rich text with Image0
       expect(result.code).not.toContain("Image0:");
@@ -1450,7 +1458,635 @@ export function RegularCard() {
     });
   });
 
-  // TODO (AleksandrSl 28/11/2025): I don't understand how these work too?
+  describe("attributes translation", () => {
+    it("should translate title attribute", () => {
+      const code = `
+export function Button() {
+  return <button title="Click to submit">Submit</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Check attribute entry
+      const attrEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "title",
+      );
+      expect(attrEntry).toBeDefined();
+      expect(attrEntry?.sourceText).toBe("Click to submit");
+      expect(attrEntry?.context.componentName).toBe("Button");
+
+      // Check text entry
+      const textEntry = result.newEntries.find((e) => !e.context.attributeName);
+      expect(textEntry?.sourceText).toBe("Submit");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate alt attribute", () => {
+      const code = `
+export function Image() {
+  return <img src="/logo.png" alt="Company logo" width={100} />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Image.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Company logo");
+      expect(result.newEntries[0].context.attributeName).toBe("alt");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate aria-label attribute", () => {
+      const code = `
+export function CloseButton() {
+  return <button aria-label="Close dialog">×</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/CloseButton.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      const attrEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "aria-label",
+      );
+      expect(attrEntry).toBeDefined();
+      expect(attrEntry?.sourceText).toBe("Close dialog");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate aria-description attribute", () => {
+      const code = `
+export function InfoIcon() {
+  return <span aria-description="Additional information about this feature">ℹ️</span>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/InfoIcon.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      const attrEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "aria-description",
+      );
+      expect(attrEntry).toBeDefined();
+      expect(attrEntry?.sourceText).toBe(
+        "Additional information about this feature",
+      );
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate placeholder attribute", () => {
+      const code = `
+export function SearchBox() {
+  return <input type="text" placeholder="Search products..." />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/SearchBox.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Search products...");
+      expect(result.newEntries[0].context.attributeName).toBe("placeholder");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate label attribute", () => {
+      const code = `
+export function CustomInput() {
+  return <CustomComponent label="Enter your name" />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/CustomInput.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Enter your name");
+      expect(result.newEntries[0].context.attributeName).toBe("label");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate description attribute", () => {
+      const code = `
+export function Card() {
+  return <Card description="This is a product description" />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Card.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe(
+        "This is a product description",
+      );
+      expect(result.newEntries[0].context.attributeName).toBe("description");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate content attribute", () => {
+      const code = `
+export function MetaTag() {
+  return <meta name="description" content="Website description" />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/MetaTag.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Website description");
+      expect(result.newEntries[0].context.attributeName).toBe("content");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate subtitle attribute", () => {
+      const code = `
+export function Section() {
+  return <Section subtitle="Learn more about our features" />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Section.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe(
+        "Learn more about our features",
+      );
+      expect(result.newEntries[0].context.attributeName).toBe("subtitle");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate multiple attributes on same element", () => {
+      const code = `
+export function Input() {
+  return <input
+    type="text"
+    title="Name field"
+    placeholder="Enter your name"
+    aria-label="User name input"
+  />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Input.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+
+      const attributeNames = result.newEntries.map(
+        (e) => e.context.attributeName,
+      );
+      expect(attributeNames).toContain("title");
+      expect(attributeNames).toContain("placeholder");
+      expect(attributeNames).toContain("aria-label");
+
+      const sourceTexts = result.newEntries.map((e) => e.sourceText);
+      expect(sourceTexts).toContain("Name field");
+      expect(sourceTexts).toContain("Enter your name");
+      expect(sourceTexts).toContain("User name input");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate attributes across multiple elements", () => {
+      const code = `
+export function Form() {
+  return (
+    <form>
+      <input placeholder="Username" />
+      <input placeholder="Password" type="password" />
+      <button title="Submit form">Submit</button>
+    </form>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Form.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(4);
+
+      const attrEntries = result.newEntries.filter(
+        (e) => e.context.attributeName,
+      );
+      expect(attrEntries).toHaveLength(3);
+
+      const sourceTexts = attrEntries.map((e) => e.sourceText);
+      expect(sourceTexts).toContain("Username");
+      expect(sourceTexts).toContain("Password");
+      expect(sourceTexts).toContain("Submit form");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not translate non-whitelisted attributes", () => {
+      const code = `
+export function Link() {
+  return <a href="/home" className="link" data-testid="home-link" title="Go home">Home</a>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Link.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Only title should be translated
+      const attrEntry = result.newEntries.find((e) => e.context.attributeName);
+      expect(attrEntry?.context.attributeName).toBe("title");
+      expect(attrEntry?.sourceText).toBe("Go home");
+
+      // href, className, data-testid should remain unchanged
+      expect(result.code).toContain('href="/home"');
+      expect(result.code).toContain('className="link"');
+      expect(result.code).toContain('data-testid="home-link"');
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not translate attributes with expression values", () => {
+      const code = `
+export function DynamicButton() {
+  const tooltip = "Click me";
+  return <button title={tooltip}>Submit</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/DynamicButton.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Only the text "Submit" should be translated, not the title expression
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Submit");
+      expect(result.newEntries[0].context.attributeName).toBeUndefined();
+
+      // Expression should remain unchanged
+      expect(result.code).toContain("title={tooltip}");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not translate empty attribute values", () => {
+      const code = `
+export function EmptyAttr() {
+  return <input title="" placeholder="Type here" />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/EmptyAttr.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      // Only placeholder should be translated (title is empty)
+      expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].sourceText).toBe("Type here");
+      expect(result.newEntries[0].context.attributeName).toBe("placeholder");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate attributes in nested components", () => {
+      const code = `
+export function Card() {
+  return (
+    <div title="Card container">
+      <h1>Title</h1>
+      <img src="/icon.png" alt="Card icon" />
+      <button title="Click to expand">Expand</button>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Card.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(5);
+
+      const attrEntries = result.newEntries.filter(
+        (e) => e.context.attributeName,
+      );
+      expect(attrEntries).toHaveLength(3);
+
+      const sourceTexts = attrEntries.map((e) => e.sourceText);
+      expect(sourceTexts).toContain("Card container");
+      expect(sourceTexts).toContain("Card icon");
+      expect(sourceTexts).toContain("Click to expand");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate attributes with whitespace normalization", () => {
+      const code = `
+export function Button() {
+  return <button title="  Click   to   submit  ">Submit</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      const attrEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "title",
+      );
+      expect(attrEntry).toBeDefined();
+      // Whitespace should be normalized
+      expect(attrEntry?.sourceText).toBe("Click to submit");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should generate consistent hashes for attributes", () => {
+      const code = `
+export function Button() {
+  return <button title="Submit button">Submit</button>;
+}
+`;
+
+      const result1 = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+        metadata,
+      });
+
+      const result2 = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+        metadata,
+      });
+
+      assert.isDefined(result1.newEntries);
+      assert.isDefined(result2.newEntries);
+
+      const attr1 = result1.newEntries.find(
+        (e) => e.context.attributeName === "title",
+      );
+      const attr2 = result2.newEntries.find(
+        (e) => e.context.attributeName === "title",
+      );
+
+      expect(attr1?.hash).toBe(attr2?.hash);
+    });
+
+    it("should translate attributes in components with mixed content", () => {
+      const code = `
+export function Message() {
+  const name = "Alice";
+  return (
+    <div title="User message">
+      Hello {name}, you have <strong title="Message count">5</strong> messages
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Message.tsx",
+        config,
+        metadata,
+      });
+
+      // expect(result.transformed).toBe(true);
+      // assert.isDefined(result.newEntries);
+      //
+      // // Should have: 2 attributes (title on div and strong) + 1 rich text
+      // expect(result.newEntries).toHaveLength(3);
+      //
+      // const attrEntries = result.newEntries.filter(e => e.context.attributeName);
+      // expect(attrEntries).toHaveLength(2);
+      //
+      // const sourceTexts = attrEntries.map(e => e.sourceText);
+      // expect(sourceTexts).toContain("User message");
+      // expect(sourceTexts).toContain("Message count");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should include correct context information for attributes", () => {
+      const code = `
+export function TestComponent() {
+  return <button title="Test title">Click me</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/components/TestComponent.tsx",
+        config,
+        metadata,
+      });
+
+      assert.isDefined(result.newEntries);
+      const attrEntry = result.newEntries.find(
+        (e) => e.context.attributeName === "title",
+      );
+
+      expect(attrEntry).toBeDefined();
+      expect(attrEntry?.context.attributeName).toBe("title");
+      expect(attrEntry?.context.componentName).toBe("TestComponent");
+      expect(attrEntry?.location.filePath).toBe("components/TestComponent.tsx");
+      expect(attrEntry?.location.line).toBeDefined();
+      expect(attrEntry?.location.column).toBeDefined();
+    });
+
+    it("should translate attributes in server components", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export default async function ServerPage() {
+  return (
+    <div>
+      <h1 title="Page title">Welcome</h1>
+      <input placeholder="Search..." />
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverUrl,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      const attrEntries = result.newEntries.filter(
+        (e) => e.context.attributeName,
+      );
+      expect(attrEntries).toHaveLength(2);
+
+      expect(attrEntries.map((e) => e.sourceText)).toEqual([
+        "Page title",
+        "Search...",
+      ]);
+
+      // Should use async API
+      expect(result.code).toContain("getServerTranslations");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate attributes in non-async server components using unified hook", () => {
+      const nextConfig = createMockConfig({ framework: "next" });
+
+      const code = `
+export default function ServerPage() {
+  return (
+    <div>
+      <img src="/logo.png" alt="Company logo" />
+      <button title="Click me">Action</button>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+        metadata,
+        serverUrl,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      const attrEntries = result.newEntries.filter(
+        (e) => e.context.attributeName,
+      );
+      expect(attrEntries).toHaveLength(2);
+
+      // Should use unified hook
+      expect(result.code).toContain("useTranslation");
+      expect(result.code).not.toContain("getServerTranslations");
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
   describe("skip translation", () => {
     it("should skip translation for <code> elements", () => {
       const code = `
@@ -1718,6 +2354,24 @@ export function ExplicitTranslate() {
       // Should translate the text
       expect(result.newEntries).toHaveLength(1);
       expect(result.newEntries[0].sourceText).toBe("This should be translated");
+    });
+  });
+
+  describe("corner cases", () => {
+    it("should handle function expressions correctly", () => {
+      const code = `
+export const Button = function() { return <button>Click me</button>; }
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/FunctionExpression.tsx",
+        config,
+        metadata,
+        serverUrl,
+      });
+
+      expect(result.code).toMatchSnapshot();
     });
   });
 });

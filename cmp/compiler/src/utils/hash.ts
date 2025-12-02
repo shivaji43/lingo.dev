@@ -21,10 +21,11 @@ import crypto from "crypto";
  */
 export function generateTranslationHash(
   sourceText: string,
-  componentName: string,
-  filePath: string,
+  context: Record<string, any>,
 ): string {
-  const input = `${sourceText}::${componentName}::${filePath}`;
+  const input = `${sourceText}::${Object.entries(context)
+    .map(([key, value]) => `${key}:${value}`)
+    .join("::")}`;
   return crypto.createHash("md5").update(input).digest("hex").substring(0, 12); // Use first 12 chars for brevity
 }
 

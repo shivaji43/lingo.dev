@@ -3,7 +3,6 @@ export type {
   MetadataConfig,
   TranslationConfig,
   PathConfig,
-  TranslationContext,
   TranslationEntry,
   MetadataSchema,
   CookieConfig,

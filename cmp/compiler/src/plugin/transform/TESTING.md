@@ -37,19 +37,16 @@ Each test follows this pattern:
 
 ```typescript
 it("should transform component", () => {
-  // 1. Create in-memory mocks
-  const config = createMockConfig();
-  const metadata = createMockMetadata();
-
-  // 2. Transform code (pure function)
+  // 1. Transform code (pure function)
   const result = transformComponent({
     code: `<div>Hello</div>`,
     filePath: "src/Test.tsx",
+    // Mocks for these are created in the beforeEach hook
     config,
     metadata,
   });
 
-  // 3. Assert on return values
+  // 2. Assert on return values
   expect(result.newEntries).toHaveLength(1);
   expect(result.code).toMatchSnapshot();
 });
@@ -62,27 +59,6 @@ Two helper functions create fresh mocks for each test:
 - **`createMockMetadata()`**: Returns empty in-memory metadata object
 - **`createMockConfig(overrides?)`**: Returns test config with optional overrides
 
-### File I/O Separation
-
-File I/O is handled **separately** in the plugin layer:
-
-```
-┌─────────────────────────────────────────────┐
-│ Plugin Layer (unplugin.ts, next.ts, etc.)  │
-│ - Reads metadata from disk                  │
-│ - Calls transformComponent()                │
-│ - Writes metadata back to disk              │
-└─────────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────────┐
-│ Transform Layer (transform/index.ts)        │
-│ - Pure function                             │
-│ - Takes code + metadata in                  │
-│ - Returns code + new entries out            │
-│ - NO file I/O                               │
-└─────────────────────────────────────────────┘
-```
-
 ### Verification
 
 After running tests, verify no files were created:
@@ -92,11 +68,3 @@ After running tests, verify no files were created:
 find compiler/src -name ".lingo" -type d | wc -l
 find compiler/src -name "metadata.json" | wc -l
 ```
-
-### Benefits
-
-✅ **Fast**: Tests complete in ~40-50ms
-✅ **Isolated**: Each test gets fresh state
-✅ **Predictable**: No filesystem state to manage
-✅ **Parallelizable**: Tests can run concurrently
-✅ **CI-friendly**: No temp files to clean up

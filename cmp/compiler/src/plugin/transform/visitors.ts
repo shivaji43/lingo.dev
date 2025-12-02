@@ -1,3 +1,6 @@
+/**
+ * Keep mutations to the current node and children. e.g. do not mutate program inserting imports when processing the component. This should be done in the end.
+ */
 import * as t from "@babel/types";
 import { VariableDeclaration } from "@babel/types";
 import type { NodePath, TraverseOptions } from "@babel/traverse";
@@ -5,7 +8,6 @@ import type {
   ComponentType,
   LoaderConfig,
   MetadataSchema,
-  TranslationContext,
   TranslationEntry,
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
@@ -13,6 +15,7 @@ import { generateTranslationHash } from "../../utils/hash";
 type ComponentEntry = {
   name: string;
   type: ComponentType;
+  isAsync: boolean;
 };
 
 export interface VisitorsSharedState {
@@ -28,14 +31,16 @@ export interface VisitorsSharedState {
  */
 export interface VisitorsInternalState extends VisitorsSharedState {
   componentsStack: ComponentEntry[];
-  /** Track all components that need translation functions injected */
-  componentsNeedingTranslation: Set<string>;
   /** Map component names to their translation hashes */
   componentHashes: Map<string, string[]>;
   /** Track metadata functions that need translation */
   metadataFunctionsNeedingTranslation: Set<string>;
   /** Map metadata function names to their translation hashes */
   metadataHashes: Map<string, string[]>;
+  /** Track if we need the unified hook import */
+  needsUnifiedImport: boolean;
+  /** Track if we need the async API import */
+  needsAsyncImport: boolean;
 }
 
 const root = "@lingo.dev/_compiler";
@@ -136,34 +141,31 @@ function hasUseI18nDirective(program: NodePath<t.Program>): boolean {
 // ============================================================================
 // TEXT TRANSFORMATION - Handle JSX text node translation
 // ============================================================================
-
 function createTranslationEntry(
   text: string,
-  componentName: string,
   filePath: string,
+  context: Record<string, any>,
   line?: number,
   column?: number,
 ): TranslationEntry {
-  const hash = generateTranslationHash(text, componentName, filePath);
-
-  const context: TranslationContext = {
-    componentName,
-    filePath,
-    line,
-    column,
-  };
+  const hash = generateTranslationHash(text, context);
 
   return {
     sourceText: text,
     context,
     hash,
+    location: {
+      filePath,
+      line,
+      column,
+    },
     // TODO (AleksandrSl 25/11/2025): Consider removing this field.
     addedAt: new Date().toISOString(),
   };
 }
 
 /**
- * Create t("hash", "text") call expression
+ * Create {t("hash", "text")} call expression
  */
 function createTranslationCall(
   hash: string,
@@ -251,50 +253,48 @@ function shouldSkipTranslation(element: t.JSXElement): boolean {
   return false;
 }
 
-// // Called even on the element which are not translatable.
-// function translateAttributes(element: t.JSXElement): void {
-//   const openingElement = element.openingElement;
-//
-//   // TODO (AleksandrSl 25/11/2025): Ideally we can keep a stack of nested components, to skip this search.
-//   // Find the nearest component ancestor
-//   const componentPath = getNearestComponentAncestor(path);
-//   if (!componentPath) return;
-//
-//   const componentName = inferComponentName(componentPath);
-//   // TODO (AleksandrSl 25/11/2025): WHy do we require component name? We should be able to transform the default export as well.
-//   if (!componentName) return;
-//
-//   for (const attr of openingElement.attributes) {
-//     if (attr.type === "JSXAttribute" && attr.name.type === "JSXIdentifier") {
-//       // Check for translate="no" (HTML standard)
-//       if (
-//         TRANSLATABLE_ATTRIBUTES.has(attr.name.name) &&
-//         attr.value?.type === "StringLiteral"
-//       ) {
-//         const text = normalizeWhitespace(attr.value.value);
-//         if (text.length == 0) return;
-//
-//         const entry = createTranslationEntry(
-//           text,
-//           componentName,
-//           state.filePath,
-//           path.node.loc?.start.line,
-//           path.node.loc?.start.column,
-//         );
-//         state.newEntries.push(entry);
-//
-//         // Track component needs translation
-//         state.componentsNeedingTranslation.add(componentName);
-//
-//         const hashes = state.componentHashes.get(componentName) || [];
-//         hashes.push(entry.hash);
-//         state.componentHashes.set(componentName, hashes);
-//
-//         path.replaceWith(createTranslationCall(entry.hash, text));
-//       }
-//     }
-//   }
-// }
+// Called even on the element which are not translatable.
+function translateAttributes(
+  path: NodePath<t.JSXElement>,
+  state: VisitorsInternalState,
+): void {
+  const openingElement = path.node.openingElement;
+
+  const component = state.componentsStack.at(-1);
+  if (!component) return;
+
+  for (const attr of openingElement.attributes) {
+    if (
+      attr.type === "JSXAttribute" &&
+      attr.name.type === "JSXIdentifier" &&
+      TRANSLATABLE_ATTRIBUTES.has(attr.name.name) &&
+      attr.value?.type === "StringLiteral"
+    ) {
+      const text = normalizeWhitespace(attr.value.value);
+      if (text.length == 0) continue;
+
+      const entry = createTranslationEntry(
+        text,
+        state.filePath,
+        // TODO (AleksandrSl 02/12/2025): Do we need the component name here?
+        {
+          attributeName: attr.name.name,
+          componentName: component.name,
+        },
+        path.node.loc?.start.line,
+        path.node.loc?.start.column,
+      );
+      state.newEntries.push(entry);
+
+      // Add hash to component's hash list
+      const hashes = state.componentHashes.get(component.name) || [];
+      hashes.push(entry.hash);
+      state.componentHashes.set(component.name, hashes);
+
+      attr.value = createTranslationCall(entry.hash, text);
+    }
+  }
+}
 
 // TODO (AleksandrSl 28/11/2025): I believe this one could be a complex one.
 //  Though it doesn't look recursively, so should be fine.
@@ -613,15 +613,12 @@ function transformMixedJSXElement(
   // Create translation entry
   const entry = createTranslationEntry(
     text,
-    component.name,
     state.filePath,
+    { componentName: component.name },
     path.node.loc?.start.line,
     path.node.loc?.start.column,
   );
   state.newEntries.push(entry);
-
-  // Track component needs translation
-  state.componentsNeedingTranslation.add(component.name);
 
   const hashes = state.componentHashes.get(component.name) || [];
   hashes.push(entry.hash);
@@ -658,15 +655,12 @@ function transformJSXText(
 
   const entry = createTranslationEntry(
     text,
-    component.name,
     state.filePath,
+    { componentName: component.name },
     path.node.loc?.start.line,
     path.node.loc?.start.column,
   );
   state.newEntries.push(entry);
-
-  // Track component needs translation
-  state.componentsNeedingTranslation.add(component.name);
 
   const hashes = state.componentHashes.get(component.name) || [];
   hashes.push(entry.hash);
@@ -727,7 +721,9 @@ function createServerImport(): t.ImportDeclaration {
  * This is the new default for non-async components!
  */
 function injectUnifiedHook(
-  componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+  componentPath: NodePath<
+    t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
+  >,
   hashes: string[],
   translationServerUrl?: string,
 ): void {
@@ -843,7 +839,9 @@ function constructServerTranslationHookCall({
  * Makes the component async if needed
  */
 function injectServerHook(
-  componentPath: NodePath<t.FunctionDeclaration | t.ArrowFunctionExpression>,
+  componentPath: NodePath<
+    t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
+  >,
   config: LoaderConfig,
   serverUrl: string | undefined,
   hashes: string[],
@@ -887,94 +885,52 @@ function injectServerHook(
 }
 
 /**
- * Inject translation imports and hooks into all components
- * This runs after all hashes have been collected
+ * Inject translation hook into a component when it's done processing
+ * Called when popping component from stack
  */
-function injectTranslations(
+function injectTranslationHook(
+  path: NodePath<
+    t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
+  >,
+  component: ComponentEntry,
+  state: VisitorsInternalState,
+): void {
+  const hashes = state.componentHashes.get(component.name);
+  if (!hashes || hashes.length === 0) {
+    return; // No translations needed
+  }
+
+  // Determine which hook to use based on async status
+  if (component.isAsync) {
+    // Async component uses getServerTranslations
+    injectServerHook(path, state.config, state.serverUrl, hashes);
+    state.needsAsyncImport = true;
+  } else {
+    // Non-async component uses unified hook (useTranslation)
+    injectUnifiedHook(path, hashes, state.serverUrl);
+    state.needsUnifiedImport = true;
+  }
+}
+
+/**
+ * Add translation imports at the top of the file
+ * Called on Program exit after all components have been processed
+ */
+function addTranslationImports(
   programPath: NodePath<t.Program>,
   state: VisitorsInternalState,
 ): void {
-  // Detect which imports are needed based on component types
-  let hasAsyncComponent = false; // Needs getServerTranslations (async API)
-  let hasNonAsyncComponent = false; // Needs useTranslation (unified hook)
-
-  programPath.traverse({
-    FunctionDeclaration(path) {
-      const componentName = path.node.id?.name;
-      if (
-        componentName &&
-        state.componentsNeedingTranslation.has(componentName)
-      ) {
-        if (path.node.async === true) {
-          hasAsyncComponent = true;
-        } else {
-          hasNonAsyncComponent = true;
-        }
-      }
-    },
-    ArrowFunctionExpression(path) {
-      const parent = path.parent;
-      if (
-        parent.type === "VariableDeclarator" &&
-        parent.id.type === "Identifier"
-      ) {
-        const componentName = parent.id.name;
-        if (state.componentsNeedingTranslation.has(componentName)) {
-          if (path.node.async === true) {
-            hasAsyncComponent = true;
-          } else {
-            hasNonAsyncComponent = true;
-          }
-        }
-      }
-    },
-  });
-
-  // Add appropriate import(s)
+  // Add imports based on what was needed during traversal
   // A file can have both async and non-async components!
-  if (hasAsyncComponent || state.metadataFunctionsNeedingTranslation.size > 0) {
+  if (
+    state.needsAsyncImport ||
+    state.metadataFunctionsNeedingTranslation.size > 0
+  ) {
     programPath.node.body.unshift(createServerImport());
   }
-  if (hasNonAsyncComponent) {
+  if (state.needsUnifiedImport) {
     programPath.node.body.unshift(createUnifiedImport());
   }
-
-  // Inject hooks into all components that need translation
-  programPath.traverse({
-    FunctionDeclaration(path) {
-      const componentName = path.node.id?.name;
-      if (
-        componentName &&
-        state.componentsNeedingTranslation.has(componentName)
-      ) {
-        const hashes = state.componentHashes.get(componentName) || [];
-        // Async functions need the async API (getServerTranslations)
-        // Non-async functions use the unified hook (works for both server/client via conditional exports)
-        if (path.node.async === true) {
-          injectServerHook(path, state.config, state.serverUrl, hashes);
-        } else {
-          injectUnifiedHook(path, hashes, state.serverUrl);
-        }
-      }
-    },
-    ArrowFunctionExpression(path) {
-      const parent = path.parent;
-      if (
-        parent.type === "VariableDeclarator" &&
-        parent.id.type === "Identifier"
-      ) {
-        const componentName = parent.id.name;
-        if (state.componentsNeedingTranslation.has(componentName)) {
-          const hashes = state.componentHashes.get(componentName) || [];
-          if (path.node.async === true) {
-            injectServerHook(path, state.config, state.serverUrl, hashes);
-          } else {
-            injectUnifiedHook(path, hashes, state.serverUrl);
-          }
-        }
-      }
-    },
-  });
 }
 
 // ============================================================================
@@ -1047,23 +1003,13 @@ function createMetadataTranslationEntry(
   line?: number,
   column?: number,
 ): TranslationEntry {
-  const hash = generateTranslationHash(text, `metadata:${fieldPath}`, filePath);
-
-  const context: TranslationContext = {
-    componentName: "metadata",
+  return createTranslationEntry(
+    text,
     filePath,
+    { type: "metadata", metadataField: fieldPath },
     line,
     column,
-    type: "metadata",
-    metadataField: fieldPath,
-  };
-
-  return {
-    sourceText: text,
-    context,
-    hash,
-    addedAt: new Date().toISOString(),
-  };
+  );
 }
 
 /**
@@ -1323,12 +1269,24 @@ function handleComponentFunction(
   if (!state.componentHashes.has(componentName)) {
     state.componentHashes.set(componentName, []);
   }
-  state.componentsStack.push({ name: componentName, type: "unknown" });
-  console.debug(`Component ${componentName} entered`);
+
+  // Push component to stack with async info and path reference
+  const componentEntry: ComponentEntry = {
+    name: componentName,
+    type: "unknown",
+    isAsync: path.node.async,
+  };
+  state.componentsStack.push(componentEntry);
+  console.debug(`Component ${JSON.stringify(componentEntry)} entered`);
+
   path.setData("componentName", componentName);
   path.traverse(componentVisitors, { visitorState: state });
+  const component = state.componentsStack.pop();
+  if (component) {
+    injectTranslationHook(path, component, state);
+  }
+  // We have already traversed the path's children so the main traverse can skip it.
   path.skip();
-  state.componentsStack.pop();
 }
 
 const componentVisitors = {
@@ -1353,7 +1311,7 @@ const componentVisitors = {
   // Transform JSX elements with mixed content (text + expressions + nested elements)
   // This runs BEFORE JSXText visitor due to traversal order
   JSXElement(path: NodePath<t.JSXElement>) {
-    // translateAttributes(path.node);
+    translateAttributes(path, this.visitorState);
 
     if (shouldSkipTranslation(path.node)) {
       path.skip();
@@ -1407,12 +1365,28 @@ const fileVisitors = {
     },
   },
 
+  // export const MyComponent = () => {}
   ArrowFunctionExpression: {
     enter(path: NodePath<t.ArrowFunctionExpression>) {
       handleComponentFunction(path, this.visitorState);
     },
   },
 
+  // All these are considered function expressions
+  // const myFunction = function() {
+  //   return 'hello';
+  // };
+  //
+  // const myFunction2 = function namedFunc() {
+  //   return 'hello';
+  // };
+  //
+  // setTimeout(function() {
+  //   console.log('hello');
+  // }, 1000);
+  // While
+  // export default function() {}
+  // is not
   FunctionExpression: {
     enter(path: NodePath<t.FunctionExpression>) {
       handleComponentFunction(path, this.visitorState);
@@ -1428,13 +1402,14 @@ export function createBabelVisitors({
 }: {
   visitorState: VisitorsSharedState;
 }) {
-  const state = {
+  const state: VisitorsInternalState = {
     ...visitorState,
     componentsStack: [],
-    componentsNeedingTranslation: new Set<string>(),
     componentHashes: new Map<string, string[]>(),
     metadataFunctionsNeedingTranslation: new Set<string>(),
     metadataHashes: new Map<string, string[]>(),
+    needsUnifiedImport: false,
+    needsAsyncImport: false,
   };
   return {
     Program: {
@@ -1451,12 +1426,13 @@ export function createBabelVisitors({
       },
 
       exit(path: NodePath<t.Program>) {
-        // Inject imports and hooks after collecting all translations
+        // Add imports if any translations were processed
         if (
-          state.componentsNeedingTranslation.size > 0 ||
+          state.needsUnifiedImport ||
+          state.needsAsyncImport ||
           state.metadataFunctionsNeedingTranslation.size > 0
         ) {
-          injectTranslations(path, state);
+          addTranslationImports(path, state);
         }
       },
     },

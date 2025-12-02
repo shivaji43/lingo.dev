@@ -3,12 +3,7 @@
  * Prevents duplication of test helper functions across test files
  */
 
-import type {
-  LoaderConfig,
-  MetadataSchema,
-  TranslationEntry,
-  TranslationContext,
-} from "../types";
+import type { LoaderConfig, MetadataSchema } from "../types";
 import { createLoaderConfig } from "../utils/config-factory";
 import { DictionarySchema } from "../translators";
 
@@ -63,48 +58,6 @@ export function createMockConfig(
     targetLocales: ["en", "de"],
     ...overrides,
   });
-}
-
-/**
- * Create a mock translation entry for testing
- *
- * @param overrides - Partial entry to override defaults
- * @returns Complete TranslationEntry
- *
- * @example
- * ```typescript
- * const entry = createMockTranslationEntry({
- *   sourceText: "Welcome",
- *   context: { componentName: "HomePage" }
- * });
- * ```
- */
-export function createMockTranslationEntry(
-  overrides?: Partial<TranslationEntry>,
-): TranslationEntry {
-  const defaultContext: TranslationContext = {
-    componentName: "TestComponent",
-    filePath: "test/component.tsx",
-    line: 1,
-    column: 0,
-  };
-
-  const sourceText = overrides?.sourceText || "Test text";
-  const context = overrides?.context || defaultContext;
-
-  // Simple hash for testing (not cryptographic)
-  const hash =
-    overrides?.hash ||
-    `test-${sourceText.length}-${context.componentName}-${Math.random().toString(36).substr(2, 9)}`;
-
-  return {
-    sourceText,
-    context,
-    hash,
-    addedAt: new Date().toISOString(),
-    lastSeenAt: new Date().toISOString(),
-    ...overrides,
-  };
 }
 
 /**
