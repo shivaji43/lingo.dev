@@ -14,7 +14,6 @@ export const DEFAULT_CONFIG = {
   lingoDir: ".lingo",
   sourceLocale: "en",
   useDirective: false,
-  isDev: false,
   framework: "unknown" as Framework,
   skipPatterns: [/node_modules/, /\.spec\./, /\.test\./] as RegExp[],
 };
@@ -42,7 +41,6 @@ export function createLoaderConfig(
     lingoDir: options.lingoDir ?? DEFAULT_CONFIG.lingoDir,
     sourceLocale: options.sourceLocale ?? DEFAULT_CONFIG.sourceLocale,
     useDirective: options.useDirective ?? DEFAULT_CONFIG.useDirective,
-    isDev: options.isDev ?? DEFAULT_CONFIG.isDev,
     framework: options.framework ?? DEFAULT_CONFIG.framework,
     skipPatterns: options.skipPatterns ?? DEFAULT_CONFIG.skipPatterns,
     translator: options.translator,

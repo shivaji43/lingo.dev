@@ -290,7 +290,6 @@ This separation allows the core transformation logic to be reused for other bund
 | `lingoDir`     | `string`   | `'.lingo'`                                 | Directory for Lingo files     |
 | `sourceLocale` | `string`   | `'en'`                                     | Source language code          |
 | `useDirective` | `boolean`  | `false`                                    | Require 'use i18n' directive  |
-| `isDev`        | `boolean`  | Auto-detect                                | Development mode flag         |
 | `skipPatterns` | `RegExp[]` | `[/node_modules/, /\.spec\./, /\.test\./]` | Patterns to skip              |
 
 ## How It Works

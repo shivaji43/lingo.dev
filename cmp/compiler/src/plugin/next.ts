@@ -1,17 +1,34 @@
 /**
  * Next.js Plugin for Lingo.dev Compiler
  *
+ * Properly handles:
+ * - Turbopack config merging (Next.js 16+ and legacy)
+ * - Compiler options preservation
+ * - Webpack config chaining
+ *
  * Usage in next.config.js:
  * ```js
  * const { withLingo } = require('@lingo.dev/_compiler/next');
  *
+ * // Simple usage
  * module.exports = withLingo({
  *   // Your Next.js config
  * }, {
- *   // Lingo options (optional)
+ *   // Lingo options
  *   sourceLocale: 'en',
+ *   targetLocales: ['es', 'fr'],
  *   useDirective: false,
  * });
+ *
+ * // With Next.js phase support
+ * module.exports = async (phase, { defaultConfig }) =>
+ *   withLingo({
+ *     ...defaultConfig,
+ *     reactStrictMode: phase === 'phase-production-build',
+ *   }, {
+ *     sourceLocale: 'en',
+ *     targetLocales: ['es', 'fr'],
+ *   });
  * ```
  */
 import type { NextConfig } from "next";
@@ -27,6 +44,7 @@ import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
 import { LocaleCode } from "lingo.dev/spec";
 import { CookieConfig } from "../types";
+import { TurbopackOptions } from "next/dist/server/config-shared";
 
 export interface LingoNextPluginOptions {
   /**
@@ -52,6 +70,7 @@ export interface LingoNextPluginOptions {
    * @default "en"
    */
   sourceLocale: LocaleCode;
+
   /**
    * The locale(s) to translate to.
    *
@@ -97,17 +116,58 @@ export interface LingoNextPluginOptions {
   cookieConfig?: CookieConfig;
 }
 
-// TODO (AleksandrSl 24/11/2025):
-// 1. Detect if trubopack is used.
-// 2. Merge configs correctly.
-//  See
-//  https://github.com/getsentry/sentry-javascript/blob/develop/packages/nextjs/src/config/util.ts#L172
-//  https://github.com/amannn/next-intl/blob/main/packages/next-intl/src/plugin/getNextConfig.tsx
 /**
- * Next.js plugin that automatically adds the Lingo loader
+ * Check if Next.js supports stable turbopack config (Next.js 16+)
  */
-export function withLingo(
-  nextConfig: NextConfig,
+function hasStableTurboConfig(): boolean {
+  try {
+    const nextPackage = require("next/package.json");
+    const majorVersion = parseInt(nextPackage.version.split(".")[0], 10);
+    return majorVersion >= 16;
+  } catch {
+    return false;
+  }
+}
+
+function getTurbopackConfig(userConfig: NextConfig): TurbopackOptions {
+  return (
+    (hasStableTurboConfig()
+      ? userConfig?.turbopack?.rules
+      : // @ts-expect-error - experimental.turbo for Next.js <16
+        userConfig?.experimental?.turbo) || {}
+  );
+}
+
+/**
+ * Merge Turbopack rules without mutating original
+ */
+function mergeTurbopackRules(
+  existingRules: Record<string, any>,
+  newRule: { pattern: string; config: any },
+): Record<string, any> {
+  // Create a shallow copy to avoid mutation
+  const mergedRules = { ...existingRules };
+
+  const { pattern, config } = newRule;
+
+  if (mergedRules[pattern]) {
+    if (Array.isArray(mergedRules[pattern])) {
+      mergedRules[pattern] = [...mergedRules[pattern], config];
+    } else {
+      mergedRules[pattern] = [mergedRules[pattern], config];
+    }
+  } else {
+    mergedRules[pattern] = config;
+  }
+
+  return mergedRules;
+}
+
+/**
+ * Build the complete Lingo config object
+ */
+function buildLingoConfig(
+  userNextConfig: NextConfig,
   lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
   const lingoConfig = createLoaderConfig({
@@ -115,177 +175,226 @@ export function withLingo(
     framework: "next",
   });
 
-  return {
-    ...nextConfig,
-    compiler: {
-      runAfterProductionCompile: async ({ distDir, projectDir }) => {
-        // Call user's hook first if it exists
-        if (
-          typeof nextConfig.compiler?.runAfterProductionCompile === "function"
-        ) {
-          await nextConfig.compiler.runAfterProductionCompile({
-            distDir,
-            projectDir,
-          });
-        }
-
-        logger.info("Running post-build translation generation...");
-        let translationServer;
-        try {
-          translationServer = await startTranslationServer({
-            startPort: 60000,
-            onError: (err) => {
-              logger.error("Translation server error:", err);
-            },
-            onReady: () => {
-              logger.info("Translation server started");
-            },
-            config: lingoConfig,
-          });
-
-          // Load all translation hashes from metadata
-          const metadata = await loadMetadata(lingoConfig);
-          const hashes = Object.keys(metadata.entries);
-
-          if (hashes.length === 0) {
-            logger.info("No translations found, skipping");
-            return;
-          }
-
-          logger.info(
-            `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
-          );
-
-          const batchSize = lingoOptions.batchSize ?? 50;
-
-          // Process all locales in parallel
-          const localePromises = lingoConfig.targetLocales.map(
-            async (locale) => {
-              logger.info(`Translating to ${locale}...`);
-
-              // Split into batches
-              const batches: string[][] = [];
-              for (let i = 0; i < hashes.length; i += batchSize) {
-                batches.push(hashes.slice(i, i + batchSize));
-              }
-
-              let completed = 0;
-
-              // Process batches sequentially for this locale
-              for (const batch of batches) {
-                const response = await handleHashTranslationRequest(
-                  locale,
-                  batch,
-                  lingoConfig,
-                );
-
-                if (response.status !== 200) {
-                  throw new Error(
-                    `Translation failed for ${locale}: ${response.body}`,
-                  );
-                }
-
-                completed += batch.length;
-                const percentage = Math.round(
-                  (completed / hashes.length) * 100,
-                );
-                logger.info(
-                  `${locale}: ${completed}/${hashes.length} (${percentage}%)`,
-                );
-              }
-
-              logger.info(`${locale} completed`);
-            },
-          );
-
-          // Wait for all locales to complete
-          await Promise.all(localePromises);
-
-          // Generate static files if configured
-          const publicPath = distDir;
-
-          logger.info(`Generating static translation files in ${distDir}`);
-
-          await fs.mkdir(publicPath, { recursive: true });
-
-          for (const locale of lingoOptions.targetLocales) {
-            const cacheFilePath = getCachePath(lingoConfig, locale);
-            const publicFilePath = path.join(publicPath, `${locale}.json`);
-
-            try {
-              await fs.copyFile(cacheFilePath, publicFilePath);
-              logger.info(`✓ Generated ${locale}.json`);
-            } catch (error) {
-              logger.error(`Failed to copy ${locale}.json:`, error);
-            }
-          }
-
-          logger.info("Translation generation completed successfully");
-        } catch (error) {
-          logger.error("Translation generation failed:", error);
-          throw error;
-        } finally {
-          // This prevents the process from hanging after build completion
-          translationServer?.stop();
-          logger.info("Shutting down translation server...");
-        }
-      },
-    },
-
-    turbopack: {
-      rules: {
-        "*.{tsx,jsx}": {
-          loaders: [
-            {
-              loader: "@lingo.dev/_compiler/turbopack-loader",
-              options: {
-                sourceRoot: lingoConfig.sourceRoot,
-                lingoDir: lingoConfig.lingoDir,
-                sourceLocale: lingoConfig.sourceLocale,
-                useDirective: lingoConfig.useDirective,
-                translator: lingoConfig.translator,
-                // TODO (AleksandrSl 24/11/2025): This one should be serialized properly.
-                // skipPatterns: lingoConfig.skipPatterns,
-                framework: lingoConfig.framework,
-              } as any,
-            },
-          ],
-        },
-      },
-      // TODO (AleksandrSl 01/12/2025): Add support for this in webpack
-      resolveAlias: {
-        "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
-      },
-    },
-    webpack(config: any, options: any) {
-      // Apply user's webpack config first if it exists
-      if (typeof nextConfig.webpack === "function") {
-        config = nextConfig.webpack(config, options);
-      }
-
-      // Add the Lingo loader
-      config.module.rules.push({
-        test: /\.(tsx|jsx)$/,
-        exclude: /node_modules/,
-        use: [
-          {
-            loader: "@lingo.dev/_compiler/turbopack-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              sourceLocale: lingoConfig.sourceLocale,
-              useDirective: lingoConfig.useDirective,
-              skipPatterns: lingoConfig.skipPatterns,
-              translator: lingoConfig.translator,
-              framework: lingoConfig.framework,
-            },
-          },
-        ],
-      });
-
-      return config;
+  // Prepare Turbopack loader configuration
+  const loaderConfig = {
+    loader: "@lingo.dev/_compiler/turbopack-loader",
+    options: {
+      sourceRoot: lingoConfig.sourceRoot,
+      lingoDir: lingoConfig.lingoDir,
+      sourceLocale: lingoConfig.sourceLocale,
+      useDirective: lingoConfig.useDirective,
+      translator: lingoConfig.translator,
+      framework: lingoConfig.framework,
     },
   };
+
+  const existingTurbopackConfig = getTurbopackConfig(userNextConfig);
+  const mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
+    pattern: "*.{tsx,jsx}",
+    config: { loaders: [loaderConfig] },
+  });
+
+  const existingResolveAlias = existingTurbopackConfig.resolveAlias;
+  const mergedResolveAlias = {
+    ...existingResolveAlias,
+    "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
+  };
+
+  // Build Turbopack config (handles Next.js 16+ vs <16)
+  let turbopackConfig: Partial<NextConfig>;
+  if (hasStableTurboConfig()) {
+    turbopackConfig = {
+      turbopack: {
+        ...userNextConfig.turbopack, // Preserve existing turbopack options
+        rules: mergedRules,
+        resolveAlias: mergedResolveAlias,
+      },
+    };
+  } else {
+    turbopackConfig = {
+      experimental: {
+        ...userNextConfig.experimental, // Preserve ALL experimental options
+        // @ts-expect-error - turbo for Next.js <16
+        turbo: {
+          // @ts-expect-error - turbo for Next.js <16
+          ...userNextConfig.experimental?.turbo, // Preserve existing turbo options
+          rules: mergedRules,
+          resolveAlias: mergedResolveAlias,
+        },
+      },
+    };
+  }
+
+  const runAfterProductionCompile = async ({
+    distDir,
+    projectDir,
+  }: {
+    distDir: string;
+    projectDir: string;
+  }) => {
+    // Call user's hook first if it exists
+    if (
+      typeof userNextConfig.compiler?.runAfterProductionCompile === "function"
+    ) {
+      await userNextConfig.compiler.runAfterProductionCompile({
+        distDir,
+        projectDir,
+      });
+    }
+
+    logger.info("Running post-build translation generation...");
+    let translationServer;
+    try {
+      translationServer = await startTranslationServer({
+        startPort: 60000,
+        onError: (err) => {
+          logger.error("Translation server error:", err);
+        },
+        onReady: () => {
+          logger.info("Translation server started");
+        },
+        config: lingoConfig,
+      });
+
+      const metadata = await loadMetadata(lingoConfig);
+      const hashes = Object.keys(metadata.entries);
+
+      if (hashes.length === 0) {
+        logger.info("No translations found, skipping");
+        return;
+      }
+
+      logger.info(
+        `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
+      );
+
+      const batchSize = lingoOptions.batchSize ?? 50;
+
+      const localePromises = lingoConfig.targetLocales.map(async (locale) => {
+        logger.info(`Translating to ${locale}...`);
+
+        const batches: string[][] = [];
+        for (let i = 0; i < hashes.length; i += batchSize) {
+          batches.push(hashes.slice(i, i + batchSize));
+        }
+
+        let completed = 0;
+
+        for (const batch of batches) {
+          const response = await handleHashTranslationRequest(
+            locale,
+            batch,
+            lingoConfig,
+          );
+
+          if (response.status !== 200) {
+            throw new Error(
+              `Translation failed for ${locale}: ${response.body}`,
+            );
+          }
+
+          completed += batch.length;
+          const percentage = Math.round((completed / hashes.length) * 100);
+          logger.info(
+            `${locale}: ${completed}/${hashes.length} (${percentage}%)`,
+          );
+        }
+
+        logger.info(`${locale} completed`);
+      });
+
+      await Promise.all(localePromises);
+
+      const publicPath = distDir;
+      logger.info(`Generating static translation files in ${distDir}`);
+
+      await fs.mkdir(publicPath, { recursive: true });
+
+      for (const locale of lingoOptions.targetLocales) {
+        const cacheFilePath = getCachePath(lingoConfig, locale);
+        const publicFilePath = path.join(publicPath, `${locale}.json`);
+
+        try {
+          await fs.copyFile(cacheFilePath, publicFilePath);
+          logger.info(`✓ Generated ${locale}.json`);
+        } catch (error) {
+          logger.error(`Failed to copy ${locale}.json:`, error);
+        }
+      }
+
+      logger.info("Translation generation completed successfully");
+    } catch (error) {
+      logger.error("Translation generation failed:", error);
+      throw error;
+    } finally {
+      translationServer?.stop();
+      logger.info("Shutting down translation server...");
+    }
+  };
+
+  // Build webpack function that chains user's webpack
+  const webpack = (config: any, options: any) => {
+    // Apply user's webpack config first if it exists
+    let modifiedConfig = config;
+    if (typeof userNextConfig.webpack === "function") {
+      modifiedConfig = userNextConfig.webpack(config, options);
+    }
+
+    // Add the Lingo loader
+    modifiedConfig.module.rules.push({
+      test: /\.(tsx|jsx)$/,
+      exclude: /node_modules/,
+      use: [
+        {
+          loader: "@lingo.dev/_compiler/turbopack-loader",
+          options: {
+            sourceRoot: lingoConfig.sourceRoot,
+            lingoDir: lingoConfig.lingoDir,
+            sourceLocale: lingoConfig.sourceLocale,
+            useDirective: lingoConfig.useDirective,
+            skipPatterns: lingoConfig.skipPatterns,
+            translator: lingoConfig.translator,
+            framework: lingoConfig.framework,
+          },
+        },
+      ],
+    });
+
+    return modifiedConfig;
+  };
+
+  return {
+    ...userNextConfig,
+    ...turbopackConfig,
+    compiler: {
+      ...userNextConfig.compiler,
+      runAfterProductionCompile,
+    },
+    webpack,
+  };
+}
+
+/**
+ * Next.js plugin that automatically adds the Lingo loader
+ *
+ * @example
+ * // Simple usage
+ * module.exports = withLingo({ reactStrictMode: true }, lingoOptions);
+ *
+ * @example
+ * // With Next.js phase
+ * module.exports = async (phase, { defaultConfig }) =>
+ *   withLingo({ ...defaultConfig, custom: phase }, lingoOptions);
+ *
+ * @example
+ * // Chained with other plugins
+ * module.exports = withOtherPlugin(withLingo(baseConfig, lingoOptions));
+ */
+export function withLingo(
+  nextConfig: NextConfig = {},
+  lingoOptions: LingoNextPluginOptions,
+): NextConfig {
+  return buildLingoConfig(nextConfig, lingoOptions);
 }
 
 // Also export TypeScript types
