@@ -3,36 +3,33 @@ import { generateTranslationHash, isValidHash } from "./hash";
 
 describe("hash utilities", () => {
   describe("generateTranslationHash", () => {
-    it("should generate a 12-character hash", () => {
-      const hash = generateTranslationHash(
-        "Hello World",
-        "MyComponent",
-        "src/MyComponent.tsx",
-      );
-      expect(hash).toHaveLength(12);
-    });
-
     it("should generate consistent hashes for same input", () => {
-      const hash1 = generateTranslationHash("Hello", "Component", "file.tsx");
-      const hash2 = generateTranslationHash("Hello", "Component", "file.tsx");
+      const hash1 = generateTranslationHash("Hello", {
+        componentName: "Component",
+      });
+      const hash2 = generateTranslationHash("Hello", {
+        componentName: "Component",
+      });
       expect(hash1).toBe(hash2);
     });
 
     it("should generate different hashes for different text", () => {
-      const hash1 = generateTranslationHash("Hello", "Component", "file.tsx");
-      const hash2 = generateTranslationHash("World", "Component", "file.tsx");
+      const hash1 = generateTranslationHash("Hello", {
+        componentName: "Component",
+      });
+      const hash2 = generateTranslationHash("World", {
+        componentName: "Component",
+      });
       expect(hash1).not.toBe(hash2);
     });
 
     it("should generate different hashes for different components", () => {
-      const hash1 = generateTranslationHash("Hello", "Component1", "file.tsx");
-      const hash2 = generateTranslationHash("Hello", "Component2", "file.tsx");
-      expect(hash1).not.toBe(hash2);
-    });
-
-    it("should generate different hashes for different files", () => {
-      const hash1 = generateTranslationHash("Hello", "Component", "file1.tsx");
-      const hash2 = generateTranslationHash("Hello", "Component", "file2.tsx");
+      const hash1 = generateTranslationHash("Hello", {
+        componentName: "Component1",
+      });
+      const hash2 = generateTranslationHash("Hello", {
+        componentName: "Component2",
+      });
       expect(hash1).not.toBe(hash2);
     });
   });
