@@ -105,7 +105,9 @@ export async function getServerTranslations(options: {
     };
   }
 
-  logger.debug(`Async Server. Fetching translations for ${locale}`);
+  logger.debug(
+    `Async Server. Fetching translations for ${locale} from ${options.serverUrl}`,
+  );
 
   // Fetch translations using core service
   const translations = await fetchTranslationsOnServer(

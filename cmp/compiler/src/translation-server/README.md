@@ -100,7 +100,6 @@ const server = await startTranslationServer({
     sourceRoot: "./app",
     lingoDir: ".lingo",
     sourceLocale: "en",
-    translator: "pseudo",
   },
   onReady: (port) => {
     console.log(`Server running on port ${port}`);
@@ -131,7 +130,6 @@ const server = new TranslationServer({
     sourceRoot: "./src",
     lingoDir: ".lingo",
     sourceLocale: "en",
-    translator: "pseudo",
   },
 });
 
@@ -194,7 +192,7 @@ The server:
 
 - Binds to `127.0.0.1` (localhost only) for security
 - Enables CORS for browser requests
-- Reuses `shared-middleware.ts` for translation generation
+- Creates translator instance once on startup for efficiency
 - Caches translations to `.lingo/cache/*.json`
 - Automatically finds available ports using TCP probing
 

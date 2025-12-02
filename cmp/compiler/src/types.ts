@@ -2,7 +2,6 @@
  * Core types for the compiler-beta translation system
  */
 
-import type { TranslatorConfig } from "./translators";
 import type { Framework } from "./types/framework";
 
 /**
@@ -60,9 +59,39 @@ export interface LoaderConfig {
   skipPatterns?: RegExp[];
 
   /**
-   * Translation provider to use
+   * Model configuration for LCP translator
+   * - Use "lingo.dev" for Lingo.dev Engine (recommended)
+   * - Use locale-pair mapping for direct LLM providers
+   *
+   * Examples:
+   * - "lingo.dev"
+   * - { "en:es": "google:gemini-2.0-flash", "*:*": "groq:llama3-8b-8192" }
+   *
+   * @default "lingo.dev"
    */
-  translator?: TranslatorConfig;
+  models?: "lingo.dev" | Record<string, string>;
+
+  /**
+   * Custom translation prompt for LCP translator
+   * Use {SOURCE_LOCALE} and {TARGET_LOCALE} placeholders
+   */
+  prompt?: string;
+
+  /**
+   * Development-specific settings
+   */
+  dev?: {
+    /**
+     * Use pseudotranslator in development instead of real translator
+     * Useful for:
+     * - Testing i18n without API calls
+     * - Verifying correct elements are translated
+     * - Saving AI tokens during development
+     *
+     * @default false
+     */
+    usePseudotranslator?: boolean;
+  };
 
   /**
    * Framework being used (affects component detection)
@@ -94,8 +123,18 @@ export type MetadataConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
  */
 export type TranslationConfig = Pick<
   LoaderConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "translator" | "useCache"
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt" | "useCache"
 >;
+
+/**
+ * Config needed for translation middleware and server
+ * Extends TranslationConfig with optional fields
+ */
+export type TranslationMiddlewareConfig = Pick<
+  LoaderConfig,
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt" | "useCache"
+> &
+  Partial<Pick<LoaderConfig, "targetLocales" | "dev">>;
 
 /**
  * Config needed for path operations

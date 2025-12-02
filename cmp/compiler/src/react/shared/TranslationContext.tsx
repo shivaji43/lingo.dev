@@ -344,6 +344,9 @@ function TranslationProvider__Dev({
           newTranslations,
         );
         setTranslations((prev) => ({ ...prev, ...newTranslations }));
+        for (const hash of hashesToFetch) {
+          registeredHashesRef.current.add(hash);
+        }
       } catch (error) {
         logger.error("Failed to fetch translations:", error);
         // Remove from pending so they can be retried

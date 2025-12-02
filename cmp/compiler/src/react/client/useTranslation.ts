@@ -63,7 +63,7 @@ export const useTranslation: TranslationHook = (
   return useCallback(
     (hash: string, source: string, params?: RichTextParams): ReactNode => {
       logger.debug(
-        `The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
+        `Client. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
       );
       // Get the text (either source or translation)
       const text =

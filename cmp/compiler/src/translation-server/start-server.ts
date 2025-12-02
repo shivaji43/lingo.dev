@@ -13,7 +13,6 @@ import {
   TranslationServer,
 } from "./translation-server";
 
-import type { TranslatorConfig } from "../translators";
 import { logger } from "../utils/logger";
 
 function parseArgs() {
@@ -86,33 +85,21 @@ Examples:
 async function main() {
   const options = parseArgs();
 
-  // Build translator config
-  let translatorConfig: TranslatorConfig | undefined;
+  let models: "lingo.dev" | Record<string, string> = "lingo.dev";
+  let prompt: string | undefined;
 
-  if (options.translatorType === "pseudo") {
-    translatorConfig = { type: "pseudo" };
-  } else if (options.translatorType === "lcp") {
-    // Parse models config
-    let models: "lingo.dev" | Record<string, string> = "lingo.dev";
-    if (options.models) {
-      try {
-        // Try parsing as JSON first
-        models = JSON.parse(options.models);
-      } catch {
-        // If not JSON, treat as string
-        models = options.models;
-      }
+  // Parse models config
+  if (options.models) {
+    try {
+      // Try parsing as JSON first
+      models = JSON.parse(options.models);
+    } catch {
+      // If not JSON, treat as string
+      models = options.models;
     }
-
-    translatorConfig = {
-      type: "lcp",
-      config: {
-        models,
-        sourceLocale: options.sourceLocale,
-        prompt: options.prompt || null,
-      },
-    };
   }
+
+  prompt = options.prompt || undefined;
 
   process.stdout.write("[lingo.dev] Starting translation server...\n");
   process.stdout.write(
@@ -121,7 +108,8 @@ async function main() {
       sourceRoot: options.sourceRoot,
       lingoDir: options.lingoDir,
       sourceLocale: options.sourceLocale,
-      translator: translatorConfig,
+      models,
+      prompt,
     })}\n`,
   );
 
@@ -134,7 +122,8 @@ async function main() {
         sourceRoot: options.sourceRoot,
         lingoDir: options.lingoDir,
         sourceLocale: options.sourceLocale,
-        translator: translatorConfig,
+        models,
+        prompt,
       },
       onReady: (port) => {
         process.stdout.write("[lingo.dev] Server ready!\n");

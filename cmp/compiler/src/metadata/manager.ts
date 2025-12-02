@@ -11,7 +11,7 @@ import { getMetadataPath as getMetadataPathUtil } from "../utils/path-helpers";
 /**
  * Default metadata schema
  */
-function createEmptyMetadata(): MetadataSchema {
+export function createEmptyMetadata(): MetadataSchema {
   return {
     version: "0.1",
     entries: {},

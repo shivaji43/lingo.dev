@@ -12,7 +12,7 @@ export { PseudoTranslator } from "./pseudotranslator";
 export { LCPTranslator } from "./lcp";
 export type { LCPTranslatorConfig } from "./lcp";
 export { createTranslator } from "./translator-factory";
-export type { TranslatorConfig } from "./translator-factory";
+export type { TranslatorFactoryConfig } from "./translator-factory";
 
 // Translation Service (orchestrator)
 export { TranslationService } from "./translation-service";

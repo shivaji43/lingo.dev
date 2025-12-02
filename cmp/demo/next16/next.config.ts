@@ -9,15 +9,5 @@ export default withLingo(nextConfig, {
   sourceLocale: "en",
   targetLocales: ["es", "de", "fr"],
   useDirective: false, // Set to true to require 'use i18n' directive
-  translator: {
-    type: "pseudo",
-  },
-  // If you want to see the real translations replace the translator above with the one below
-  // translator: {
-  //   type: "lcp",
-  //   config: {
-  //     models: "lingo.dev",
-  //     sourceLocale: "en",
-  //   },
-  // },
+  models: "lingo.dev",
 });

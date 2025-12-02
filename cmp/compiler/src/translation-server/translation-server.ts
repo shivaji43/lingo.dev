@@ -13,12 +13,15 @@
 
 import http from "http";
 import { URL } from "url";
-import {
-  handleHashTranslationRequest,
-  handleTranslationRequest,
-  type TranslationMiddlewareConfig,
-} from "../plugin/shared-middleware";
+import type { TranslationMiddlewareConfig } from "../types";
 import { logger } from "../utils/logger";
+import {
+  createTranslator,
+  LocalTranslationCache,
+  TranslationService,
+} from "../translators";
+import { loadMetadata, createEmptyMetadata } from "../metadata/manager";
+import type { MetadataSchema } from "../types";
 
 export interface TranslationServerOptions {
   /**
@@ -50,6 +53,8 @@ export class TranslationServer {
   private startPort: number;
   private onReadyCallback?: (port: number) => void;
   private onErrorCallback?: (error: Error) => void;
+  private translationService: TranslationService | null = null;
+  private metadata: MetadataSchema | null = null;
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
@@ -66,12 +71,62 @@ export class TranslationServer {
       throw new Error("Server is already running");
     }
 
+    console.log(`\x1b[36m[Lingo]\x1b[0m 🔧 Initializing translator...`);
+
+    const translator = createTranslator(this.config);
+    const isPseudo = translator.constructor.name === "PseudoTranslator";
+
+    const cache = new LocalTranslationCache({
+      cacheDir: this.config.lingoDir,
+      sourceRoot: this.config.sourceRoot,
+    });
+
+    this.translationService = new TranslationService(translator, cache, {
+      sourceLocale: this.config.sourceLocale,
+      useCache: this.config.useCache,
+      isPseudo,
+    });
+
+    try {
+      this.metadata = await loadMetadata(this.config);
+      console.log(
+        `\x1b[36m[Lingo]\x1b[0m ✅ Loaded ${Object.keys(this.metadata.entries).length} translation entries`,
+      );
+    } catch (error) {
+      console.warn(
+        `\x1b[33m[Lingo]\x1b[0m ⚠️  No metadata found, will be created on first translation`,
+      );
+      this.metadata = createEmptyMetadata();
+    }
+
     const port = await this.findAvailablePort(this.startPort);
 
     return new Promise((resolve, reject) => {
-      this.server = http.createServer(async (req, res) => {
-        await this.handleRequest(req, res);
+      this.server = http.createServer((req, res) => {
+        // Log that we received a request (before async handling)
+        console.log(
+          `\x1b[36m[Lingo]\x1b[0m 📥 Received: ${req.method} ${req.url}`,
+        );
+
+        // Wrap async handler and catch errors explicitly
+        this.handleRequest(req, res).catch((error) => {
+          console.error(
+            `\x1b[41m\x1b[37m[Lingo.dev]\x1b[0m Request handler error:`,
+            error,
+          );
+          console.error(error.stack);
+
+          // Send error response if headers not sent
+          if (!res.headersSent) {
+            res.writeHead(500, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Internal Server Error" }));
+          }
+        });
       });
+
+      console.debug(
+        `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Starting translation server on port ${port}`,
+      );
 
       this.server.on("error", (error: NodeJS.ErrnoException) => {
         if (error.code === "EADDRINUSE") {
@@ -88,6 +143,9 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.url = `http://127.0.0.1:${port}`;
+        console.log(
+          `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m ✅ Translation server listening on http://127.0.0.1:${port}`,
+        );
         logger.info(`Translation server listening on http://127.0.0.1:${port}`);
         this.onReadyCallback?.(port);
         resolve(port);
@@ -130,6 +188,28 @@ export class TranslationServer {
    */
   isRunning(): boolean {
     return this.server !== null && this.url !== null;
+  }
+
+  /**
+   * Directly translate hashes without going through HTTP
+   * Useful for build-time translation generation
+   */
+  async translateHashes(
+    locale: string,
+    hashes: string[],
+  ): Promise<{
+    translations: Record<string, string>;
+    errors: Array<{ hash: string; error: string }>;
+  }> {
+    if (!this.translationService || !this.metadata) {
+      throw new Error("Translation server not initialized");
+    }
+
+    return await this.translationService.translate(
+      locale,
+      this.metadata,
+      hashes,
+    );
   }
 
   /**
@@ -181,6 +261,10 @@ export class TranslationServer {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
+    console.log(
+      `\x1b[33m[Lingo]\x1b[0m 🔄 Processing: ${req.method} ${req.url}`,
+    );
+
     try {
       const url = new URL(req.url || "", `http://${req.headers.host}`);
 
@@ -280,20 +364,34 @@ export class TranslationServer {
         return;
       }
 
-      // Use hash-based request for efficiency
-      const response = await handleHashTranslationRequest(
+      if (!this.translationService || !this.metadata) {
+        throw new Error("Translation service not initialized");
+      }
+
+      console.log(
+        `\x1b[36m[Lingo]\x1b[0m 🔄 Translating ${hashes.length} hashes to ${locale}`,
+      );
+      console.log(`\x1b[36m[Lingo]\x1b[0m 🔄 Hashes: ${hashes.join(", ")}`);
+
+      // Translate using the stored service
+      const result = await this.translationService.translate(
         locale,
+        this.metadata,
         hashes,
-        this.config,
       );
 
-      // Set headers from shared middleware
-      Object.entries(response.headers).forEach(([key, value]) => {
-        res.setHeader(key, value);
+      // Return successful response
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
       });
-
-      res.writeHead(response.status);
-      res.end(response.body);
+      res.end(
+        JSON.stringify({
+          locale,
+          translations: result.translations,
+          errors: result.errors,
+        }),
+      );
     } catch (error) {
       logger.error(`Error getting batch translations for ${locale}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });
@@ -314,15 +412,35 @@ export class TranslationServer {
     res: http.ServerResponse,
   ): Promise<void> {
     try {
-      const response = await handleTranslationRequest(locale, this.config);
+      if (!this.translationService || !this.metadata) {
+        throw new Error("Translation service not initialized");
+      }
 
-      // Set headers from shared middleware
-      Object.entries(response.headers).forEach(([key, value]) => {
-        res.setHeader(key, value);
+      console.log(
+        `\x1b[36m[Lingo]\x1b[0m 🌐 Requesting full dictionary for ${locale}`,
+      );
+
+      const allHashes = Object.keys(this.metadata.entries);
+
+      // Translate all hashes
+      const result = await this.translationService.translate(
+        locale,
+        this.metadata,
+        allHashes,
+      );
+
+      // Return successful response
+      res.writeHead(200, {
+        "Content-Type": "application/json",
+        "Cache-Control": "public, max-age=3600",
       });
-
-      res.writeHead(response.status);
-      res.end(response.body);
+      res.end(
+        JSON.stringify({
+          locale,
+          translations: result.translations,
+          errors: result.errors,
+        }),
+      );
     } catch (error) {
       logger.error(`Error getting dictionary for ${locale}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });

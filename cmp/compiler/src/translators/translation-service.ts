@@ -26,6 +26,12 @@ export interface TranslationServiceConfig {
    * Whether to use cache (can be disabled for testing)
    */
   useCache?: boolean;
+
+  /**
+   * Whether the translator is a pseudo translator
+   * If true, translations will NOT be cached
+   */
+  isPseudo?: boolean;
 }
 
 /**
@@ -182,9 +188,10 @@ export class TranslationService {
       }
     }
 
-    // Step 5: Update cache with successful translations
+    // Step 5: Update cache with successful translations (skip for pseudo)
     if (
       this.config.useCache !== false &&
+      !this.config.isPseudo &&
       Object.keys(newTranslations).length > 0
     ) {
       try {
@@ -196,6 +203,13 @@ export class TranslationService {
         logger.error(`Failed to update cache:`, error);
         // Don't fail the request if cache update fails
       }
+    } else if (
+      this.config.isPseudo &&
+      Object.keys(newTranslations).length > 0
+    ) {
+      logger.debug(
+        `Skipping cache for ${Object.keys(newTranslations).length} pseudotranslations`,
+      );
     }
 
     // Step 6: Merge and return

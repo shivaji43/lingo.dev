@@ -35,9 +35,7 @@ import type { NextConfig } from "next";
 
 import path from "path";
 import { loadMetadata } from "../metadata/manager";
-import { handleHashTranslationRequest } from "./shared-middleware";
 import fs from "fs/promises";
-import type { TranslatorConfig } from "../translators";
 import { getCachePath, getConfigPath } from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
@@ -96,9 +94,15 @@ export interface LingoNextPluginOptions {
   skipPatterns?: RegExp[];
 
   /**
-   * Translation service configuration
+   * Model configuration translator
+   * @default "lingo.dev"
    */
-  translator?: TranslatorConfig;
+  models?: "lingo.dev" | Record<string, string>;
+
+  /**
+   * Custom translation prompt for LCP translator
+   */
+  prompt?: string;
 
   /**
    * Maximum number of translations to process in a single batch
@@ -183,7 +187,6 @@ function buildLingoConfig(
       lingoDir: lingoConfig.lingoDir,
       sourceLocale: lingoConfig.sourceLocale,
       useDirective: lingoConfig.useDirective,
-      translator: lingoConfig.translator,
       framework: lingoConfig.framework,
     },
   };
@@ -243,7 +246,9 @@ function buildLingoConfig(
     }
 
     logger.info("Running post-build translation generation...");
-    let translationServer;
+    let translationServer:
+      | Awaited<ReturnType<typeof startTranslationServer>>
+      | undefined;
     try {
       translationServer = await startTranslationServer({
         startPort: 60000,
@@ -278,15 +283,14 @@ function buildLingoConfig(
         let completed = 0;
 
         for (const batch of batches) {
-          const response = await handleHashTranslationRequest(
+          const result = await translationServer!.translateHashes(
             locale,
             batch,
-            lingoConfig,
           );
 
-          if (response.status !== 200) {
-            throw new Error(
-              `Translation failed for ${locale}: ${response.body}`,
+          if (result.errors.length > 0) {
+            logger.warn(
+              `Translation completed with ${result.errors.length} errors for ${locale}`,
             );
           }
 
@@ -350,7 +354,6 @@ function buildLingoConfig(
             sourceLocale: lingoConfig.sourceLocale,
             useDirective: lingoConfig.useDirective,
             skipPatterns: lingoConfig.skipPatterns,
-            translator: lingoConfig.translator,
             framework: lingoConfig.framework,
           },
         },

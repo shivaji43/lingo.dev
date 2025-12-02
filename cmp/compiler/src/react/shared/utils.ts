@@ -25,5 +25,10 @@ export async function fetchTranslations(
     throw new Error(`Translation API error: ${response.statusText}`);
   }
 
-  return await response.json();
+  // TODO (AleksandrSl 02/12/2025): Handle errors in the context.
+  const result = await response.json();
+
+  // Server returns { locale, translations, errors }
+  // Extract just the translations dictionary
+  return result.translations || {};
 }

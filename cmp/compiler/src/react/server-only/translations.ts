@@ -23,15 +23,12 @@ export interface TranslationFetchConfig {
   basePath?: string;
 
   /**
-   * Dev server port (if running in development)
-   */
-  devServerPort?: number | null;
-
-  /**
    * Source locale (default: 'en')
    * If the requested locale matches source, returns empty dictionary
    */
   sourceLocale?: string;
+
+  serverUrl?: string;
 }
 
 /**
@@ -39,12 +36,8 @@ export interface TranslationFetchConfig {
  * Used in production builds or as fallback in development
  *
  * Tries multiple common locations for translation files:
- * - .next/standalone/{locale}.json (Next.js standalone)
- * - .next/{locale}.json (Next.js)
- * - public/translations/{locale}.json (standard)
- * - public/{locale}.json (alternative)
  * - .lingo/cache/{locale}.json (dev cache)
- * - {locale}.json (root)
+ * - .next/{locale}.json (Next.js)
  *
  * @param locale - Target locale
  * @param basePath - Base directory to search from (default: cwd)
@@ -54,13 +47,10 @@ async function readFromFilesystem(
   locale: string,
   basePath: string = process.cwd(),
 ): Promise<Record<string, string>> {
+  // TODO (AleksandrSl 02/12/2025): Sanity check. We need to try loading the most up to date translations first. Fo the dev mode they are in lingo. Gor build they are in next.
   const possiblePaths = [
-    join(basePath, ".next", "standalone", `${locale}.json`),
-    join(basePath, ".next", `${locale}.json`),
-    join(basePath, "public", "translations", `${locale}.json`),
-    join(basePath, "public", `${locale}.json`),
     join(basePath, ".lingo", "cache", `${locale}.json`),
-    join(basePath, `${locale}.json`),
+    join(basePath, ".next", `${locale}.json`),
   ];
 
   // Try each path until we find the file
@@ -105,7 +95,6 @@ async function readFromFilesystem(
  *
  * @param locale - Target locale to fetch
  * @param hashes
- * @param serverUrl
  * @param config - Configuration options
  * @returns Translation dictionary (hash -> translated text)
  *
@@ -126,17 +115,17 @@ async function readFromFilesystem(
 export async function fetchTranslationsOnServer(
   locale: string,
   hashes: string[],
-  serverUrl?: string,
   config: TranslationFetchConfig = {},
 ): Promise<Record<string, string>> {
   const isDev = process.env.NODE_ENV === "development";
 
   // Development mode: Try dev server first, then filesystem
-  if (isDev && serverUrl) {
+  if (isDev && config.serverUrl) {
     logger.debug(
-      `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${serverUrl})`,
+      `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${config.serverUrl})`,
     );
-    return await fetchFromDevServer(locale, hashes, serverUrl);
+    // TODO (AleksandrSl 02/12/2025): If there are no hashes, then we should not translate
+    return await fetchFromDevServer(locale, hashes, config.serverUrl);
   }
 
   // Production or dev fallback: Read from filesystem
