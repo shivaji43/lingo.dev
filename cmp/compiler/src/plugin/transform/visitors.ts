@@ -255,10 +255,10 @@ function shouldSkipTranslation(element: t.JSXElement): boolean {
 
 // Called even on the element which are not translatable.
 function translateAttributes(
-  path: NodePath<t.JSXElement>,
+  node: t.JSXElement,
   state: VisitorsInternalState,
 ): void {
-  const openingElement = path.node.openingElement;
+  const openingElement = node.openingElement;
 
   const component = state.componentsStack.at(-1);
   if (!component) return;
@@ -281,8 +281,8 @@ function translateAttributes(
           attributeName: attr.name.name,
           componentName: component.name,
         },
-        path.node.loc?.start.line,
-        path.node.loc?.start.column,
+        node.loc?.start.line,
+        node.loc?.start.column,
       );
       state.newEntries.push(entry);
 
@@ -406,6 +406,7 @@ function serializeJSXChildren(
     | t.JSXSpreadChild
     | t.JSXFragment
   >,
+  state: VisitorsInternalState,
 ): SerializedJSX {
   let text = "";
   const variables: string[] = [];
@@ -450,8 +451,6 @@ function serializeJSXChildren(
         // String literal (like {" "}) - include the literal text directly
         text += expr.value;
       } else if (expr.type !== "JSXEmptyExpression") {
-        // TODO (AleksandrSl 28/11/2025): Should we implement something here?
-        // Complex expression - for now, skip or use a placeholder
         const name = `expression${expressions.size}`;
         text += `{${name}}`;
         expressions.set(name, expr);
@@ -477,7 +476,8 @@ function serializeJSXChildren(
       if (openingElement.name.type === "JSXIdentifier") {
         elementName = openingElement.name.name;
       } else {
-        // TODO (AleksandrSl 28/11/2025): What is this corner case?
+        // TODO (AleksandrSl 02/12/2025): What is this corner case?
+        //  I thought it may be a fragment, but it seems that fragment is a separate JSXFragment node.
         elementName = "element";
       }
 
@@ -486,9 +486,11 @@ function serializeJSXChildren(
       elementCounts.set(elementName, count + 1);
       const tagName = `${elementName}${count}`;
 
+      translateAttributes(child, state);
+
       if (shouldTranslate) {
         // Recursively serialize nested content
-        const nested = serializeJSXChildren(child.children);
+        const nested = serializeJSXChildren(child.children, state);
         text += `<${tagName}>${nested.text}</${tagName}>`;
 
         // Merge nested variables
@@ -587,7 +589,6 @@ function createRichTextTranslationCall(
   return t.callExpression(t.identifier("t"), args);
 }
 
-// TODO (AleksandrSl 28/11/2025): Make sure we translate attributes on the nested elements since they are processed only here.
 /**
  * Transform a JSX element with mixed content into a translation call
  */
@@ -606,7 +607,7 @@ function transformMixedJSXElement(
   if (!component) return;
 
   // Serialize the JSX children
-  const serialized = serializeJSXChildren(path.node.children);
+  const serialized = serializeJSXChildren(path.node.children, state);
   const text = serialized.text.trim();
   if (text.length === 0) return;
 
@@ -1311,7 +1312,7 @@ const componentVisitors = {
   // Transform JSX elements with mixed content (text + expressions + nested elements)
   // This runs BEFORE JSXText visitor due to traversal order
   JSXElement(path: NodePath<t.JSXElement>) {
-    translateAttributes(path, this.visitorState);
+    translateAttributes(path.node, this.visitorState);
 
     if (shouldSkipTranslation(path.node)) {
       path.skip();

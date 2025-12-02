@@ -64,11 +64,11 @@ export function Form() {
 exports[`transformComponent > attributes translation > should translate attributes in components with mixed content 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Message() {
-  const t = useTranslation(["728d0d3c5a6a", "18551cecd935"]);
+  const t = useTranslation(["728d0d3c5a6a", "cb6508ec9bf8", "18551cecd935"]);
   const name = "Alice";
   return <div title={t("728d0d3c5a6a", "User message")}>{t("18551cecd935", "Hello {name}, you have <strong0>5</strong0> messages", {
       name,
-      strong0: chunks => <strong title="Message count">{chunks}</strong>
+      strong0: chunks => <strong title={t("cb6508ec9bf8", "Message count")}>{chunks}</strong>
     })}</div>;
 }"
 `;
