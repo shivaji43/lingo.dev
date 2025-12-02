@@ -106,9 +106,6 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
             onError: (err) => {
               logger.error("Translation server error:", err);
             },
-            onReady: () => {
-              logger.info("Translation server started");
-            },
             config,
           });
         }

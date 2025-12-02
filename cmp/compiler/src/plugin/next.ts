@@ -250,9 +250,6 @@ function buildLingoConfig(
         onError: (err) => {
           logger.error("Translation server error:", err);
         },
-        onReady: () => {
-          logger.info("Translation server started");
-        },
         config: lingoConfig,
       });
 
