@@ -21,7 +21,6 @@ import { TranslationHook } from "../types";
  *
  * @param hashes - Static list of all translation hashes used in this component (injected at build time)
  *
- * @param serverUrl
  * @example
  * ```tsx
  * 'use client';
@@ -41,10 +40,7 @@ import { TranslationHook } from "../types";
  * }
  * ```
  */
-export const useTranslation: TranslationHook = (
-  hashes: string[],
-  serverUrl?: string,
-) => {
+export const useTranslation: TranslationHook = (hashes: string[]) => {
   const { translations, registerHashes, locale, sourceLocale } =
     useTranslationContext();
 
@@ -57,8 +53,8 @@ export const useTranslation: TranslationHook = (
 
     logger.debug(`Registering ${hashes.length} hashes for component`);
 
-    registerHashes(hashes, serverUrl);
-  }, [hashes, registerHashes, locale, sourceLocale, serverUrl]);
+    registerHashes(hashes);
+  }, [hashes, registerHashes, locale, sourceLocale]);
 
   return useCallback(
     (hash: string, source: string, params?: RichTextParams): ReactNode => {

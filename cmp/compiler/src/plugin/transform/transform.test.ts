@@ -19,7 +19,6 @@ import {
 describe("transformComponent", () => {
   let config: LoaderConfig;
   let metadata: MetadataSchema;
-  const serverUrl = "http://127.0.0.1:60000";
 
   beforeEach(() => {
     // Create fresh in-memory mocks for each test
@@ -578,7 +577,6 @@ export default function Page() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -625,7 +623,6 @@ export default function Page() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -671,7 +668,6 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -722,7 +718,6 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -842,7 +837,6 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -890,7 +884,6 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -936,7 +929,6 @@ export const metadata = {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -969,7 +961,6 @@ export const metadata = {
         filePath: "src/app/layout.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -1234,7 +1225,6 @@ export default async function ServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -1280,7 +1270,6 @@ export async function ServerCard() {
         filePath: "src/components/ServerCard.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -1317,7 +1306,6 @@ export default function ServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -1397,7 +1385,6 @@ export default async function AsyncServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -1433,7 +1420,6 @@ export function RegularCard() {
         filePath: "src/components/Cards.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2029,7 +2015,6 @@ export default async function ServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2069,7 +2054,6 @@ export default function ServerPage() {
         filePath: "src/app/page.tsx",
         config: nextConfig,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2104,7 +2088,6 @@ export function Example() {
         filePath: "src/Example.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.code).toMatchSnapshot();
@@ -2139,7 +2122,6 @@ function test() {}</pre>
         filePath: "src/CodeBlock.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2170,7 +2152,6 @@ export function Product() {
         filePath: "src/Product.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2203,7 +2184,6 @@ export function ApiDocs() {
         filePath: "src/ApiDocs.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2235,7 +2215,6 @@ export function TechDoc() {
         filePath: "src/TechDoc.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2277,7 +2256,6 @@ export function Tutorial() {
         filePath: "src/Tutorial.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2317,7 +2295,6 @@ export function Branded() {
         filePath: "src/Branded.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2345,7 +2322,6 @@ export function ExplicitTranslate() {
         filePath: "src/ExplicitTranslate.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.transformed).toBe(true);
@@ -2368,7 +2344,6 @@ export const Button = function() { return <button>Click me</button>; }
         filePath: "src/FunctionExpression.tsx",
         config,
         metadata,
-        serverUrl,
       });
 
       expect(result.code).toMatchSnapshot();

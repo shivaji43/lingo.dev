@@ -16,6 +16,7 @@ import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "./utils";
 import type { CookieConfig } from "../../types";
 import { defaultCookieConfig } from "../../utils/cookies";
+import { serverUrl } from "@lingo.dev/_compiler/dev-config";
 
 /**
  * Translation context type
@@ -40,7 +41,7 @@ export interface TranslationContextType {
    * Register a hash as being used in a component
    * The provider will automatically request missing translations
    */
-  registerHashes: (hashes: string[], serverUrl?: string) => void;
+  registerHashes: (hashes: string[]) => void;
 
   /**
    * Whether translations are currently being loaded
@@ -51,11 +52,6 @@ export interface TranslationContextType {
    * Source locale (default language)
    */
   sourceLocale: string;
-
-  /**
-   * Port of the translation server (if running)
-   */
-  serverPort?: number | null;
 
   /**
    * Development statistics (only in dev mode)
@@ -227,8 +223,6 @@ function TranslationProvider__Dev({
   const [translations, setTranslations] =
     useState<Record<string, string>>(initialTranslations);
   const [isLoading, setIsLoading] = useState(false);
-  // This is not ideal, but to keep the transformations to the minimum and centralize the translations this is the easiest way
-  const serverUrlRef = useRef<string>();
 
   // Track registered hashes from components (updated every render)
   const registeredHashesRef = useRef<Set<string>>(new Set());
@@ -258,14 +252,13 @@ function TranslationProvider__Dev({
    * Register a hash as being used in a component
    * Called during render - must not trigger state updates immediately
    */
-  const registerHashes = useCallback((hashes: string[], serverUrl?: string) => {
+  const registerHashes = useCallback((hashes: string[]) => {
     let wasNew = false;
     hashes.forEach((hash) => {
       wasNew = wasNew || !registeredHashesRef.current.has(hash);
       registeredHashesRef.current.add(hash);
     });
 
-    serverUrlRef.current = serverUrl;
     logger.debug(
       `Registering hashes: ${hashes.join(", ")}. Registered hashes: ${registeredHashesRef.current.values()}. wasNew: ${wasNew}`,
     );
@@ -336,7 +329,7 @@ function TranslationProvider__Dev({
         const newTranslations = await fetchTranslations(
           localeRef.current,
           hashesToFetch,
-          serverUrlRef.current,
+          serverUrl,
         );
 
         logger.debug(
@@ -441,7 +434,6 @@ function TranslationProvider__Dev({
         locale,
         sourceLocale,
         pendingCount: pendingHashesRef.current.size,
-        serverPort: null,
         position: devWidget?.position || "bottom-left",
       } satisfies LingoDevState;
       // Trigger widget update

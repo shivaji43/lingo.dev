@@ -1,13 +1,7 @@
 import type { LoaderConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
-import {
-  startTranslationServer,
-  type TranslationServer,
-} from "../translation-server";
 import { logger } from "../utils/logger";
-
-let globalServer: TranslationServer;
 
 /**
  * Turbopack/Webpack loader for automatic translation
@@ -36,19 +30,6 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    if (isDev && !globalServer) {
-      globalServer = await startTranslationServer({
-        startPort: 60000,
-        onError: (err) => {
-          logger.error("Translation server error:", err);
-        },
-        onReady: () => {
-          logger.info("Translation server started");
-        },
-        config,
-      });
-    }
-
     // Load current metadata
     const metadata = await loadMetadata(config);
 
@@ -58,7 +39,6 @@ export default async function lingoCompilerTurbopackLoader(
       filePath: this.resourcePath,
       config,
       metadata,
-      serverUrl: globalServer?.getUrl(),
     });
 
     // If no transformation occurred, return original source

@@ -21,7 +21,6 @@ type ComponentEntry = {
 export interface VisitorsSharedState {
   newEntries: TranslationEntry[];
   filePath: string;
-  serverUrl?: string;
   metadata: MetadataSchema;
   config: LoaderConfig;
 }
@@ -726,7 +725,6 @@ function injectUnifiedHook(
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
   hashes: string[],
-  translationServerUrl?: string,
 ): void {
   const body = componentPath.get("body");
 
@@ -760,14 +758,10 @@ function injectUnifiedHook(
     hashes.map((hash) => t.stringLiteral(hash)),
   );
 
-  const callArgs = translationServerUrl
-    ? [hashArray, t.stringLiteral(translationServerUrl)]
-    : [hashArray];
-
   const hookCall = t.variableDeclaration("const", [
     t.variableDeclarator(
       t.identifier("t"),
-      t.callExpression(t.identifier("useTranslation"), callArgs),
+      t.callExpression(t.identifier("useTranslation"), [hashArray]),
     ),
   ]);
 
@@ -781,17 +775,14 @@ function injectUnifiedHook(
  * @param {Object} options - The input parameters.
  * @param {Object} options.config - Configuration options for the server translation hook.
  * @param {string} [options.config.sourceLocale] - Optional source locale for translations.
- * @param {string} [options.serverUrl] - Optional server port where the translation hook is hosted.
  * @param {string[]} options.hashes - An array of hash strings related to translations.
  * @return {VariableDeclaration} - Returns an object containing the constructed translation hook code to be used on the server.
  */
 function constructServerTranslationHookCall({
   config,
-  serverUrl,
   hashes,
 }: {
   config: { sourceLocale?: string };
-  serverUrl?: string;
   hashes: string[];
 }): VariableDeclaration {
   const optionsProperties = [];
@@ -802,12 +793,6 @@ function constructServerTranslationHookCall({
         t.identifier("sourceLocale"),
         t.stringLiteral(config.sourceLocale),
       ),
-    );
-  }
-
-  if (serverUrl) {
-    optionsProperties.push(
-      t.objectProperty(t.identifier("serverUrl"), t.stringLiteral(serverUrl)),
     );
   }
 
@@ -844,7 +829,6 @@ function injectServerHook(
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
   config: LoaderConfig,
-  serverUrl: string | undefined,
   hashes: string[],
 ): void {
   const body = componentPath.get("body");
@@ -862,7 +846,6 @@ function injectServerHook(
       // Create: const { t } = await getServerTranslations({ ... })
       const serverCall = constructServerTranslationHookCall({
         config,
-        serverUrl,
         hashes,
       });
 
@@ -878,7 +861,6 @@ function injectServerHook(
   // Create: const { t } = await getServerTranslations({ ... })
   const serverCall = constructServerTranslationHookCall({
     config,
-    serverUrl,
     hashes,
   });
 
@@ -904,11 +886,11 @@ function injectTranslationHook(
   // Determine which hook to use based on async status
   if (component.isAsync) {
     // Async component uses getServerTranslations
-    injectServerHook(path, state.config, state.serverUrl, hashes);
+    injectServerHook(path, state.config, hashes);
     state.needsAsyncImport = true;
   } else {
     // Non-async component uses unified hook (useTranslation)
-    injectUnifiedHook(path, hashes, state.serverUrl);
+    injectUnifiedHook(path, hashes);
     state.needsUnifiedImport = true;
   }
 }
@@ -1158,12 +1140,6 @@ function convertStaticMetadataToFunction(
                         t.stringLiteral(state.config.sourceLocale),
                       )
                     : null,
-                  state.serverUrl
-                    ? t.objectProperty(
-                        t.identifier("serverUrl"),
-                        t.stringLiteral(state.serverUrl),
-                      )
-                    : null,
                   t.objectProperty(
                     t.identifier("hashes"),
                     t.arrayExpression(
@@ -1232,7 +1208,6 @@ function transformGenerateMetadataFunction(
 
   const serverCall = constructServerTranslationHookCall({
     config: state.config,
-    serverUrl: state.serverUrl,
     hashes,
   });
 

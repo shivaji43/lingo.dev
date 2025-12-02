@@ -163,7 +163,6 @@ export default async function Page() {
     metadata,
     locale: "es",
     sourceLocale: "en",
-    serverPort: 60000, // Fetches from local translation server
   });
 
   return <h1>{t("hash123")}</h1>;

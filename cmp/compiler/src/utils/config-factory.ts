@@ -43,7 +43,10 @@ export function createLoaderConfig(
     useDirective: options.useDirective ?? DEFAULT_CONFIG.useDirective,
     framework: options.framework ?? DEFAULT_CONFIG.framework,
     skipPatterns: options.skipPatterns ?? DEFAULT_CONFIG.skipPatterns,
-    translator: options.translator,
+    models: options.models,
+    prompt: options.prompt,
+    useCache: options.useCache,
+    dev: options.dev,
     targetLocales: options.targetLocales,
   };
 }

@@ -34,6 +34,11 @@
       "import": "./build/config.mjs",
       "require": "./build/config.cjs"
     },
+    "./dev-config": {
+      "types": "./build/dev-config.d.ts",
+      "import": "./build/dev-config.mjs",
+      "require": "./build/dev-config.cjs"
+    },
     "./react/client": {
       "types": "./build/react/index.d.ts",
       "import": "./build/react/index.mjs",
@@ -90,6 +95,11 @@
       "types": "./build/plugin/turbopack-loader.d.ts",
       "import": "./build/plugin/turbopack-loader.mjs",
       "require": "./build/plugin/turbopack-loader.cjs"
+    },
+    "./dev-server-loader": {
+      "types": "./build/plugin/dev-server-loader.d.ts",
+      "import": "./build/plugin/dev-server-loader.mjs",
+      "require": "./build/plugin/dev-server-loader.cjs"
     }
   },
   "files": [

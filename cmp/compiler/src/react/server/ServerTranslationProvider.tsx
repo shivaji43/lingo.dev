@@ -10,12 +10,11 @@ export async function TranslationProvider({
   initialTranslations = {},
   ...rest
 }: TranslationProviderProps) {
-  logger.debug(
-    `Server. TranslationProvider. Provided locale: ${initialLocale}`,
-  );
   const { locale, translations } = await getServerTranslations({
     locale: initialLocale,
   });
+
+  logger.debug(`Server. TranslationProvider. Resolved locale: ${locale}`);
 
   return (
     <BaseTranslationProvider

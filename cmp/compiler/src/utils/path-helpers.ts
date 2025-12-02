@@ -101,3 +101,7 @@ export function getConfigPath(config: PathConfig): string {
   // TODO (AleksandrSl 01/12/2025): Why node resolves relative path as shit? .app with join turns into app/, while resolve gets the full path.
   return `${config.sourceRoot}/${config.lingoDir}/config.ts`;
 }
+
+export function getDevConfigPath(config: PathConfig): string {
+  return `${config.sourceRoot}/${config.lingoDir}/dev-config.ts`;
+}

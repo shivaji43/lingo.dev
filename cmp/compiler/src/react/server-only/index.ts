@@ -64,11 +64,6 @@ export async function getServerTranslations(options: {
   sourceLocale?: string;
 
   /**
-   * Development server port (for dev mode)
-   */
-  serverUrl?: string;
-
-  /**
    * List of translation hashes needed for this component
    * Typically injected at build time by the Babel plugin
    */
@@ -105,15 +100,12 @@ export async function getServerTranslations(options: {
     };
   }
 
-  logger.debug(
-    `Async Server. Fetching translations for ${locale} from ${options.serverUrl}`,
-  );
+  logger.debug(`Async Server. Fetching translations for ${locale}`);
 
   // Fetch translations using core service
   const translations = await fetchTranslationsOnServer(
     locale,
     options.hashes ?? [],
-    options.serverUrl,
     {
       sourceLocale,
       basePath: options.basePath,

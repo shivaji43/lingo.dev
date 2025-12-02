@@ -42,11 +42,6 @@ export interface BabelTransformOptions {
    * Current metadata
    */
   metadata: MetadataSchema;
-
-  /**
-   * Port of the translation server (if running)
-   */
-  serverUrl?: string;
 }
 
 /**
@@ -57,7 +52,6 @@ export function transformComponent({
   filePath,
   config,
   metadata,
-  serverUrl,
 }: BabelTransformOptions): TransformResult {
   // Get relative file path for consistent hashing
   const relativeFilePath = path
@@ -72,11 +66,10 @@ export function transformComponent({
       plugins: ["jsx", "typescript"],
     });
 
-    // TODO (AleksandrSl 01/12/2025): Probably search for use i18n directives with regex, probably will be faster to skip the files
+    // TODO (AleksandrSl 01/12/2025): Search for use i18n directives with regex, probably will be faster to skip the files
 
     const visitorState = {
       filePath: relativeFilePath,
-      serverUrl,
       metadata,
       config,
       newEntries: [] as any[],

@@ -1,10 +1,7 @@
 import { type ReactNode } from "react";
 import { type RichTextParams } from "./shared/render-rich-text";
 
-export type TranslationHook = (
-  hashes: string[],
-  serverUrl?: string,
-) => TranslationFunction;
+export type TranslationHook = (hashes: string[]) => TranslationFunction;
 
 /**
  * Translation function type

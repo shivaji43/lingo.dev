@@ -209,7 +209,6 @@ if (typeof window !== "undefined") {
       locale: "en",
       sourceLocale: "en",
       pendingCount: 0,
-      serverPort: null,
       position: "bottom-left",
     };
   }

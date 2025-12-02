@@ -13,7 +13,6 @@ export interface LingoDevState {
   locale: string;
   sourceLocale: string;
   pendingCount: number;
-  serverPort: number | null;
   position: WidgetPosition;
 }
 

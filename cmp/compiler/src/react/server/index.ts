@@ -25,16 +25,12 @@ import { logger } from "../../utils/logger";
 import type { TranslationHook } from "../types";
 
 // TODO (AleksandrSl 01/12/2025): Should we add back the cache?
-const getTranslations = async (hashes: string[], serverUrl?: string) => {
+const getTranslations = async (hashes: string[]) => {
   // 1. Resolve locale (framework-specific)
   const locale = await localeResolver();
 
   // 2. Fetch translations (universal)
-  const translations = await fetchTranslationsOnServer(
-    locale,
-    hashes,
-    serverUrl,
-  );
+  const translations = await fetchTranslationsOnServer(locale, hashes);
 
   logger.debug(
     `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
@@ -56,7 +52,6 @@ const getTranslations = async (hashes: string[], serverUrl?: string) => {
  * making components truly isomorphic.
  *
  * @param hashes - List of translation hashes used in component (injected by compiler)
- * @param serverUrl
  * @returns Translation function
  *
  * @example
@@ -75,13 +70,10 @@ const getTranslations = async (hashes: string[], serverUrl?: string) => {
  * }
  * ```
  */
-export const useTranslation: TranslationHook = (
-  hashes: string[],
-  serverUrl?: string,
-) => {
+export const useTranslation: TranslationHook = (hashes: string[]) => {
   // Use React's use() to unwrap the cached promise
   // This appears synchronous in Server Components!
-  const { locale, translations } = use(getTranslations(hashes, serverUrl));
+  const { locale, translations } = use(getTranslations(hashes));
   logger.debug(
     `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
   );

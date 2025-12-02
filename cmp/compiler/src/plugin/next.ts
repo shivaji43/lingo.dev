@@ -36,7 +36,12 @@ import type { NextConfig } from "next";
 import path from "path";
 import { loadMetadata } from "../metadata/manager";
 import fs from "fs/promises";
-import { getCachePath, getConfigPath } from "../utils/path-helpers";
+import {
+  getCacheDir,
+  getCachePath,
+  getConfigPath,
+  getDevConfigPath,
+} from "../utils/path-helpers";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
@@ -192,15 +197,34 @@ function buildLingoConfig(
   };
 
   const existingTurbopackConfig = getTurbopackConfig(userNextConfig);
-  const mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
-    pattern: "*.{tsx,jsx}",
-    config: { loaders: [loaderConfig] },
-  });
+  const mergedRules = mergeTurbopackRules(
+    mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
+      pattern: "*.{tsx,jsx}",
+      config: { loaders: [loaderConfig] },
+    }),
+    // TODO (AleksandrSl 02/12/2025): We can also inject default resolvers for locale based on the framework
+    {
+      pattern: "**/dev-config.ts",
+      config: {
+        loaders: [
+          {
+            loader: "@lingo.dev/_compiler/dev-server-loader",
+            options: {
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              cacheDir: getCacheDir(lingoConfig),
+            },
+          },
+        ],
+      },
+    },
+  );
 
   const existingResolveAlias = existingTurbopackConfig.resolveAlias;
   const mergedResolveAlias = {
     ...existingResolveAlias,
     "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
+    "@lingo.dev/_compiler/dev-config": getDevConfigPath(lingoConfig),
   };
 
   // Build Turbopack config (handles Next.js 16+ vs <16)

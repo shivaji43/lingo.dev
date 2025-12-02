@@ -12,6 +12,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
 import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
+import { serverUrl, cacheDir } from "@lingo.dev/_compiler/dev-config";
 
 /**
  * Configuration for translation fetching
@@ -27,8 +28,6 @@ export interface TranslationFetchConfig {
    * If the requested locale matches source, returns empty dictionary
    */
   sourceLocale?: string;
-
-  serverUrl?: string;
 }
 
 /**
@@ -49,7 +48,7 @@ async function readFromFilesystem(
 ): Promise<Record<string, string>> {
   // TODO (AleksandrSl 02/12/2025): Sanity check. We need to try loading the most up to date translations first. Fo the dev mode they are in lingo. Gor build they are in next.
   const possiblePaths = [
-    join(basePath, ".lingo", "cache", `${locale}.json`),
+    join(basePath, cacheDir, `${locale}.json`),
     join(basePath, ".next", `${locale}.json`),
   ];
 
@@ -102,7 +101,7 @@ async function readFromFilesystem(
  * ```typescript
  * // In Next.js locale resolver
  * const locale = await getLocaleFromCookies();
- * const translations = await fetchTranslations(locale, { devServerPort: 60000 });
+ * const translations = await fetchTranslations(locale);
  * ```
  *
  * @example
@@ -120,12 +119,12 @@ export async function fetchTranslationsOnServer(
   const isDev = process.env.NODE_ENV === "development";
 
   // Development mode: Try dev server first, then filesystem
-  if (isDev && config.serverUrl) {
+  if (isDev && serverUrl) {
     logger.debug(
-      `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${config.serverUrl})`,
+      `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${serverUrl})`,
     );
     // TODO (AleksandrSl 02/12/2025): If there are no hashes, then we should not translate
-    return await fetchFromDevServer(locale, hashes, config.serverUrl);
+    return await fetchFromDevServer(locale, hashes, serverUrl);
   }
 
   // Production or dev fallback: Read from filesystem

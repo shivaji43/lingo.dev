@@ -88,7 +88,7 @@ export function Card() {
 exports[`transformComponent > attributes translation > should translate attributes in non-async server components using unified hook 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function ServerPage() {
-  const t = useTranslation(["c14ad985c433", "f319c14dcb0c", "d6f47c144d4d"], "http://127.0.0.1:60000");
+  const t = useTranslation(["c14ad985c433", "f319c14dcb0c", "d6f47c144d4d"]);
   return <div>
       <img src="/logo.png" alt={t("c14ad985c433", "Company logo")} />
       <button title={t("f319c14dcb0c", "Click me")}>{t("d6f47c144d4d", "Action")}</button>
@@ -103,7 +103,6 @@ export default async function ServerPage() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["f48a5add6680", "5b9f417465d1", "1476e25ba56d"]
   });
   return <div>
@@ -206,7 +205,7 @@ export function ListComponent({
 exports[`transformComponent > corner cases > should handle function expressions correctly 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export const Button = function () {
-  const t = useTranslation(["2f8e602dc6e6"], "http://127.0.0.1:60000");
+  const t = useTranslation(["2f8e602dc6e6"]);
   return <button>{t("2f8e602dc6e6", "Click me")}</button>;
 };"
 `;
@@ -219,7 +218,6 @@ export async function AsyncCard() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["70184559a7fe"]
   });
   const data = await fetchData();
@@ -228,7 +226,7 @@ export async function AsyncCard() {
     })}</div>;
 }
 export function RegularCard() {
-  const t = useTranslation(["3e7ec45b13e2"], "http://127.0.0.1:60000");
+  const t = useTranslation(["3e7ec45b13e2"]);
   return <div>{t("3e7ec45b13e2", "Regular Hello")}</div>;
 }"
 `;
@@ -240,7 +238,6 @@ export default async function AsyncServerPage() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["c2e790d4b85b", "eb2ad50e21a8"]
   });
   const data = await fetchData();
@@ -269,7 +266,7 @@ export default function ClientPage() {
 exports[`transformComponent > isomorphic hooks (unified useTranslation) > should use unified hook for non-async server component 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function ServerPage() {
-  const t = useTranslation(["5b9f417465d1", "fd6916b2cd53"], "http://127.0.0.1:60000");
+  const t = useTranslation(["5b9f417465d1", "fd6916b2cd53"]);
   return <div>
       <h1>{t("5b9f417465d1", "Welcome")}</h1>
       <p>{t("fd6916b2cd53", "This is a non-async server component")}</p>
@@ -284,7 +281,6 @@ export async function generateMetadata() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["6abcc624c751", "fc150c7225d0"]
   });
   return {
@@ -301,7 +297,6 @@ export async function generateMetadata() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["decc6d752547", "03ad46f9f41a", "5f6197ca96da", "f5a01d4360dc", "cb1d0d9b783e", "0380a247f9c2"]
   });
   return {
@@ -330,7 +325,6 @@ export async function generateMetadata({
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["5a3e5ca5d57b", "e63cc26ce98f"]
   });
   return {
@@ -339,7 +333,7 @@ export async function generateMetadata({
   };
 }
 export default function Page() {
-  const t = useTranslation(["fe11201ae7fa"], "http://127.0.0.1:60000");
+  const t = useTranslation(["fe11201ae7fa"]);
   return <div>{t("fe11201ae7fa", "Content")}</div>;
 }"
 `;
@@ -353,7 +347,6 @@ export async function generateMetadata() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["3ff4e91184a6", "66b17172efba"]
   });
   return {
@@ -362,7 +355,7 @@ export async function generateMetadata() {
   };
 }
 export default function Page() {
-  const t = useTranslation(["fe11201ae7fa"], "http://127.0.0.1:60000");
+  const t = useTranslation(["fe11201ae7fa"]);
   return <div>{t("fe11201ae7fa", "Content")}</div>;
 }"
 `;
@@ -579,7 +572,6 @@ export async function ServerCard() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["f4df1d2a9f0f", "cb3e170c959f", "08d53ad82c94"]
   });
   return <div>
@@ -597,7 +589,6 @@ export default async function ServerPage() {
     t
   } = await getServerTranslations({
     sourceLocale: "en",
-    serverUrl: "http://127.0.0.1:60000",
     hashes: ["55c56763586b", "bc3cd380d203", "bc3bdf932717"]
   });
   return <div>
@@ -643,7 +634,7 @@ export function Card() {
 exports[`transformComponent > skip translation > should skip translation for <code> elements 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Example() {
-  const t = useTranslation(["89b67cab5fe3"], "http://127.0.0.1:60000");
+  const t = useTranslation(["89b67cab5fe3"]);
   return <div>
       <p>{t("89b67cab5fe3", "Install using <code0/> command", {
         code0: () => <code>npm install package</code>
