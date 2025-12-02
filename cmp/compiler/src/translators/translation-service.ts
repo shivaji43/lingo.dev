@@ -9,7 +9,7 @@
  */
 
 import type { TranslationCache } from "./cache";
-import type { Translator, TranslatableEntry } from "./api";
+import type { TranslatableEntry, Translator } from "./api";
 import type { MetadataSchema } from "../types";
 import { logger } from "../utils/logger";
 
@@ -21,11 +21,6 @@ export interface TranslationServiceConfig {
    * Source locale (e.g., "en")
    */
   sourceLocale: string;
-
-  /**
-   * Whether to use cache (can be disabled for testing)
-   */
-  useCache?: boolean;
 
   /**
    * Whether the translator is a pseudo translator
@@ -72,11 +67,15 @@ export interface TranslationError {
  * Translation service orchestrator
  */
 export class TranslationService {
+  private useCache = true;
+
   constructor(
     private translator: Translator<any>,
     private cache: TranslationCache,
     private config: TranslationServiceConfig,
-  ) {}
+  ) {
+    this.useCache = !this.config.isPseudo;
+  }
 
   /**
    * Translate entries to target locale
@@ -106,8 +105,9 @@ export class TranslationService {
     );
 
     // Step 1: Check cache
-    const cachedTranslations =
-      this.config.useCache !== false ? await this.cache.get(locale) : {};
+    const cachedTranslations = this.useCache
+      ? await this.cache.get(locale)
+      : {};
 
     // Step 2: Determine what needs translation
     const missingHashes = workingHashes.filter(
@@ -189,11 +189,7 @@ export class TranslationService {
     }
 
     // Step 5: Update cache with successful translations (skip for pseudo)
-    if (
-      this.config.useCache !== false &&
-      !this.config.isPseudo &&
-      Object.keys(newTranslations).length > 0
-    ) {
+    if (this.useCache && Object.keys(newTranslations).length > 0) {
       try {
         await this.cache.update(locale, newTranslations);
         logger.info(

@@ -99,12 +99,6 @@ export interface LoaderConfig {
   framework?: Framework;
 
   /**
-   * Whether to use caching for translations
-   * @default true
-   */
-  useCache?: boolean;
-
-  /**
    * Cookie configuration for locale persistence
    * Used by both client-side LocaleSwitcher and server-side locale resolver
    */
@@ -123,7 +117,7 @@ export type MetadataConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
  */
 export type TranslationConfig = Pick<
   LoaderConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt" | "useCache"
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt"
 >;
 
 /**
@@ -132,7 +126,7 @@ export type TranslationConfig = Pick<
  */
 export type TranslationMiddlewareConfig = Pick<
   LoaderConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt" | "useCache"
+  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt"
 > &
   Partial<Pick<LoaderConfig, "targetLocales" | "dev">>;
 

@@ -83,7 +83,6 @@ export class TranslationServer {
 
     this.translationService = new TranslationService(translator, cache, {
       sourceLocale: this.config.sourceLocale,
-      useCache: this.config.useCache,
       isPseudo,
     });
 
