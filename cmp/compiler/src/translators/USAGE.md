@@ -9,13 +9,14 @@ The translation system now uses the `Translator` interface consistently across a
 ```typescript
 interface Translator<Config> {
   config: Config;
-  translate: (locale: string, entry: TranslatableEntry) => Promise<string>;
-  batchTranslate: (
+  translate: (
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ) => Promise<Record<string, string>>;
 }
 ```
+
+The `translate()` method handles batch translation - you can translate one or many entries at once.
 
 ## Available Translators
 
@@ -28,18 +29,18 @@ import { PseudoTranslator } from "@lingo.dev/_compiler-beta/translate";
 
 const translator = new PseudoTranslator({});
 
-// Single translation
+// Single entry
 const result = await translator.translate("es", {
-  text: "Hello World",
-  context: {},
+  temp: { text: "Hello World", context: {} },
 });
-// Output: "es/[Ĥéĺĺó Ŵóŕĺḍ          ]"
+// Output: { temp: "es/Ĥéĺĺó Ŵóŕĺḍ          " }
 
-// Batch translation
-const batch = await translator.batchTranslate("fr", {
+// Multiple entries
+const batch = await translator.translate("fr", {
   hash1: { text: "Dashboard", context: {} },
   hash2: { text: "Settings", context: {} },
 });
+// Output: { hash1: "fr/Ḍáśĥḅóáŕḍ     ", hash2: "fr/Śéţţíñĝś    " }
 ```
 
 ### 2. LCPTranslator (Production)
@@ -67,7 +68,7 @@ const customTranslator = new LCPTranslator({
 });
 
 // Translate
-const result = await translator.batchTranslate("es", {
+const result = await translator.translate("es", {
   hash1: { text: "Welcome", context: {} },
   hash2: { text: "Sign In", context: {} },
 });
@@ -95,9 +96,9 @@ const cachedTranslator = createCachedTranslator(translator, {
 });
 
 // Now translations are cached
-await cachedTranslator.batchTranslate("es", entriesMap);
+await cachedTranslator.translate("es", entriesMap);
 // Second call uses cache
-await cachedTranslator.batchTranslate("es", entriesMap); // Fast!
+await cachedTranslator.translate("es", entriesMap); // Fast!
 ```
 
 ## Using in Server Components
@@ -182,19 +183,14 @@ import type {
 class MyCustomTranslator implements Translator<MyConfig> {
   constructor(readonly config: MyConfig) {}
 
-  async translate(locale: string, entry: TranslatableEntry): Promise<string> {
-    // Translate single entry
-    return myTranslationService(entry.text, locale);
-  }
-
-  async batchTranslate(
+  async translate(
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
-    // Translate multiple entries efficiently
+    // Translate multiple entries
     const results: Record<string, string> = {};
     for (const [hash, entry] of Object.entries(entriesMap)) {
-      results[hash] = await this.translate(locale, entry);
+      results[hash] = await myTranslationService(entry.text, locale);
     }
     return results;
   }

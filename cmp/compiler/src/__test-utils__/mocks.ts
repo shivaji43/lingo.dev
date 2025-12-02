@@ -92,19 +92,21 @@ export function createMockDictionary(
  * Create a mock translator for testing
  * Returns a simple translator that prefixes all translations with the locale
  *
- * @param locale - Target locale
+ * @param locale - Default locale (unused, kept for backward compatibility)
  * @returns Mock translator object
  *
  * @example
  * ```typescript
- * const translator = createMockTranslator("de");
- * const result = await translator.translate("Hello"); // -> "[de] Hello"
+ * const translator = createMockTranslator();
+ * const result = await translator.translate("de", {
+ *   hash1: { text: "Hello", context: {} }
+ * });
+ * // -> { hash1: "[de] Hello" }
  * ```
  */
 export function createMockTranslator(locale: string = "en") {
   return {
-    translate: async (text: string) => `[${locale}] ${text}`,
-    batchTranslate: async (
+    translate: async (
       targetLocale: string,
       entries: Record<string, { text: string; context: Record<string, any> }>,
     ) => {

@@ -141,7 +141,7 @@ export class TranslationService {
     const errors: TranslationError[] = [];
 
     try {
-      newTranslations = await this.translator.batchTranslate(
+      newTranslations = await this.translator.translate(
         locale,
         entriesToTranslate,
       );

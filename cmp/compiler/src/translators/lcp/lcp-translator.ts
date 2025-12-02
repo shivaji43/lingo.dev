@@ -35,27 +35,9 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
   constructor(readonly config: LCPTranslatorConfig) {}
 
   /**
-   * Translate a single entry
+   * Translate multiple entries
    */
-  async translate(locale: string, entry: TranslatableEntry): Promise<string> {
-    // Create a minimal dictionary with single entry
-    const sourceDictionary: DictionarySchema = {
-      version: 0.1,
-      locale: this.config.sourceLocale,
-      entries: {
-        temp: entry.text,
-      },
-    };
-
-    const translated = await this.translateDictionary(sourceDictionary, locale);
-
-    return translated.entries["temp"] || entry.text;
-  }
-
-  /**
-   * Batch translate multiple entries
-   */
-  async batchTranslate(
+  async translate(
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {

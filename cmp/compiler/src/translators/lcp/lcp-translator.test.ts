@@ -38,6 +38,5 @@ describe("LCPTranslator", () => {
     });
 
     expect(typeof translator.translate).toBe("function");
-    expect(typeof translator.batchTranslate).toBe("function");
   });
 });

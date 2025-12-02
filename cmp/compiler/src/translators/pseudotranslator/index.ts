@@ -15,7 +15,7 @@ export interface PseudoTranslatorConfig {
 export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
   constructor(readonly config: PseudoTranslatorConfig) {}
 
-  batchTranslate(locale: string, entries: Record<string, TranslatableEntry>) {
+  translate(locale: string, entries: Record<string, TranslatableEntry>) {
     const delay = this.config?.delayMedian ?? 0;
 
     return new Promise<Record<string, string>>((resolve) => {
@@ -27,16 +27,6 @@ export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
             }),
           ),
         );
-      }, this.getRandomDelay(delay));
-    });
-  }
-
-  translate(locale: string, entry: TranslatableEntry) {
-    const delay = this.config?.delayMedian ?? 0;
-
-    return new Promise<string>((resolve) => {
-      setTimeout(() => {
-        resolve(`${locale}/${pseudolocalize(entry.text)}`);
       }, this.getRandomDelay(delay));
     });
   }

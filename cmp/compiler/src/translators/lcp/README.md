@@ -43,15 +43,14 @@ const translator = new LCPTranslator({
   sourceLocale: "en",
 });
 
-// Single translation
+// Single entry translation
 const result = await translator.translate("es", {
-  text: "Hello World",
-  context: {},
+  temp: { text: "Hello World", context: {} },
 });
-console.log(result); // "Hola Mundo"
+console.log(result); // { temp: "Hola Mundo" }
 
-// Batch translation
-const batch = await translator.batchTranslate("fr", {
+// Multiple entries translation
+const batch = await translator.translate("fr", {
   hash1: { text: "Dashboard", context: {} },
   hash2: { text: "Settings", context: {} },
 });
@@ -105,13 +104,10 @@ const translator = new LCPTranslator({
 });
 
 // Wrap with caching
-const cachedTranslator = createCachedTranslator(
-  translator.batchTranslate.bind(translator),
-  {
-    cacheDir: ".lingo",
-    sourceRoot: "./app",
-  },
-);
+const cachedTranslator = createCachedTranslator(translator, {
+  cacheDir: ".lingo",
+  sourceRoot: "./app",
+});
 ```
 
 ## Configuration
@@ -245,7 +241,7 @@ The translator automatically splits large dictionaries into chunks of 100 entrie
 
 ```typescript
 // Handles 1000s of entries automatically
-const result = await translator.batchTranslate("es", largeEntriesMap);
+const result = await translator.translate("es", largeEntriesMap);
 ```
 
 ### Few-Shot Learning
@@ -268,11 +264,8 @@ Translation data is serialized to XML for better LLM understanding:
 class LCPTranslator implements Translator<LCPTranslatorConfig> {
   constructor(config: LCPTranslatorConfig);
 
-  // Single entry translation
-  translate(locale: string, entry: TranslatableEntry): Promise<string>;
-
-  // Batch translation
-  batchTranslate(
+  // Translate one or more entries
+  translate(
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>>;
