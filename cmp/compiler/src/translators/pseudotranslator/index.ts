@@ -2,7 +2,7 @@
  * Pseudotranslator for testing without actual translation APIs
  */
 
-import type { TranslatableEntry, Translator } from "./api";
+import type { TranslatableEntry, Translator } from "../api";
 
 export interface PseudoTranslatorConfig {
   delayMedian?: number;

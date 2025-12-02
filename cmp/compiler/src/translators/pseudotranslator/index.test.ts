@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pseudolocalize } from "./pseudotranslator";
+import { pseudolocalize } from "./index";
 
 describe("pseudolocalize", () => {
   it("should pseudolocalize plain text", () => {
