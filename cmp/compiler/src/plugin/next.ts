@@ -276,7 +276,7 @@ function buildLingoConfig(
     return modifiedConfig;
   };
 
-  return {
+  const finalConfig = {
     ...userNextConfig,
     ...turbopackConfig,
     compiler: {
@@ -285,6 +285,12 @@ function buildLingoConfig(
     },
     webpack,
   };
+
+  // Attach Lingo config for CLI extraction
+  // @ts-expect-error - Internal property for CLI access
+  finalConfig._lingoConfig = lingoOptions;
+
+  return finalConfig;
 }
 
 /**

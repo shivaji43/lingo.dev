@@ -590,6 +590,7 @@ export async function startOrGetTranslationServer(
   options: TranslationServerOptions,
 ): Promise<{ server: TranslationServer; url: string }> {
   const server = new TranslationServer(options);
+  // TODO (AleksandrSl 03/12/2025): Health endpoint should return the config and we should check if it matched the current one.
   const url = await server.startOrGetUrl();
   return { server, url };
 }

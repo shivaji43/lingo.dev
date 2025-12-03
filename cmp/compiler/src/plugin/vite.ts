@@ -24,10 +24,18 @@ import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
  * Vite plugin with framework automatically set
  */
 export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
-  return lingoUnplugin.vite({
+  const fullOptions = {
     ...options,
     framework: "vite",
-  } as LingoPluginOptions);
+  } as LingoPluginOptions;
+
+  const plugin = lingoUnplugin.vite(fullOptions);
+
+  // Attach Lingo config for CLI extraction
+  // @ts-expect-error - Internal property for CLI access
+  plugin._lingoConfig = fullOptions;
+
+  return plugin;
 }
 
 export type { LingoPluginOptions };

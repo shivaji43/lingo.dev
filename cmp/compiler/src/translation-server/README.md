@@ -1,289 +1,339 @@
 # Translation Server
 
-A standalone HTTP server for serving translations during development and build time.
+The Lingo.dev translation server provides on-demand translation generation during development.
 
-## Features
+## Overview
 
-- **Automatic Port Discovery**: Finds a free port automatically (starting from 3456)
-- **Simple HTTP API**: GET endpoints for translations
-- **Reuses Translation Logic**: Uses the same middleware as Vite/Next.js
-- **Lightweight**: Built on Node.js `http` module, no external dependencies
+The translation server is automatically started by the bundler plugins (Vite, Webpack, Next.js) during development. It serves translations via HTTP endpoints and caches results to disk.
+
+## Architecture
+
+### Two Implementations
+
+1. **Raw HTTP Server** (`translation-server.ts`) - Original implementation
+2. **Hono Server** (`translation-server-hono.ts`) - **Recommended** modern implementation ✨
+
+See [HONO_COMPARISON.md](./HONO_COMPARISON.md) for detailed comparison.
+
+### Key Features
+
+✅ **Automatic port detection** - Finds available port starting from 60000
+✅ **Server reuse** - Reuses existing server if already running
+✅ **Built-in timeouts** - Prevents hanging requests (Hono only)
+✅ **Global error handling** - Catches all errors automatically (Hono only)
+✅ **Metadata reload** - Always uses latest translation entries
+✅ **Multiple translation providers** - Lingo.dev, Groq, Google, OpenRouter, Mistral, Ollama
+
+## Files
+
+```
+translation-server/
+├── translation-server.ts              # Raw HTTP implementation
+├── translation-server-hono.ts         # Hono implementation (recommended)
+├── cli.ts                             # Standalone CLI
+├── README.md                          # This file
+├── CLI.md                             # CLI documentation
+├── HONO_COMPARISON.md                 # Implementation comparison
+├── lingo.config.example.json          # Example config (Lingo.dev)
+└── lingo.config.llm.example.json      # Example config (custom LLMs)
+```
+
+## Usage
+
+### Option 1: Automatic (Bundler Plugin)
+
+**Next.js:**
+
+```typescript
+// next.config.ts
+import { withLingo } from "@lingo.dev/_compiler/next";
+
+export default withLingo(
+  { reactStrictMode: true },
+  {
+    sourceLocale: "en",
+    targetLocales: ["es", "fr", "de"],
+    models: "lingo.dev",
+  },
+);
+```
+
+**Vite:**
+
+```typescript
+// vite.config.ts
+import { lingoPlugin } from "@lingo.dev/_compiler/vite";
+
+export default {
+  plugins: [
+    lingoPlugin({
+      sourceLocale: "en",
+      targetLocales: ["es", "fr", "de"],
+      models: "lingo.dev",
+    }),
+  ],
+};
+```
+
+The plugin automatically starts the translation server on port 60000.
+
+### Option 2: Standalone CLI
+
+The CLI can automatically detect and read your existing Next.js or Vite configuration:
+
+```bash
+# Auto-detects next.config.ts or vite.config.ts in current directory
+npx lingo-translation-server
+
+# Override specific options
+npx lingo-translation-server --port 3456 --use-pseudo
+
+# Use explicit config file (legacy)
+npx lingo-translation-server --config ./lingo.config.json
+```
+
+**Auto-detection order:**
+
+1. Explicit `--config` file if provided
+2. Auto-detect `next.config.ts` / `vite.config.ts`
+3. Defaults + CLI options
+
+See [CLI.md](./CLI.md) for complete CLI documentation.
 
 ## API Endpoints
 
 ### Health Check
 
-```
+```http
 GET /health
 ```
+
+Returns server status and uptime.
 
 **Response:**
 
 ```json
 {
   "status": "ok",
-  "port": 3456
+  "port": "http://127.0.0.1:60000",
+  "uptime": 123.45,
+  "memory": { ... }
 }
 ```
 
-### Get Full Dictionary
+### Full Dictionary
 
-```
+```http
 GET /translations/:locale
 ```
 
-**Example:**
-
-```bash
-curl http://127.0.0.1:3456/translations/de
-```
+Returns all translations for the specified locale.
 
 **Response:**
 
 ```json
 {
-  "version": 0.1,
-  "locale": "de",
-  "files": {
-    "__metadata": {
-      "entries": {
-        "abc123": "Hallo Welt",
-        "def456": "Willkommen"
-      }
-    }
-  }
+  "locale": "es",
+  "translations": {
+    "abc123": "Hola Mundo",
+    "def456": "Bienvenido"
+  },
+  "errors": []
 }
 ```
 
-### Get Single Translation
+### Batch Translation
 
-```
-GET /translations/:locale/:hash
+```http
+POST /translations/:locale
+Content-Type: application/json
+
+{
+  "hashes": ["abc123", "def456"]
+}
 ```
 
-**Example:**
-
-```bash
-curl http://127.0.0.1:3456/translations/de/abc123
-```
+Returns translations for specific hashes.
 
 **Response:**
 
 ```json
 {
-  "hash": "abc123",
-  "locale": "de",
-  "translation": "Hallo Welt"
+  "locale": "es",
+  "translations": {
+    "abc123": "Hola Mundo",
+    "def456": "Bienvenido"
+  },
+  "errors": []
 }
 ```
 
-**404 Response (hash not found):**
+## Configuration
 
-```json
+### Translation Providers
+
+**1. Lingo.dev Engine (Recommended)**
+
+```typescript
 {
-  "error": "Translation not found",
-  "hash": "invalid_hash",
-  "locale": "de"
+  models: "lingo.dev";
 }
 ```
 
-## Programmatic Usage
+Requires: `LINGODOTDEV_API_KEY` environment variable
 
-### Basic Example
-
-```typescript
-import { startTranslationServer } from "@lingo.dev/_compiler-beta/server";
-
-const server = await startTranslationServer({
-  startPort: 3456,
-  config: {
-    sourceRoot: "./app",
-    lingoDir: ".lingo",
-    sourceLocale: "en",
-  },
-  onReady: (port) => {
-    console.log(`Server running on port ${port}`);
-  },
-  onError: (error) => {
-    console.error("Server error:", error);
-  },
-});
-
-// Get the port
-console.log("Port:", server.getPort());
-
-// Check if running
-console.log("Running:", server.isRunning());
-
-// Stop the server
-await server.stop();
-```
-
-### Using the TranslationServer Class
+**2. Custom LLM Models**
 
 ```typescript
-import { TranslationServer } from "@lingo.dev/_compiler-beta/server";
-
-const server = new TranslationServer({
-  startPort: 3456,
-  config: {
-    sourceRoot: "./src",
-    lingoDir: ".lingo",
-    sourceLocale: "en",
-  },
-});
-
-// Start server
-const port = await server.start();
-console.log(`Server started on port ${port}`);
-
-// Server is now running
-// Make HTTP requests to http://127.0.0.1:${port}/translations/:locale
-
-// Stop when done
-await server.stop();
-```
-
-## Standalone Script
-
-You can also run the server as a standalone process:
-
-```bash
-# From the compiler-beta directory
-npx tsx src/server/start-server.ts
-
-# With custom options
-npx tsx src/server/start-server.ts \
-  --port 3500 \
-  --source-root ./src \
-  --lingo-dir .translations \
-  --source-locale en \
-  --translator pseudo
-```
-
-**Options:**
-
-- `--port <number>`: Starting port (default: 3456)
-- `--source-root <path>`: Source root directory (default: ./app)
-- `--lingo-dir <path>`: Lingo directory (default: .lingo)
-- `--source-locale <locale>`: Source locale (default: en)
-- `--translator <type>`: Translator type (default: pseudo)
-- `--help, -h`: Show help message
-
-## Testing
-
-Run the test suite:
-
-```bash
-cd packages/compiler-beta
-npx tsx test-server.ts
-```
-
-This will:
-
-1. Start the server
-2. Test all endpoints
-3. Verify responses
-4. Stop the server
-
-## Architecture
-
-The server:
-
-- Binds to `127.0.0.1` (localhost only) for security
-- Enables CORS for browser requests
-- Creates translator instance once on startup for efficiency
-- Caches translations to `.lingo/cache/*.json`
-- Automatically finds available ports using TCP probing
-
-## Port Discovery
-
-The server tries ports sequentially starting from `startPort`:
-
-1. Tries port 3456 (default)
-2. If in use, tries 3457
-3. Continues up to 100 ports
-4. Throws error if no port available
-
-## Security
-
-- **Localhost Only**: Server binds to `127.0.0.1` only
-- **No Authentication**: Suitable for local development only
-- **CORS Enabled**: Allows browser requests from any origin
-
-⚠️ **Warning**: This server is designed for local development only. Do not expose it to public networks.
-
-## Integration with Bundlers
-
-This server is designed to be started by bundler plugins:
-
-### Vite Plugin Example
-
-```typescript
-export function lingoPlugin(config) {
-  let server;
-
-  return {
-    name: "lingo-compiler",
-
-    async buildStart() {
-      server = await startTranslationServer({
-        startPort: 3456,
-        config: config,
-      });
-
-      // Inject port as global
-      const port = server.getPort();
-      defineGlobal("__LINGO_SERVER_PORT__", port);
-    },
-
-    async buildEnd() {
-      await server.stop();
-    },
-  };
-}
-```
-
-### Next.js Loader Example
-
-```typescript
-export function turbopackLoader(source, loaderContext) {
-  // Start server on first load
-  if (!globalServer) {
-    globalServer = await startTranslationServer({
-      /* ... */
-    });
+{
+  models: {
+    "es": "groq:llama3-70b",
+    "fr": "google:gemini-pro",
+    "de": "openrouter:anthropic/claude-3-haiku"
   }
-
-  // Transform code and inject port
-  const port = globalServer.getPort();
-  // ...
 }
 ```
 
-## Error Handling
+Requires: Provider-specific API keys (GROQ_API_KEY, GOOGLE_API_KEY, etc.)
 
-The server handles errors gracefully:
+**3. Pseudotranslator (Dev/Testing)**
 
-- **Port in use**: Tries next port automatically
-- **Translation errors**: Returns 500 with error message
-- **Missing metadata**: Returns 500 with ENOENT error
-- **Invalid endpoints**: Returns 404 with available endpoints
+```typescript
+{
+  dev: {
+    usePseudotranslator: true;
+  }
+}
+```
 
-All errors are logged to console with `[lingo.dev]` prefix.
+No API key required. Outputs pseudolocalized text (e.g., "Hello" → "Ĥéĺĺó").
+
+### Timeouts
+
+All timeouts are configurable via `DEFAULT_TIMEOUTS` in `utils/timeout.ts`:
+
+| Operation          | Default | Configurable          |
+| ------------------ | ------- | --------------------- |
+| File I/O           | 10s     | Yes                   |
+| Metadata load/save | 15s     | Yes                   |
+| AI API calls       | 60s     | Yes                   |
+| HTTP requests      | 30s     | Yes (CLI `--timeout`) |
+| Server startup     | 30s     | Yes                   |
+
+## Development
+
+### Testing the Server Locally
+
+```bash
+# Quick start with defaults
+pnpm server
+
+# Show help
+pnpm server:help
+
+# With options
+pnpm server -- --port 3456 --use-pseudo
+```
+
+### Switching to Hono Implementation
+
+The loader already uses Hono by default (see `dev-server-loader.ts`):
+
+```typescript
+import { startOrGetTranslationServerHono } from "../translation-server/translation-server-hono";
+
+const server = await startOrGetTranslationServerHono({ ... });
+```
+
+## Troubleshooting
+
+### Port Already in Use
+
+**Problem:** `Error: Port 60000 is already in use`
+
+**Solutions:**
+
+1. The plugin automatically finds the next available port
+2. Or use CLI with `--port` option to specify a different port
+3. Check if an old server is still running: `lsof -i :60000` (Unix) or `netstat -ano | findstr :60000` (Windows)
+
+### Compilation Freezes When Switching Locale
+
+**Fixed!** We added comprehensive timeouts to prevent hanging:
+
+1. ✅ File I/O operations timeout after 10-15s
+2. ✅ AI API calls timeout after 60s
+3. ✅ HTTP requests timeout after 30s
+4. ✅ Server startup times out after 30s
+5. ✅ Hono provides global request timeout
+
+See commit history and `utils/timeout.ts` for implementation.
+
+### Metadata Not Found
+
+**Normal!** Metadata is created during file transformation. The server will work once you:
+
+1. Start your dev server
+2. Files get transformed by the bundler
+3. Metadata is generated in `.lingo/metadata.json`
+
+## Migration Guide
+
+### From Raw HTTP to Hono
+
+Already done in `dev-server-loader.ts`! If you have custom code:
+
+**Before:**
+
+```typescript
+import { startOrGetTranslationServer } from "./translation-server";
+const { server, url } = await startOrGetTranslationServer(options);
+```
+
+**After:**
+
+```typescript
+import { startOrGetTranslationServerHono } from "./translation-server-hono";
+const { server, url } = await startOrGetTranslationServerHono(options);
+```
+
+Same API, drop-in replacement! ✨
 
 ## Performance
 
-- **Cache hits**: < 1ms (read from disk)
-- **Cache miss**: Depends on translator (pseudo: ~10-50ms)
-- **Port probe**: < 5ms per port tested
+### Caching Strategy
 
-## Future Enhancements
+1. **Disk cache** - `.lingo/cache/{locale}.json`
+2. **Cache-first** - Check cache before translating
+3. **Lazy loading** - Only translate missing hashes
+4. **Metadata reload** - Ensures fresh entries on every request
 
-Potential improvements:
+### Translation Speed
 
-- In-memory cache layer (avoid disk reads)
-- Keep-alive connections (HTTP/2)
-- Process management utilities (PID file, auto-restart)
-- Metrics endpoint (cache hit rate, request count)
-- Batch translation endpoint (multiple hashes at once)
+Typical times (100 entries):
+
+- **Pseudotranslator**: ~100ms (instant)
+- **Cached**: ~50ms (disk read)
+- **Lingo.dev Engine**: ~2-5s (API call)
+- **LLM (Groq/Google)**: ~3-10s (API call)
+
+## Security Notes
+
+⚠️ **Development Only**
+
+This server is NOT designed for production:
+
+- No authentication
+- Binds to localhost only
+- No rate limiting
+- No request validation (beyond basics)
+- Regenerates on every request
+
+For production, use build-time translation generation (automatic in Next.js plugin).
+
+## Related Documentation
+
+- [CLI.md](./CLI.md) - Standalone CLI usage
+- [HONO_COMPARISON.md](./HONO_COMPARISON.md) - Implementation comparison
+- [../README.md](../README.md) - Main compiler documentation
+- [lingo.config.example.json](./lingo.config.example.json) - Example config
