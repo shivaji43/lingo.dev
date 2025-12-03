@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 
 import path from "path";
-import { loadMetadata } from "../metadata/manager";
 import fs from "fs/promises";
 import {
   getCacheDir,
@@ -198,30 +197,23 @@ function buildLingoConfig(
         config: lingoConfig,
       });
 
-      const metadata = await loadMetadata(lingoConfig);
-      const hashes = Object.keys(metadata.entries);
-
-      if (hashes.length === 0) {
-        logger.info("No translations found, skipping");
-        return;
-      }
-
       logger.info(
-        `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
+        `Processing translations for ${lingoConfig.targetLocales.length} locale(s)...`,
       );
 
+      // Translate all locales in parallel
+      // Each translator handles its own batching strategy internally
       const localePromises = lingoConfig.targetLocales.map(async (locale) => {
         logger.info(`Translating to ${locale}...`);
 
-        const result = await translationServer!.translateHashes(locale, hashes);
+        const result = await translationServer!.translateAll(locale);
 
         if (result.errors.length > 0) {
           logger.warn(
             `Translation completed with ${result.errors.length} errors for ${locale}`,
           );
         }
-
-        logger.info(`${locale} completed (${hashes.length} entries)`);
+        logger.info(`${locale} completed`);
       });
 
       await Promise.all(localePromises);

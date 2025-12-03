@@ -249,6 +249,28 @@ export class TranslationServer {
   }
 
   /**
+   * Translate the entire dictionary for a given locale
+   * This is the recommended method for build-time translation generation
+   * as it automatically handles all entries in the metadata
+   */
+  async translateAll(locale: string): Promise<{
+    translations: Record<string, string>;
+    errors: Array<{ hash: string; error: string }>;
+  }> {
+    if (!this.translationService || !this.metadata) {
+      throw new Error("Translation server not initialized");
+    }
+
+    const allHashes = Object.keys(this.metadata.entries);
+
+    return await this.translationService.translate(
+      locale,
+      this.metadata,
+      allHashes,
+    );
+  }
+
+  /**
    * Find an available port starting from the given port
    */
   private async findAvailablePort(
