@@ -210,39 +210,18 @@ function buildLingoConfig(
         `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
       );
 
-      const batchSize = 50;
-
-      // TODO (AleksandrSl 02/12/2025): Move this batch logic on the server side.
       const localePromises = lingoConfig.targetLocales.map(async (locale) => {
         logger.info(`Translating to ${locale}...`);
 
-        const batches: string[][] = [];
-        for (let i = 0; i < hashes.length; i += batchSize) {
-          batches.push(hashes.slice(i, i + batchSize));
-        }
+        const result = await translationServer!.translateHashes(locale, hashes);
 
-        let completed = 0;
-
-        for (const batch of batches) {
-          const result = await translationServer!.translateHashes(
-            locale,
-            batch,
-          );
-
-          if (result.errors.length > 0) {
-            logger.warn(
-              `Translation completed with ${result.errors.length} errors for ${locale}`,
-            );
-          }
-
-          completed += batch.length;
-          const percentage = Math.round((completed / hashes.length) * 100);
-          logger.info(
-            `${locale}: ${completed}/${hashes.length} (${percentage}%)`,
+        if (result.errors.length > 0) {
+          logger.warn(
+            `Translation completed with ${result.errors.length} errors for ${locale}`,
           );
         }
 
-        logger.info(`${locale} completed`);
+        logger.info(`${locale} completed (${hashes.length} entries)`);
       });
 
       await Promise.all(localePromises);
