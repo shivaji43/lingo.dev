@@ -9,7 +9,7 @@ export default function Home() {
       <section className="bg-gradient-to-br from-purple-600 to-purple-800 text-white py-24 px-8 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            Build Amazing Products Faster
+            Translate your app on the flight
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-95">
             The all-in-one platform for modern teams to collaborate, innovate,
@@ -31,6 +31,20 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      <div data-lingo-skip>
+        If you want to skip translations for a component, you can use
+        `data-lingo-skip` attribute, or `translate="no"` (which also affects
+        browser translation, see{" "}
+        <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/translate">
+          MDN
+        </a>
+        ).
+        <div>
+          Using this attribute will affect the text inside the component. Nested
+          component will still be translated.
+        </div>
+      </div>
 
       {/* Features Overview */}
       <section className="py-16 px-8 bg-gray-50">

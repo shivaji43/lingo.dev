@@ -7,9 +7,9 @@ import {
 import "./app.css";
 
 // TODO (AleksandrSl 29/11/2025): Fix the problem when TranslationProvider cannot be used in the root component.
-function App(locale: string) {
+function App(props: { locale: string }) {
   return (
-    <html lang={locale}>
+    <html lang={props.locale}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
