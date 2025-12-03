@@ -84,15 +84,6 @@ export class TranslationServer {
       sourceLocale: this.config.sourceLocale,
       isPseudo,
     });
-    try {
-      this.metadata = await loadMetadata(this.config);
-      logger.info(
-        `✅ Loaded ${Object.keys(this.metadata.entries).length} translation entries`,
-      );
-    } catch (error) {
-      logger.warn(`⚠️ No metadata found, will be created on first translation`);
-      this.metadata = createEmptyMetadata();
-    }
 
     const port = await this.findAvailablePort(this.startPort);
 
@@ -227,41 +218,49 @@ export class TranslationServer {
   }
 
   /**
-   * Directly translate hashes without going through HTTP
-   * Useful for build-time translation generation
+   * Reload metadata from disk
+   * Useful when metadata has been updated during runtime (e.g., new transformations)
    */
-  async translateHashes(
-    locale: string,
-    hashes: string[],
-  ): Promise<{
-    translations: Record<string, string>;
-    errors: Array<{ hash: string; error: string }>;
-  }> {
-    if (!this.translationService || !this.metadata) {
-      throw new Error("Translation server not initialized");
+  async reloadMetadata(): Promise<void> {
+    try {
+      this.metadata = await loadMetadata(this.config);
+      logger.debug(
+        `Reloaded metadata: ${Object.keys(this.metadata.entries).length} entries`,
+      );
+    } catch (error) {
+      logger.warn("Failed to reload metadata:", error);
+      this.metadata = createEmptyMetadata();
     }
-
-    return await this.translationService.translate(
-      locale,
-      this.metadata,
-      hashes,
-    );
   }
 
   /**
    * Translate the entire dictionary for a given locale
-   * This is the recommended method for build-time translation generation
-   * as it automatically handles all entries in the metadata
+   *
+   * This method always reloads metadata from disk before translating to ensure
+   * all entries added during build-time transformations are included.
+   *
+   * This is the recommended method for build-time translation generation.
    */
   async translateAll(locale: string): Promise<{
     translations: Record<string, string>;
     errors: Array<{ hash: string; error: string }>;
   }> {
-    if (!this.translationService || !this.metadata) {
+    if (!this.translationService) {
       throw new Error("Translation server not initialized");
     }
 
+    // Always reload metadata to get the latest entries
+    // This is critical for build-time translation where metadata is updated
+    // continuously as files are transformed
+    await this.reloadMetadata();
+
+    if (!this.metadata) {
+      throw new Error("Failed to load metadata");
+    }
+
     const allHashes = Object.keys(this.metadata.entries);
+
+    logger.info(`Translating all ${allHashes.length} entries to ${locale}`);
 
     return await this.translationService.translate(
       locale,
@@ -464,12 +463,20 @@ export class TranslationServer {
         return;
       }
 
-      if (!this.translationService || !this.metadata) {
+      if (!this.translationService) {
         throw new Error("Translation service not initialized");
       }
 
+      // Reload metadata to ensure we have the latest entries
+      // (new entries may have been added since server started)
+      await this.reloadMetadata();
+
+      if (!this.metadata) {
+        throw new Error("Failed to load metadata");
+      }
+
       logger.info(`🔄 Translating ${hashes.length} hashes to ${locale}`);
-      logger.info(`🔄 Hashes: ${hashes.join(", ")}`);
+      logger.debug(`🔄 Hashes: ${hashes.join(", ")}`);
 
       // Translate using the stored service
       const result = await this.translationService.translate(
@@ -510,8 +517,16 @@ export class TranslationServer {
     res: http.ServerResponse,
   ): Promise<void> {
     try {
-      if (!this.translationService || !this.metadata) {
+      if (!this.translationService) {
         throw new Error("Translation service not initialized");
+      }
+
+      // Reload metadata to ensure we have the latest entries
+      // (new entries may have been added since server started)
+      await this.reloadMetadata();
+
+      if (!this.metadata) {
+        throw new Error("Failed to load metadata");
       }
 
       logger.info(`🌐 Requesting full dictionary for ${locale}`);
