@@ -98,9 +98,11 @@ class LingoDevWidget extends HTMLElement {
         align-items: center;
         gap: 8px;
         transition: all 0.2s ease-in-out;
-        background-color: black;
         border-radius: 8px;
         padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.8);
+        box-shadow: 0 0 0 1px #171717, inset 0 0 0 1px rgba(0, 0, 0, 0.24), 0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+        backdrop-filter: blur(48px);
       }
 
       .logo {
@@ -179,11 +181,11 @@ class LingoDevWidget extends HTMLElement {
 <style>
   @keyframes moveDown {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(8px); }
+    50% { transform: translateY(12px); }
   }
   @keyframes moveUp {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
+    50% { transform: translateY(-12px); }
   }
   .bottom-part { animation: moveDown 1.5s ease-in-out infinite; transform-origin: center; }
   .top-part { animation: moveUp 1.5s ease-in-out infinite; transform-origin: center; }
