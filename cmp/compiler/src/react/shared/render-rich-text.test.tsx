@@ -29,9 +29,7 @@ describe("renderRichText", () => {
       a0: (chunks) => <a href="/home">{chunks}</a>,
     });
 
-    // Should return React elements, not a string
-    expect(typeof result).not.toBe("string");
-    expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
   });
 
   it("should render complex mixed content with variables and components", () => {
@@ -44,8 +42,7 @@ describe("renderRichText", () => {
       },
     );
 
-    expect(typeof result).not.toBe("string");
-    expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
   });
 
   it("should render multiple same-type components", () => {
@@ -54,8 +51,7 @@ describe("renderRichText", () => {
       a1: (chunks) => <a href="/about">{chunks}</a>,
     });
 
-    expect(typeof result).not.toBe("string");
-    expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
   });
 
   it("should handle the page.tsx example case", () => {
@@ -75,9 +71,7 @@ describe("renderRichText", () => {
       },
     );
 
-    // Should be React element, not string
-    expect(typeof result).not.toBe("string");
-    expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
   });
 
   it("should handle nested components inside component tags", () => {
@@ -86,7 +80,7 @@ describe("renderRichText", () => {
       strong0: (chunks) => <strong>{chunks}</strong>,
     });
 
-    expect(React.isValidElement(result)).toBe(true);
+    expect(result).toMatchSnapshot();
   });
 
   it("should handle whitespace around component tags", () => {
@@ -98,7 +92,6 @@ describe("renderRichText", () => {
       },
     );
 
-    expect(React.isValidElement(result)).toBe(true);
     expect(result).toMatchSnapshot();
   });
 

@@ -1,5 +1,86 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`renderRichText > should handle nested components inside component tags 1`] = `
+[
+  "You have ",
+  <React.Fragment>
+    <strong>
+      10
+    </strong>
+  </React.Fragment>,
+  " items",
+]
+`;
+
+exports[`renderRichText > should handle the page.tsx example case 1`] = `
+[
+  "Looking for a starting points or more instructions? Head over to ",
+  <React.Fragment>
+    <a
+      className="font-medium"
+      href="https://vercel.com/templates"
+    >
+      Templates
+    </a>
+  </React.Fragment>,
+  " or the ",
+  <React.Fragment>
+    <a
+      className="font-medium"
+      href="https://nextjs.org/learn"
+    >
+      Learning
+    </a>
+  </React.Fragment>,
+  " center.",
+]
+`;
+
+exports[`renderRichText > should handle whitespace around component tags 1`] = `
+[
+  "Looking for help? Head over to ",
+  <React.Fragment>
+    <a>
+      Templates
+    </a>
+  </React.Fragment>,
+  " or the ",
+  <React.Fragment>
+    <a>
+      Learning
+    </a>
+  </React.Fragment>,
+  " center.",
+]
+`;
+
+exports[`renderRichText > should render complex mixed content with variables and components 1`] = `
+[
+  "Hello ",
+  "Alice",
+  ", you have ",
+  <React.Fragment>
+    <strong>
+      5
+    </strong>
+  </React.Fragment>,
+  " messages",
+]
+`;
+
+exports[`renderRichText > should render component placeholders with JSX 1`] = `
+[
+  "Click ",
+  <React.Fragment>
+    <a
+      href="/home"
+    >
+      here
+    </a>
+  </React.Fragment>,
+]
+`;
+
 exports[`renderRichText > should render fragments with expressions 1`] = `
 [
   "Content that has text and other tags inside will br translated as a single entity: ",
@@ -17,6 +98,27 @@ exports[`renderRichText > should render fragments with expressions 1`] = `
         </i>
       </React.Fragment>
     </React.Fragment>
+  </React.Fragment>,
+]
+`;
+
+exports[`renderRichText > should render multiple same-type components 1`] = `
+[
+  "Click ",
+  <React.Fragment>
+    <a
+      href="/home"
+    >
+      here
+    </a>
+  </React.Fragment>,
+  " or ",
+  <React.Fragment>
+    <a
+      href="/about"
+    >
+      there
+    </a>
   </React.Fragment>,
 ]
 `;
