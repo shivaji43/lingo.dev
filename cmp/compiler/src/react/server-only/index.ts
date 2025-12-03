@@ -14,6 +14,7 @@ import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.
 import { localeResolver } from "@lingo.dev/_compiler/config";
+import { sourceLocale } from "@lingo.dev/_compiler/dev-config";
 
 /**
  * Get server-side translations function
@@ -29,12 +30,6 @@ export async function getServerTranslations(options: {
    * Target locale for translations (required)
    */
   locale?: string;
-
-  /**
-   * Source locale (default language)
-   * @default 'en'
-   */
-  sourceLocale?: string;
 
   /**
    * List of translation hashes needed for this component
@@ -56,22 +51,7 @@ export async function getServerTranslations(options: {
   locale: string;
   translations: Record<string, string>;
 }> {
-  const sourceLocale = options.sourceLocale || "en";
   const locale = options.locale || (await localeResolver());
-
-  // For source locale, return source text directly
-  if (locale === sourceLocale) {
-    return {
-      t: (_hash: string, sourceText: string, params?: RichTextParams) => {
-        if (!params) {
-          return sourceText;
-        }
-        return renderRichText(sourceText, params);
-      },
-      locale,
-      translations: {},
-    };
-  }
 
   logger.debug(`Async Server. Fetching translations for ${locale}`);
 
@@ -84,13 +64,10 @@ export async function getServerTranslations(options: {
     },
   );
 
-  // Return translation function
   return {
     t: (hash: string, sourceText: string, params?: RichTextParams) => {
-      // Get the text (either translation or source)
       const text = translations[hash] || sourceText;
 
-      // If no params, return plain text
       if (!params) {
         return text;
       }

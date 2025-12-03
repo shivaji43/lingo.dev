@@ -44,13 +44,7 @@ export const useTranslation: TranslationHook = (hashes: string[]) => {
   const { translations, registerHashes, locale, sourceLocale } =
     useTranslationContext();
 
-  // Register all hashes in useEffect (safe for state updates)
   useEffect(() => {
-    // Skip if source locale
-    if (locale === sourceLocale) {
-      return;
-    }
-
     logger.debug(`Registering ${hashes.length} hashes for component`);
 
     registerHashes(hashes);
@@ -61,11 +55,8 @@ export const useTranslation: TranslationHook = (hashes: string[]) => {
       logger.debug(
         `Client. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
       );
-      // Get the text (either source or translation)
-      const text =
-        locale === sourceLocale ? source : translations[hash] || source;
+      const text = translations[hash] || source;
 
-      // If no params, return plain text
       if (!params) {
         return text;
       }

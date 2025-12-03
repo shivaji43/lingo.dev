@@ -283,11 +283,6 @@ function TranslationProvider__Dev({
       `TranslationProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
     );
 
-    // Skip if source locale
-    if (locale === sourceLocale) {
-      return;
-    }
-
     // Find hashes that are seen but not translated and not already pending
     const missingHashes: string[] = [];
     logger.debug(
@@ -379,12 +374,6 @@ function TranslationProvider__Dev({
         router.refresh();
       }
 
-      // For source locale, clear translations
-      if (newLocale === sourceLocale) {
-        setTranslations({});
-        return;
-      }
-
       // Fetch translations from API endpoint
       setIsLoading(true);
       const startTime = performance.now();
@@ -392,7 +381,11 @@ function TranslationProvider__Dev({
       try {
         logger.info(`Fetching translations for locale: ${newLocale}`);
 
-        const translatedDict = await fetchTranslations(newLocale);
+        const translatedDict = await fetchTranslations(
+          newLocale,
+          [],
+          serverUrl,
+        );
 
         const endTime = performance.now();
         logger.info(
@@ -413,7 +406,7 @@ function TranslationProvider__Dev({
         setIsLoading(false);
       }
     },
-    [sourceLocale, cookieConfig, router],
+    [cookieConfig, router],
   );
 
   // Load widget on client-side only (avoids SSR issues with HTMLElement)

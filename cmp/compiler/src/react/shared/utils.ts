@@ -1,3 +1,9 @@
+import { logger } from "../../utils/logger";
+
+/**
+ * Fetch translations from translation server
+ * Times out after 30 seconds to prevent indefinite hangs
+ */
 export async function fetchTranslations(
   targetLocale: string,
   hashes: string[],
@@ -12,22 +18,41 @@ export async function fetchTranslations(
   }
   const url = `${serverUrl}/translations/${targetLocale}`;
 
-  let response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ hashes }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  if (!response.ok) {
-    throw new Error(`Translation API error: ${response.statusText}`);
+  try {
+    let response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ hashes }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Translation API error: ${response.statusText}`);
+    }
+
+    // TODO (AleksandrSl 02/12/2025): Handle errors in the context.
+    const result = await response.json();
+
+    logger.debug(
+      `Fetched translations for ${targetLocale}: ${JSON.stringify(result)}`,
+    );
+
+    // Server returns { locale, translations, errors }
+    // Extract just the translations dictionary
+    return result.translations || {};
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        `Translation request to ${targetLocale} timed out after 30 seconds`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  // TODO (AleksandrSl 02/12/2025): Handle errors in the context.
-  const result = await response.json();
-
-  // Server returns { locale, translations, errors }
-  // Extract just the translations dictionary
-  return result.translations || {};
 }

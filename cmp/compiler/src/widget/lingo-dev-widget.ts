@@ -47,7 +47,7 @@ class LingoDevWidget extends HTMLElement {
 
   private render() {
     // Hide widget when on source locale
-    if (!this.state || this.state.locale === this.state.sourceLocale) {
+    if (!this.state) {
       this.shadow.innerHTML = "";
       return;
     }

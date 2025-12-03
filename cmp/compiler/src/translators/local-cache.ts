@@ -7,6 +7,7 @@ import * as path from "path";
 import type { TranslationCache, LocalCacheConfig } from "./cache";
 import { logger } from "../utils/logger";
 import { DictionarySchema } from "./api";
+import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
 
 /**
  * Local file system cache for translations
@@ -32,13 +33,18 @@ export class LocalTranslationCache implements TranslationCache {
 
   /**
    * Read dictionary file from disk
+   * Times out after 10 seconds to prevent indefinite hangs
    */
   private async readDictionary(
     locale: string,
   ): Promise<DictionarySchema | null> {
     try {
       const cachePath = this.getCachePath(locale);
-      const content = await fs.readFile(cachePath, "utf-8");
+      const content = await withTimeout(
+        fs.readFile(cachePath, "utf-8"),
+        DEFAULT_TIMEOUTS.FILE_IO,
+        `Read cache for ${locale}`,
+      );
       return JSON.parse(content);
     } catch {
       return null;
@@ -47,6 +53,7 @@ export class LocalTranslationCache implements TranslationCache {
 
   /**
    * Write dictionary file to disk
+   * Times out after 10 seconds to prevent indefinite hangs
    */
   private async writeDictionary(
     locale: string,
@@ -57,13 +64,17 @@ export class LocalTranslationCache implements TranslationCache {
       const cacheDir = path.dirname(cachePath);
 
       // Ensure cache directory exists
-      await fs.mkdir(cacheDir, { recursive: true });
+      await withTimeout(
+        fs.mkdir(cacheDir, { recursive: true }),
+        DEFAULT_TIMEOUTS.FILE_IO,
+        `Create cache directory for ${locale}`,
+      );
 
       // Write cache file
-      await fs.writeFile(
-        cachePath,
-        JSON.stringify(dictionary, null, 2),
-        "utf-8",
+      await withTimeout(
+        fs.writeFile(cachePath, JSON.stringify(dictionary, null, 2), "utf-8"),
+        DEFAULT_TIMEOUTS.FILE_IO,
+        `Write cache for ${locale}`,
       );
     } catch (error) {
       logger.error(`Failed to write cache for locale ${locale}:`, error);

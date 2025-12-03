@@ -92,6 +92,7 @@ export class TranslationService {
   ): Promise<TranslationResult> {
     const startTime = performance.now();
 
+    // TODO (AleksandrSl 03/12/2025): This would be the point to remove if we want to process the source files for pluralization
     // Skip translation if target is source locale
     if (locale === this.config.sourceLocale) {
       return this.createSourceLocaleResult(metadata, requestedHashes);
@@ -199,13 +200,6 @@ export class TranslationService {
         logger.error(`Failed to update cache:`, error);
         // Don't fail the request if cache update fails
       }
-    } else if (
-      this.config.isPseudo &&
-      Object.keys(newTranslations).length > 0
-    ) {
-      logger.debug(
-        `Skipping cache for ${Object.keys(newTranslations).length} pseudotranslations`,
-      );
     }
 
     // Step 6: Merge and return

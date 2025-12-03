@@ -128,6 +128,7 @@ function buildLingoConfig(
               lingoDir: lingoConfig.lingoDir,
               cacheDir: getCacheDir(lingoConfig),
               dev: lingoConfig.dev,
+              sourceLocale: lingoConfig.sourceLocale,
             },
           },
         ],

@@ -71,28 +71,22 @@ const getTranslations = async (hashes: string[]) => {
  * ```
  */
 export const useTranslation: TranslationHook = (hashes: string[]) => {
-  // Use React's use() to unwrap the cached promise
-  // This appears synchronous in Server Components!
   const { locale, translations } = use(getTranslations(hashes));
   logger.debug(
     `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
   );
 
-  // Return translation function matching client signature
   return (
     hash: string,
     source: string,
     params?: RichTextParams,
   ): string | ReactNode => {
-    // Get translated text or fallback to source
     const text = translations[hash] || source;
 
-    // If no params, return plain text
     if (!params) {
       return text;
     }
 
-    // Render rich text with placeholders
     return renderRichText(text, params);
   };
 };

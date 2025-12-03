@@ -18,6 +18,7 @@ import {
   getOpenRouterKey,
 } from "./api-keys";
 import { logger } from "../../utils/logger";
+import { withTimeout, DEFAULT_TIMEOUTS } from "../../utils/timeout";
 
 /**
  * LCP Translator configuration
@@ -95,6 +96,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
 
   /**
    * Translate using Lingo.dev Engine
+   * Times out after 60 seconds to prevent indefinite hangs
    */
   private async translateWithLingoDotDev(
     sourceDictionary: DictionarySchema,
@@ -114,10 +116,14 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     const engine = new LingoDotDevEngine({ apiKey });
 
     try {
-      const result = await engine.localizeObject(sourceDictionary, {
-        sourceLocale: this.config.sourceLocale,
-        targetLocale: targetLocale,
-      });
+      const result = await withTimeout(
+        engine.localizeObject(sourceDictionary, {
+          sourceLocale: this.config.sourceLocale,
+          targetLocale: targetLocale,
+        }),
+        DEFAULT_TIMEOUTS.AI_API,
+        `Lingo.dev API translation to ${targetLocale}`,
+      );
 
       return result as DictionarySchema;
     } catch (error) {
@@ -129,6 +135,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
 
   /**
    * Translate using generic LLM
+   * Times out after 60 seconds to prevent indefinite hangs
    */
   private async translateWithLLM(
     sourceDictionary: DictionarySchema,
@@ -153,34 +160,38 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     const aiModel = this.createAiModel(provider, model);
 
     try {
-      const response = await generateText({
-        model: aiModel,
-        messages: [
-          {
-            role: "system",
-            content: getSystemPrompt({
-              sourceLocale: this.config.sourceLocale,
-              targetLocale,
-              prompt: this.config.prompt ?? undefined,
-            }),
-          },
-          // Add few-shot examples
-          ...shots.flatMap((shotsTuple) => [
+      const response = await withTimeout(
+        generateText({
+          model: aiModel,
+          messages: [
             {
-              role: "user" as const,
-              content: obj2xml(shotsTuple[0]),
+              role: "system",
+              content: getSystemPrompt({
+                sourceLocale: this.config.sourceLocale,
+                targetLocale,
+                prompt: this.config.prompt ?? undefined,
+              }),
             },
+            // Add few-shot examples
+            ...shots.flatMap((shotsTuple) => [
+              {
+                role: "user" as const,
+                content: obj2xml(shotsTuple[0]),
+              },
+              {
+                role: "assistant" as const,
+                content: obj2xml(shotsTuple[1]),
+              },
+            ]),
             {
-              role: "assistant" as const,
-              content: obj2xml(shotsTuple[1]),
+              role: "user",
+              content: obj2xml(sourceDictionary),
             },
-          ]),
-          {
-            role: "user",
-            content: obj2xml(sourceDictionary),
-          },
-        ],
-      });
+          ],
+        }),
+        DEFAULT_TIMEOUTS.AI_API,
+        `${provider} LLM translation to ${targetLocale}`,
+      );
 
       // Extract XML content from response
       let responseText = response.text;

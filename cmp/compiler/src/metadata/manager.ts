@@ -7,6 +7,7 @@ import type {
   TranslationEntry,
 } from "../types";
 import { getMetadataPath as getMetadataPathUtil } from "../utils/path-helpers";
+import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
 
 /**
  * Default metadata schema
@@ -33,6 +34,7 @@ export function getMetadataPath(config: MetadataConfig): string {
 /**
  * Load metadata from disk
  * Creates empty metadata if file doesn't exist
+ * Times out after 15 seconds to prevent indefinite hangs
  */
 export async function loadMetadata(
   config: MetadataConfig,
@@ -40,7 +42,11 @@ export async function loadMetadata(
   const metadataPath = getMetadataPath(config);
 
   try {
-    const content = await fs.readFile(metadataPath, "utf-8");
+    const content = await withTimeout(
+      fs.readFile(metadataPath, "utf-8"),
+      DEFAULT_TIMEOUTS.METADATA,
+      "Load metadata",
+    );
     return JSON.parse(content) as MetadataSchema;
   } catch (error: any) {
     if (error.code === "ENOENT") {
@@ -53,20 +59,29 @@ export async function loadMetadata(
 
 /**
  * Save metadata to disk
+ * Times out after 15 seconds to prevent indefinite hangs
  */
 export async function saveMetadata(
   config: MetadataConfig,
   metadata: MetadataSchema,
 ): Promise<void> {
   const metadataPath = getMetadataPath(config);
-  await fs.mkdir(path.dirname(metadataPath), { recursive: true });
+  await withTimeout(
+    fs.mkdir(path.dirname(metadataPath), { recursive: true }),
+    DEFAULT_TIMEOUTS.FILE_IO,
+    "Create metadata directory",
+  );
 
   metadata.stats = {
     totalEntries: Object.keys(metadata.entries).length,
     lastUpdated: new Date().toISOString(),
   };
 
-  await fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf-8");
+  await withTimeout(
+    fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf-8"),
+    DEFAULT_TIMEOUTS.METADATA,
+    "Save metadata",
+  );
 }
 
 /**
