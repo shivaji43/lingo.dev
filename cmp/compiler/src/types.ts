@@ -3,6 +3,7 @@
  */
 
 import type { Framework } from "./types/framework";
+import { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Cookie configuration for locale persistence
@@ -36,22 +37,33 @@ export interface LoaderConfig {
   lingoDir: string;
 
   /**
-   * Source locale (e.g., 'en')
+   * The locale to translate from.
+   *
+   * This must match one of the following formats:
+   *
+   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
+   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
+   *
+   * @default "en"
    */
-  sourceLocale: string;
+  sourceLocale: LocaleCode;
 
-  targetLocales: string[];
+  /**
+   * The locale(s) to translate to.
+   *
+   * Each locale must match one of the following formats:
+   *
+   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
+   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
+   *
+   * @default ["es"]
+   */
+  targetLocales: LocaleCode[];
 
   /**
    * Whether to require 'use i18n' directive
    */
   useDirective?: boolean;
-
-  /**
-   * Whether this loader is processing server components
-   * When true, only server component logic will be applied
-   */
-  isServer?: boolean;
 
   /**
    * Skip transformation for specific patterns

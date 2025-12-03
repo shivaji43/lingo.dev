@@ -1,36 +1,3 @@
-/**
- * Next.js Plugin for Lingo.dev Compiler
- *
- * Properly handles:
- * - Turbopack config merging (Next.js 16+ and legacy)
- * - Compiler options preservation
- * - Webpack config chaining
- *
- * Usage in next.config.js:
- * ```js
- * const { withLingo } = require('@lingo.dev/_compiler/next');
- *
- * // Simple usage
- * module.exports = withLingo({
- *   // Your Next.js config
- * }, {
- *   // Lingo options
- *   sourceLocale: 'en',
- *   targetLocales: ['es', 'fr'],
- *   useDirective: false,
- * });
- *
- * // With Next.js phase support
- * module.exports = async (phase, { defaultConfig }) =>
- *   withLingo({
- *     ...defaultConfig,
- *     reactStrictMode: phase === 'phase-production-build',
- *   }, {
- *     sourceLocale: 'en',
- *     targetLocales: ['es', 'fr'],
- *   });
- * ```
- */
 import type { NextConfig } from "next";
 
 import path from "path";
@@ -45,53 +12,10 @@ import {
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
-import { LocaleCode } from "lingo.dev/spec";
-import { CookieConfig } from "../types";
+import { CookieConfig, LoaderConfig } from "../types";
 import { TurbopackOptions } from "next/dist/server/config-shared";
 
-export interface LingoNextPluginOptions {
-  /**
-   * Root directory containing source files
-   * @default process.cwd()
-   */
-  sourceRoot?: string;
-
-  /**
-   * Directory for Lingo metadata and translations
-   * @default '.lingo'
-   */
-  lingoDir?: string;
-
-  /**
-   * The locale to translate from.
-   *
-   * This must match one of the following formats:
-   *
-   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
-   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
-   *
-   * @default "en"
-   */
-  sourceLocale: LocaleCode;
-
-  /**
-   * The locale(s) to translate to.
-   *
-   * Each locale must match one of the following formats:
-   *
-   * - [ISO 639-1 language code](https://en.wikipedia.org/wiki/ISO_639-1) (e.g., `"en"`)
-   * - [IETF BCP 47 language tag](https://en.wikipedia.org/wiki/IETF_language_tag) (e.g., `"en-US"`)
-   *
-   * @default ["es"]
-   */
-  targetLocales: LocaleCode[];
-
-  /**
-   * Only transform files with 'use i18n' directive
-   * @default false
-   */
-  useDirective?: boolean;
-
+export type LingoNextPluginOptions = {
   /**
    * File patterns to skip during transformation
    * @default [/node_modules/, /\.spec\./, /\.test\./]
@@ -99,31 +23,22 @@ export interface LingoNextPluginOptions {
   skipPatterns?: RegExp[];
 
   /**
-   * Model configuration translator
-   * @default "lingo.dev"
-   */
-  models?: "lingo.dev" | Record<string, string>;
-
-  /**
-   * Custom translation prompt for LCP translator
-   */
-  prompt?: string;
-
-  /**
-   * Maximum number of translations to process in a single batch
-   * Lower values = more API calls but better for rate limits
-   * Higher values = fewer API calls but may hit rate limits
-   * @default 50
-   */
-  batchSize?: number;
-
-  /**
    * Cookie configuration for locale persistence
    * Shared between client-side LocaleSwitcher and server-side locale resolver
    * @default { name: 'locale', maxAge: 31536000 }
    */
   cookieConfig?: CookieConfig;
-}
+} & Pick<
+  LoaderConfig,
+  | "dev"
+  | "prompt"
+  | "models"
+  | "useDirective"
+  | "targetLocales"
+  | "sourceLocale"
+  | "lingoDir"
+  | "sourceRoot"
+>;
 
 /**
  * Check if Next.js supports stable turbopack config (Next.js 16+)
@@ -213,6 +128,7 @@ function buildLingoConfig(
               sourceRoot: lingoConfig.sourceRoot,
               lingoDir: lingoConfig.lingoDir,
               cacheDir: getCacheDir(lingoConfig),
+              dev: lingoConfig.dev,
             },
           },
         ],
@@ -294,8 +210,9 @@ function buildLingoConfig(
         `Processing ${hashes.length} translations for ${lingoConfig.targetLocales.length} locale(s)...`,
       );
 
-      const batchSize = lingoOptions.batchSize ?? 50;
+      const batchSize = 50;
 
+      // TODO (AleksandrSl 02/12/2025): Move this batch logic on the server side.
       const localePromises = lingoConfig.targetLocales.map(async (locale) => {
         logger.info(`Translating to ${locale}...`);
 

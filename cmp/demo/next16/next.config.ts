@@ -10,4 +10,7 @@ export default withLingo(nextConfig, {
   targetLocales: ["es", "de", "fr"],
   useDirective: false, // Set to true to require 'use i18n' directive
   models: "lingo.dev",
+  dev: {
+    usePseudotranslator: true,
+  },
 });

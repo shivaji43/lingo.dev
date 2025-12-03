@@ -86,23 +86,6 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         },
         handler: async (code, id) => {
           try {
-            logger.debug(`transform() called for: ${id}`);
-            logger.debug(
-              `Code length: ${code.length}, First 100 chars: ${code.substring(0, 100)}`,
-            );
-
-            // Get relative path from sourceRoot
-            const relativePath = path
-              .relative(path.join(process.cwd(), config.sourceRoot), id)
-              .split(path.sep)
-              .join("/"); // Normalize for cross-platform consistency
-
-            logger.debug(`Relative path: ${relativePath}`);
-            logger.debug(`Config:`, {
-              sourceRoot: config.sourceRoot,
-              lingoDir: config.lingoDir,
-            });
-
             // Load current metadata
             const metadata = await loadMetadata({
               sourceRoot: config.sourceRoot,
@@ -120,15 +103,8 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
               filePath: id,
               config,
               metadata,
-              serverUrl: globalServer?.getUrl(),
             });
 
-            logger.debug(`Transform result:`, {
-              transformed: result.transformed,
-              newEntriesCount: result.newEntries?.length || 0,
-            });
-
-            // console.debug(result.code);
             // If no transformation occurred, return original code
             if (!result.transformed) {
               logger.debug(`No transformation needed for ${id}`);

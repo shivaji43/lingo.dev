@@ -1,25 +1,24 @@
 export async function fetchTranslations(
   targetLocale: string,
-  hashes?: string[],
+  hashes: string[],
   serverUrl?: string,
 ): Promise<Record<string, string>> {
   if (!serverUrl) {
     return {};
   }
+  if (!hashes || hashes.length === 0) {
+    // This function is only called in dev mode and there is no need to fetch all the translations at once in dev mode
+    return {};
+  }
   const url = `${serverUrl}/translations/${targetLocale}`;
 
-  let response;
-  if (!hashes || hashes.length === 0) {
-    response = await fetch(url);
-  } else {
-    response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ hashes }),
-    });
-  }
+  let response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ hashes }),
+  });
 
   if (!response.ok) {
     throw new Error(`Translation API error: ${response.statusText}`);

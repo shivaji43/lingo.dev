@@ -13,15 +13,14 @@
 
 import http from "http";
 import { URL } from "url";
-import type { TranslationMiddlewareConfig } from "../types";
+import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
 import { logger } from "../utils/logger";
 import {
   createTranslator,
   LocalTranslationCache,
   TranslationService,
 } from "../translators";
-import { loadMetadata, createEmptyMetadata } from "../metadata/manager";
-import type { MetadataSchema } from "../types";
+import { createEmptyMetadata, loadMetadata } from "../metadata/manager";
 
 export interface TranslationServerOptions {
   /**
@@ -71,7 +70,7 @@ export class TranslationServer {
       throw new Error("Server is already running");
     }
 
-    console.log(`\x1b[36m[Lingo]\x1b[0m 🔧 Initializing translator...`);
+    logger.info(`🔧 Initializing translator...`);
 
     const translator = createTranslator(this.config);
     const isPseudo = translator.constructor.name === "PseudoTranslator";
@@ -85,16 +84,13 @@ export class TranslationServer {
       sourceLocale: this.config.sourceLocale,
       isPseudo,
     });
-
     try {
       this.metadata = await loadMetadata(this.config);
-      console.log(
-        `\x1b[36m[Lingo]\x1b[0m ✅ Loaded ${Object.keys(this.metadata.entries).length} translation entries`,
+      logger.info(
+        `✅ Loaded ${Object.keys(this.metadata.entries).length} translation entries`,
       );
     } catch (error) {
-      console.warn(
-        `\x1b[33m[Lingo]\x1b[0m ⚠️  No metadata found, will be created on first translation`,
-      );
+      logger.warn(`⚠️ No metadata found, will be created on first translation`);
       this.metadata = createEmptyMetadata();
     }
 
@@ -103,17 +99,12 @@ export class TranslationServer {
     return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
         // Log that we received a request (before async handling)
-        console.log(
-          `\x1b[36m[Lingo]\x1b[0m 📥 Received: ${req.method} ${req.url}`,
-        );
+        logger.info(`📥 Received: ${req.method} ${req.url}`);
 
         // Wrap async handler and catch errors explicitly
         this.handleRequest(req, res).catch((error) => {
-          console.error(
-            `\x1b[41m\x1b[37m[Lingo.dev]\x1b[0m Request handler error:`,
-            error,
-          );
-          console.error(error.stack);
+          logger.error(`Request handler error:`, error);
+          logger.error(error.stack);
 
           // Send error response if headers not sent
           if (!res.headersSent) {
@@ -123,18 +114,14 @@ export class TranslationServer {
         });
       });
 
-      console.debug(
-        `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Starting translation server on port ${port}`,
-      );
+      logger.debug(`Starting translation server on port ${port}`);
 
       this.server.on("error", (error: NodeJS.ErrnoException) => {
         if (error.code === "EADDRINUSE") {
           // Port is in use, try next one
           reject(new Error(`Port ${port} is already in use`));
         } else {
-          process.stderr.write(
-            `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m Translation server error: ${error.message}\n`,
-          );
+          logger.error(`Translation server error: ${error.message}\n`);
           this.onErrorCallback?.(error);
           reject(error);
         }
@@ -142,10 +129,7 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.url = `http://127.0.0.1:${port}`;
-        console.log(
-          `\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m ✅ Translation server listening on http://127.0.0.1:${port}`,
-        );
-        logger.info(`Translation server listening on http://127.0.0.1:${port}`);
+        logger.info(`Translation server listening on ${this.url}`);
         this.onReadyCallback?.(port);
         resolve(port);
       });
@@ -180,6 +164,59 @@ export class TranslationServer {
    */
   getUrl(): string | undefined {
     return this.url;
+  }
+
+  /**
+   * Start a new server or get the URL of an existing one on the preferred port.
+   *
+   * This method optimizes for the common case where a translation server is already
+   * running on port 60000. If that port is taken, it checks if it's our service
+   * by calling the health check endpoint. If it is, we reuse it instead of starting
+   * a new server on a different port.
+   *
+   * @returns URL of the running server (new or existing)
+   */
+  async startOrGetUrl(): Promise<string> {
+    // If this instance already has a server running, return its URL
+    if (this.server && this.url) {
+      logger.info(`Using existing server instance at ${this.url}`);
+      return this.url;
+    }
+
+    const preferredPort = this.startPort;
+    const preferredUrl = `http://127.0.0.1:${preferredPort}`;
+
+    // Check if port is available
+    const portAvailable = await this.isPortAvailable(preferredPort);
+
+    if (portAvailable) {
+      // Port is free, start a new server
+      logger.info(`Port ${preferredPort} is available, starting new server...`);
+      await this.start();
+      return this.url!;
+    }
+
+    // Port is taken, check if it's our translation server
+    logger.info(
+      `Port ${preferredPort} is in use, checking if it's a translation server...`,
+    );
+    const isOurServer = await this.checkIfTranslationServer(preferredUrl);
+
+    if (isOurServer) {
+      // It's our server, reuse it
+      logger.info(
+        `✅ Found existing translation server at ${preferredUrl}, reusing it`,
+      );
+      this.url = preferredUrl;
+      return preferredUrl;
+    }
+
+    // Port is taken by something else, start a new server on a different port
+    logger.info(
+      `Port ${preferredPort} is in use by another service, finding alternative...`,
+    );
+    await this.start();
+    return this.url!;
   }
 
   /**
@@ -254,15 +291,58 @@ export class TranslationServer {
   }
 
   /**
+   * Check if a given URL is running our translation server by calling the health endpoint
+   */
+  private async checkIfTranslationServer(url: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      const healthUrl = `${url}/health`;
+
+      const req = http.get(healthUrl, { timeout: 2000 }, (res) => {
+        let data = "";
+
+        res.on("data", (chunk) => {
+          data += chunk.toString();
+        });
+
+        res.on("end", () => {
+          try {
+            // Check if response is valid and has the expected structure
+            if (res.statusCode === 200) {
+              const json = JSON.parse(data);
+              // Our translation server returns { status: "ok", port: ... }
+              if (json.status === "ok") {
+                resolve(true);
+                return;
+              }
+            }
+            resolve(false);
+          } catch (error) {
+            // Failed to parse JSON or invalid response
+            resolve(false);
+          }
+        });
+      });
+
+      req.on("error", () => {
+        // Connection failed, not our server
+        resolve(false);
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
+
+  /**
    * Handle incoming HTTP request
    */
   private async handleRequest(
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
-    console.log(
-      `\x1b[33m[Lingo]\x1b[0m 🔄 Processing: ${req.method} ${req.url}`,
-    );
+    logger.info(`🔄 Processing: ${req.method} ${req.url}`);
 
     try {
       const url = new URL(req.url || "", `http://${req.headers.host}`);
@@ -317,7 +397,6 @@ export class TranslationServer {
           availableEndpoints: [
             "GET /health",
             "GET /translations/:locale",
-            "GET /translations/:locale/:hash",
             "POST /translations/:locale (with body: { hashes: string[] })",
           ],
         }),
@@ -367,10 +446,8 @@ export class TranslationServer {
         throw new Error("Translation service not initialized");
       }
 
-      console.log(
-        `\x1b[36m[Lingo]\x1b[0m 🔄 Translating ${hashes.length} hashes to ${locale}`,
-      );
-      console.log(`\x1b[36m[Lingo]\x1b[0m 🔄 Hashes: ${hashes.join(", ")}`);
+      logger.info(`🔄 Translating ${hashes.length} hashes to ${locale}`);
+      logger.info(`🔄 Hashes: ${hashes.join(", ")}`);
 
       // Translate using the stored service
       const result = await this.translationService.translate(
@@ -415,9 +492,7 @@ export class TranslationServer {
         throw new Error("Translation service not initialized");
       }
 
-      console.log(
-        `\x1b[36m[Lingo]\x1b[0m 🌐 Requesting full dictionary for ${locale}`,
-      );
+      logger.info(`🌐 Requesting full dictionary for ${locale}`);
 
       const allHashes = Object.keys(this.metadata.entries);
 
@@ -462,4 +537,22 @@ export async function startTranslationServer(
   const server = new TranslationServer(options);
   await server.start();
   return server;
+}
+
+/**
+ * Create a translation server and start it or reuse an existing one on the preferred port
+ *
+ * Since we have little control over the dev server start in next, we can start the translation server only in the loader,
+ * and loaders could be started from multiple processes (it seems) or similar we need a way to avoid starting multiple servers.
+ * This one will try to start a server on the preferred port (which seems to be an atomic operation), and if it fails,
+ * it checks if the server already started is ours and returns its url.
+ *
+ * @returns Object containing the server instance and its URL
+ */
+export async function startOrGetTranslationServer(
+  options: TranslationServerOptions,
+): Promise<{ server: TranslationServer; url: string }> {
+  const server = new TranslationServer(options);
+  const url = await server.startOrGetUrl();
+  return { server, url };
 }

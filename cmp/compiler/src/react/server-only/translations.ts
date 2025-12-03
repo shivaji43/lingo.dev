@@ -92,11 +92,6 @@ async function readFromFilesystem(
  * 1. Resolve the locale (framework-specific: cookies, URL, headers, etc.)
  * 2. Call this function to get translations
  *
- * @param locale - Target locale to fetch
- * @param hashes
- * @param config - Configuration options
- * @returns Translation dictionary (hash -> translated text)
- *
  * @example
  * ```typescript
  * // In Next.js locale resolver
@@ -123,11 +118,9 @@ export async function fetchTranslationsOnServer(
     logger.debug(
       `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${serverUrl})`,
     );
-    // TODO (AleksandrSl 02/12/2025): If there are no hashes, then we should not translate
     return await fetchFromDevServer(locale, hashes, serverUrl);
   }
 
-  // Production or dev fallback: Read from filesystem
   logger.debug(`Reading translations for ${locale} from filesystem`);
   return await readFromFilesystem(locale, config.basePath);
 }
