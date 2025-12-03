@@ -120,7 +120,6 @@ export function createTranslator(
   config: TranslatorFactoryConfig,
 ): Translator<any> {
   const isDev = process.env.NODE_ENV === "development";
-  // 1. Try to create LCP translator
 
   // 1. Explicit dev override takes precedence
   if (isDev && config.dev?.usePseudotranslator) {
