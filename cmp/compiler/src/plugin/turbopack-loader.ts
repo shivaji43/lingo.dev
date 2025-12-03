@@ -30,15 +30,11 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    // Load current metadata
-    const metadata = await loadMetadata(config);
-
     // Transform the component
     const result = transformComponent({
       code: source,
       filePath: this.resourcePath,
       config,
-      metadata,
     });
 
     // If no transformation occurred, return original source
@@ -46,6 +42,8 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
+    // Load current metadata
+    const metadata = await loadMetadata(config);
     // Update metadata with new entries
     if (result.newEntries && result.newEntries.length > 0) {
       const updatedMetadata = upsertEntries(metadata, result.newEntries);

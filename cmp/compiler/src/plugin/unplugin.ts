@@ -13,16 +13,16 @@
  */
 
 import { createUnplugin } from "unplugin";
-import path from "path";
 import { transformComponent } from "./transform";
 import type { LoaderConfig } from "../types";
 import {
   startTranslationServer,
   type TranslationServer,
 } from "../translation-server";
-import { loadMetadata, saveMetadataWithEntries } from "../metadata/manager";
+import { saveMetadataWithEntries } from "../metadata/manager";
 import { createLoaderConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
+import { getCacheDir } from "../utils/path-helpers";
 
 export interface LingoPluginOptions extends LoaderConfig {
   /**
@@ -77,6 +77,26 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         }
       },
 
+      resolveId(id) {
+        if (id === "@lingo.dev/_compiler/dev-config") {
+          // Return a virtual module ID (prefix with \0 to mark it as virtual)
+          return "\0virtual:lingo-dev-config";
+        }
+        return null;
+      },
+
+      load(id) {
+        if (id === "\0virtual:lingo-dev-config") {
+          const serverUrl = globalServer?.getUrl() || "http://127.0.0.1:60000";
+          const cacheDir = getCacheDir(config);
+
+          return `export const serverUrl = ${JSON.stringify(serverUrl)};
+export const cacheDir = ${JSON.stringify(cacheDir)};
+export const sourceLocale = ${JSON.stringify(config.sourceLocale)};`;
+        }
+        return null;
+      },
+
       transform: {
         filter: {
           id: {
@@ -86,24 +106,14 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
         },
         handler: async (code, id) => {
           try {
-            // Load current metadata
-            const metadata = await loadMetadata({
-              sourceRoot: config.sourceRoot,
-              lingoDir: config.lingoDir,
-            });
-
-            logger.debug(
-              `Metadata loaded, entries:`,
-              Object.keys(metadata.entries).length,
-            );
-
             // Transform the component
             const result = transformComponent({
               code,
               filePath: id,
               config,
-              metadata,
             });
+
+            logger.debug(`Transforming ${result.code}`);
 
             // If no transformation occurred, return original code
             if (!result.transformed) {

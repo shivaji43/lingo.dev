@@ -7,10 +7,10 @@ import type { NodePath, TraverseOptions } from "@babel/traverse";
 import type {
   ComponentType,
   LoaderConfig,
-  MetadataSchema,
   TranslationEntry,
 } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
+import { logger } from "../../utils/logger";
 
 type ComponentEntry = {
   name: string;
@@ -21,7 +21,6 @@ type ComponentEntry = {
 export interface VisitorsSharedState {
   newEntries: TranslationEntry[];
   filePath: string;
-  metadata: MetadataSchema;
   config: LoaderConfig;
 }
 
@@ -91,6 +90,7 @@ function isReactComponent(
   path.traverse({
     ReturnStatement(returnPath) {
       const argument = returnPath.node.argument;
+      logger.debug(`Found return statement: ${argument?.type}`);
       if (
         argument &&
         (argument.type === "JSXElement" || argument.type === "JSXFragment")
@@ -1236,6 +1236,7 @@ function handleComponentFunction(
 ): void {
   if (!isReactComponent(path)) {
     path.skip();
+    logger.debug(`Skipping non-React component: ${path.node.type}`);
     return;
   }
 

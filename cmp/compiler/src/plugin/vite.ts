@@ -20,9 +20,6 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-/**
- * Vite plugin with framework automatically set
- */
 export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
   const fullOptions = {
     ...options,

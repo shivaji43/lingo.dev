@@ -37,11 +37,6 @@ export interface BabelTransformOptions {
    * Loader configuration
    */
   config: LoaderConfig;
-
-  /**
-   * Current metadata
-   */
-  metadata: MetadataSchema;
 }
 
 /**
@@ -51,7 +46,6 @@ export function transformComponent({
   code,
   filePath,
   config,
-  metadata,
 }: BabelTransformOptions): TransformResult {
   // Get relative file path for consistent hashing
   const relativeFilePath = path
@@ -70,12 +64,11 @@ export function transformComponent({
 
     const visitorState = {
       filePath: relativeFilePath,
-      metadata,
       config,
       newEntries: [] as any[],
     } satisfies VisitorsSharedState;
 
-    logger.debug(`Transforming ${filePath}, isServer: ${config.isServer}`);
+    logger.debug(`Transforming ${filePath}`);
 
     // TODO (AleksandrSl 02/12/2025): Can I pass state to the traverse here as well?
     const visitors = createBabelVisitors({

@@ -19,9 +19,6 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-/**
- * Webpack plugin with framework automatically set
- */
 export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
   return lingoUnplugin.webpack({
     ...options,
