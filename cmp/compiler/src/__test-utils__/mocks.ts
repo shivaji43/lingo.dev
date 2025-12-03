@@ -3,38 +3,9 @@
  * Prevents duplication of test helper functions across test files
  */
 
-import type { LoaderConfig, MetadataSchema } from "../types";
+import type { LoaderConfig } from "../types";
 import { createLoaderConfig } from "../utils/config-factory";
 import { DictionarySchema } from "../translators";
-
-/**
- * Create a mock metadata schema for testing
- *
- * @param overrides - Partial metadata to override defaults
- * @returns Complete MetadataSchema
- *
- * @example
- * ```typescript
- * const metadata = createMockMetadata({
- *   entries: {
- *     "abc123": createMockTranslationEntry({ sourceText: "Hello" })
- *   }
- * });
- * ```
- */
-export function createMockMetadata(
-  overrides?: Partial<MetadataSchema>,
-): MetadataSchema {
-  return {
-    version: "0.1",
-    entries: {},
-    stats: {
-      totalEntries: 0,
-      lastUpdated: new Date().toISOString(),
-    },
-    ...overrides,
-  };
-}
 
 /**
  * Create a mock loader config for testing

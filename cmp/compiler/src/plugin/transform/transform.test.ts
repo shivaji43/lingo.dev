@@ -10,21 +10,16 @@
 
 import { assert, beforeEach, describe, expect, it } from "vitest";
 import { transformComponent } from "./index";
-import type { LoaderConfig, MetadataSchema } from "../../types";
-import {
-  createMockConfig,
-  createMockMetadata,
-} from "../../__test-utils__/mocks";
+import type { LoaderConfig } from "../../types";
+import { createMockConfig } from "../../__test-utils__/mocks";
 
 describe("transformComponent", () => {
   let config: LoaderConfig;
-  let metadata: MetadataSchema;
 
   beforeEach(() => {
     // Create fresh in-memory mocks for each test
     // No actual files are created during tests
     config = createMockConfig();
-    metadata = createMockMetadata();
   });
 
   describe("single component", () => {
@@ -39,7 +34,6 @@ export function Welcome() {
         code,
         filePath: "src/Welcome.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -66,7 +60,6 @@ export function Card() {
         code,
         filePath: "src/Card.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -97,7 +90,6 @@ export function Spacey() {
         code,
         filePath: "src/Spacey.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -127,7 +119,6 @@ export function Main() {
         code,
         filePath: "src/Layout.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -162,7 +153,6 @@ export { Welcome, Goodbye };
         code,
         filePath: "src/Messages.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -208,7 +198,6 @@ export default function Container() {
         code,
         filePath: "src/Page.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -252,7 +241,6 @@ export default OuterComponent;
         code,
         filePath: "src/Nested.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -317,7 +305,6 @@ export default OuterComponent;
         code,
         filePath: "src/Nested.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -338,7 +325,6 @@ export function AlreadyTranslated() {
         code,
         filePath: "src/Already.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(false);
@@ -358,7 +344,6 @@ export function regularFunction() {
         code,
         filePath: "src/utils.ts",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(false);
@@ -378,7 +363,6 @@ export function notAComponent() {
         code,
         filePath: "src/DomUtils.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(false);
@@ -403,7 +387,6 @@ export function ConditionalComponent({ showMessage }) {
         code,
         filePath: "src/Conditional.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -432,7 +415,6 @@ export function ListComponent({ items }) {
         code,
         filePath: "src/List.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -456,7 +438,6 @@ export function Test() {
         code,
         filePath: "src/components/Test.tsx",
         config,
-        metadata,
       });
 
       assert.isDefined(result.newEntries);
@@ -476,7 +457,6 @@ export function Test() {
         code,
         filePath: "src/Test.tsx",
         config,
-        metadata,
       });
       assert.isDefined(result.newEntries);
       expect(result.newEntries[0].location.line).toBeDefined();
@@ -494,14 +474,12 @@ export function Test() {
         code,
         filePath: "src/Test.tsx",
         config,
-        metadata,
       });
 
       const result2 = transformComponent({
         code,
         filePath: "src/Test.tsx",
         config,
-        metadata,
       });
 
       assert.isDefined(result1.newEntries);
@@ -524,7 +502,6 @@ export function Test() {
         code,
         filePath: "src/Test.tsx",
         config: directiveConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(false);
@@ -546,7 +523,6 @@ export function Test() {
         code,
         filePath: "src/Test.tsx",
         config: directiveConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -576,7 +552,6 @@ export default function Page() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -622,7 +597,6 @@ export default function Page() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -667,7 +641,6 @@ export const metadata = {
         code,
         filePath: "src/app/layout.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -717,7 +690,6 @@ export const metadata = {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -751,7 +723,6 @@ export default function Page() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       // Only the component text should be transformed
@@ -781,7 +752,6 @@ export async function generateMetadata() {
         code,
         filePath: "src/app/layout.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(false);
@@ -804,14 +774,12 @@ export const metadata = {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       const result2 = transformComponent({
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       assert.isDefined(result1.newEntries);
@@ -836,7 +804,6 @@ export const metadata = {
         code,
         filePath: "src/app/layout.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -883,7 +850,6 @@ export const metadata = {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -928,7 +894,6 @@ export const metadata = {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -960,7 +925,6 @@ export const metadata = {
         code,
         filePath: "src/app/layout.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -989,7 +953,6 @@ export default function Welcome() {
         code,
         filePath: "src/Welcome.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1020,7 +983,6 @@ export default function Message() {
         code,
         filePath: "src/Message.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1047,7 +1009,6 @@ export default function Links() {
         code,
         filePath: "src/Links.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1074,7 +1035,6 @@ export default function Links() {
         code,
         filePath: "src/Links.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.code).toMatchSnapshot();
@@ -1092,7 +1052,6 @@ export default function Simple() {
         code,
         filePath: "src/Simple.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1113,7 +1072,6 @@ export default function Simple() {
         code,
         filePath: "src/Simple.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1140,7 +1098,6 @@ export default function Spaced() {
         code,
         filePath: "src/Spaced.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1177,7 +1134,6 @@ export default function Button() {
         code,
         filePath: "src/Button.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1218,7 +1174,6 @@ function Home() {
         code,
         filePath: "src/Button.tsx",
         config: createMockConfig(),
-        metadata,
       });
 
       expect(result.code).toMatchSnapshot();
@@ -1246,7 +1201,6 @@ export default async function ServerPage() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1291,7 +1245,6 @@ export async function ServerCard() {
         code,
         filePath: "src/components/ServerCard.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1327,7 +1280,6 @@ export default function ServerPage() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1369,7 +1321,6 @@ export default function ClientPage() {
         code,
         filePath: "src/components/ClientPage.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1406,7 +1357,6 @@ export default async function AsyncServerPage() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1441,7 +1391,6 @@ export function RegularCard() {
         code,
         filePath: "src/components/Cards.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1478,7 +1427,6 @@ export function Button() {
         code,
         filePath: "src/Button.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1511,7 +1459,6 @@ export function Image() {
         code,
         filePath: "src/Image.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1534,7 +1481,6 @@ export function CloseButton() {
         code,
         filePath: "src/CloseButton.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1561,7 +1507,6 @@ export function InfoIcon() {
         code,
         filePath: "src/InfoIcon.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1590,7 +1535,6 @@ export function SearchBox() {
         code,
         filePath: "src/SearchBox.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1613,7 +1557,6 @@ export function CustomInput() {
         code,
         filePath: "src/CustomInput.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1636,7 +1579,6 @@ export function Card() {
         code,
         filePath: "src/Card.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1661,7 +1603,6 @@ export function MetaTag() {
         code,
         filePath: "src/MetaTag.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1684,7 +1625,6 @@ export function Section() {
         code,
         filePath: "src/Section.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1714,7 +1654,6 @@ export function Input() {
         code,
         filePath: "src/Input.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1753,7 +1692,6 @@ export function Form() {
         code,
         filePath: "src/Form.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1784,7 +1722,6 @@ export function Link() {
         code,
         filePath: "src/Link.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1816,7 +1753,6 @@ export function DynamicButton() {
         code,
         filePath: "src/DynamicButton.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1844,7 +1780,6 @@ export function EmptyAttr() {
         code,
         filePath: "src/EmptyAttr.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1875,7 +1810,6 @@ export function Card() {
         code,
         filePath: "src/Card.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1906,7 +1840,6 @@ export function Button() {
         code,
         filePath: "src/Button.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -1933,14 +1866,12 @@ export function Button() {
         code,
         filePath: "src/Button.tsx",
         config,
-        metadata,
       });
 
       const result2 = transformComponent({
         code,
         filePath: "src/Button.tsx",
         config,
-        metadata,
       });
 
       assert.isDefined(result1.newEntries);
@@ -1972,7 +1903,6 @@ export function Message() {
         code,
         filePath: "src/Message.tsx",
         config,
-        metadata,
       });
 
       // expect(result.transformed).toBe(true);
@@ -2002,7 +1932,6 @@ export function TestComponent() {
         code,
         filePath: "src/components/TestComponent.tsx",
         config,
-        metadata,
       });
 
       assert.isDefined(result.newEntries);
@@ -2036,7 +1965,6 @@ export default async function ServerPage() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2075,7 +2003,6 @@ export default function ServerPage() {
         code,
         filePath: "src/app/page.tsx",
         config: nextConfig,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2109,7 +2036,6 @@ export function Example() {
         code,
         filePath: "src/Example.tsx",
         config,
-        metadata,
       });
 
       expect(result.code).toMatchSnapshot();
@@ -2143,7 +2069,6 @@ function test() {}</pre>
         code,
         filePath: "src/CodeBlock.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2173,7 +2098,6 @@ export function Product() {
         code,
         filePath: "src/Product.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2205,7 +2129,6 @@ export function ApiDocs() {
         code,
         filePath: "src/ApiDocs.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2236,7 +2159,6 @@ export function TechDoc() {
         code,
         filePath: "src/TechDoc.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2277,7 +2199,6 @@ export function Tutorial() {
         code,
         filePath: "src/Tutorial.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2316,7 +2237,6 @@ export function Branded() {
         code,
         filePath: "src/Branded.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2343,7 +2263,6 @@ export function ExplicitTranslate() {
         code,
         filePath: "src/ExplicitTranslate.tsx",
         config,
-        metadata,
       });
 
       expect(result.transformed).toBe(true);
@@ -2365,7 +2284,39 @@ export const Button = function() { return <button>Click me</button>; }
         code,
         filePath: "src/FunctionExpression.tsx",
         config,
-        metadata,
+      });
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle separate fragments used in expressions correctly", () => {
+      const code = `
+export default function Home() {
+  const translatableText = <>Hello World</>;
+  const translatableMixedContextFragment = (
+    <>
+      <b>Mixed</b> content <i>fragment</i>
+    </>
+  );
+
+  return (
+    <main>
+        <div>
+          To translate it you have to wrap it into the {translatableText}
+        </div>
+        <div>
+          Content that has text and other tags inside will br translated as a
+          single entity: {translatableMixedContextFragment}
+        </div>
+    </main>
+    )
+ }
+ `;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/FunctionExpression.tsx",
+        config,
       });
 
       expect(result.code).toMatchSnapshot();

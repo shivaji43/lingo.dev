@@ -210,6 +210,26 @@ export const Button = function () {
 };"
 `;
 
+exports[`transformComponent > corner cases > should handle separate fragments used in expressions correctly 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Home() {
+  const t = useTranslation(["4ea986f9331c", "f6c9a24ac814", "2c582e458cdf"]);
+  const translatableText = <>Hello World</>;
+  const translatableMixedContextFragment = <>{t("4ea986f9331c", "<b0>Mixed</b0> content <i0>fragment</i0>", {
+      b0: chunks => <b>{chunks}</b>,
+      i0: chunks => <i>{chunks}</i>
+    })}</>;
+  return <main>
+        <div>{t("f6c9a24ac814", "To translate it you have to wrap it into the {translatableText}", {
+        translatableText
+      })}</div>
+        <div>{t("2c582e458cdf", "Content that has text and other tags inside will br translated as a single entity: {translatableMixedContextFragment}", {
+        translatableMixedContextFragment
+      })}</div>
+    </main>;
+}"
+`;
+
 exports[`transformComponent > isomorphic hooks (unified useTranslation) > should handle mixed async and non-async components in same file 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 import { getServerTranslations } from "@lingo.dev/_compiler/react/server";

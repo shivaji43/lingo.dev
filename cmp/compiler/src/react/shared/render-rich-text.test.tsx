@@ -108,4 +108,23 @@ describe("renderRichText", () => {
     });
     expect(result).toMatchSnapshot();
   });
+
+  it("should render fragments with expressions", () => {
+    const translatableMixedContextFragment = (
+      <>
+        {renderRichText("<b0>Mixed</b0> content <i0>fragment</i0>", {
+          b0: (chunks) => <b>{chunks}</b>,
+          i0: (chunks) => <i>{chunks}</i>,
+        })}
+      </>
+    );
+
+    const result = renderRichText(
+      "Content that has text and other tags inside will br translated as a single entity: {translatableMixedContextFragment}",
+      {
+        translatableMixedContextFragment,
+      },
+    );
+    expect(result).toMatchSnapshot();
+  });
 });

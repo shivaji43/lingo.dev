@@ -1,0 +1,34 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderRichText > should render fragments with expressions 1`] = `
+[
+  "Content that has text and other tags inside will br translated as a single entity: ",
+  <React.Fragment>
+    <React.Fragment>
+      <React.Fragment>
+        <b>
+          Mixed
+        </b>
+      </React.Fragment>
+       content 
+      <React.Fragment>
+        <i>
+          fragment
+        </i>
+      </React.Fragment>
+    </React.Fragment>
+  </React.Fragment>,
+]
+`;
+
+exports[`renderRichText > should render untranslatable content as is 1`] = `
+[
+  "Install using ",
+  <React.Fragment>
+    <code>
+      npm install package
+    </code>
+  </React.Fragment>,
+  " command",
+]
+`;

@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, isValidElement, type ReactNode } from "react";
 
 /**
  * Component renderer function for rich text translation
@@ -8,10 +8,7 @@ export type ComponentRenderer = (chunks: ReactNode) => ReactNode;
 /**
  * Rich text parameters for translation
  */
-export type RichTextParams = Record<
-  string,
-  string | number | ComponentRenderer
->;
+export type RichTextParams = Record<string, ReactNode | ComponentRenderer>;
 
 /**
  * Parse rich text translation string with placeholders (server-side version)
@@ -48,7 +45,10 @@ export function renderRichText(
       // Variable placeholder: {varName}
       const varName = match.groups.variable;
       const value = params[varName];
-      if (value !== undefined && typeof value !== "function") {
+      if (isValidElement(value)) {
+        parts.push(<Fragment key={varName}>{value}</Fragment>);
+        hasElements = true;
+      } else if (value !== undefined && typeof value !== "function") {
         parts.push(value);
       } else {
         parts.push(match[0]); // Keep placeholder if not found
@@ -62,7 +62,9 @@ export function renderRichText(
       if (typeof renderer === "function") {
         // Recursively parse the content
         const parsedContent = renderRichText(content, params);
-        parts.push(renderer(parsedContent));
+        parts.push(
+          <Fragment key={tagName}>{renderer(parsedContent)}</Fragment>,
+        );
         hasElements = true;
       } else {
         parts.push(match[0]); // Keep placeholder if not found
@@ -70,7 +72,9 @@ export function renderRichText(
     } else if (match.groups.selfClosing) {
       const renderer = params[match.groups.selfClosing];
       if (typeof renderer === "function") {
-        parts.push(renderer(null));
+        parts.push(
+          <Fragment key={match.groups.selfClosing}>{renderer(null)}</Fragment>,
+        );
         hasElements = true;
       }
     }
@@ -99,12 +103,5 @@ export function renderRichText(
   }
 
   // Return array of nodes wrapped in Fragment
-  return (
-    <>
-      {parts.map((part, index) => (
-        // TODO (AleksandrSl 29/11/2025): We can actually use the tag names we created, since they are stable
-        <Fragment key={index}>{part}</Fragment>
-      ))}
-    </>
-  );
+  return parts;
 }
