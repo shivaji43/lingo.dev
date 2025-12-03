@@ -1,5 +1,6 @@
 "use client";
-import { PropsWithChildren, useState } from "react";
+
+import { FC, PropsWithChildren, useState } from "react";
 import { CounterClientChild } from "@/components/counterClientChild";
 
 export const Counter: FC<PropsWithChildren> = ({ children }) => {
