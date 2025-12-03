@@ -1080,6 +1080,28 @@ export default function Links() {
       expect(result.code).toMatchSnapshot();
     });
 
+    it("should handle fragments", () => {
+      const code = `
+export default function Simple() {
+  return <>
+  <b>Mixed</b> content <i>fragment</i>
+</>
+}
+`;
+      const result = transformComponent({
+        code,
+        filePath: "src/Simple.tsx",
+        config: createMockConfig(),
+        metadata,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      expect(result.code).toMatchSnapshot();
+    });
+
     it("should not transform simple text-only elements", () => {
       const code = `
 export default function Simple() {

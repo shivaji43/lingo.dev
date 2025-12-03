@@ -222,7 +222,11 @@ function isVoidElement(element: t.JSXElement): boolean {
  * 2. translate="no" attribute (HTML standard)
  * 3. data-lingo-skip attribute
  */
-function shouldSkipTranslation(element: t.JSXElement): boolean {
+function shouldSkipTranslation(element: t.JSXElement | t.JSXFragment): boolean {
+  // We always translate fragments
+  if (element.type === "JSXFragment") {
+    return false;
+  }
   const openingElement = element.openingElement;
 
   // Check element type
@@ -306,7 +310,7 @@ function translateAttributes(
  * Check if a JSX element has mixed content that needs rich text translation
  * Mixed content = text nodes + expressions + nested JSX elements (excluding void elements)
  */
-function hasMixedContent(element: t.JSXElement): boolean {
+function hasMixedContent(element: t.JSXElement | t.JSXFragment): boolean {
   const children = element.children;
   if (children.length === 0) return false;
   // 001
@@ -592,7 +596,7 @@ function createRichTextTranslationCall(
  * Transform a JSX element with mixed content into a translation call
  */
 function transformMixedJSXElement(
-  path: NodePath<t.JSXElement>,
+  path: NodePath<t.JSXElement | t.JSXFragment>,
   state: VisitorsInternalState,
 ): void {
   // Check if this element should skip translation
@@ -1282,6 +1286,16 @@ const componentVisitors = {
     enter(path: NodePath<t.FunctionExpression>) {
       handleComponentFunction(path, this.visitorState);
     },
+  },
+
+  JSXFragment(path: NodePath<t.JSXFragment>) {
+    path.skip();
+
+    if (hasMixedContent(path.node)) {
+      transformMixedJSXElement(path, this.visitorState);
+      // Skip traversing children since we've already processed them
+      path.skip();
+    }
   },
 
   // Transform JSX elements with mixed content (text + expressions + nested elements)

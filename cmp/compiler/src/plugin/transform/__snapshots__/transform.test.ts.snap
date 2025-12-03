@@ -390,6 +390,17 @@ function Home() {
 }"
 `;
 
+exports[`transformComponent > mixed content (rich text) > should handle fragments 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Simple() {
+  const t = useTranslation(["d1b1ad64554d"]);
+  return <>{t("d1b1ad64554d", "<b0>Mixed</b0> content <i0>fragment</i0>", {
+      b0: chunks => <b>{chunks}</b>,
+      i0: chunks => <i>{chunks}</i>
+    })}</>;
+}"
+`;
+
 exports[`transformComponent > mixed content (rich text) > should handle multiple same-type nested elements 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function Links() {
