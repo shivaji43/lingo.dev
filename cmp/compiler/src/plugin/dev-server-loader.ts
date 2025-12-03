@@ -1,6 +1,6 @@
 import type { LoaderConfig } from "../types";
 import { logger } from "../utils/logger";
-import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
+import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
 import { startOrGetTranslationServerHono } from "../translation-server/translation-server-hono";
 
 let serverPromise: ReturnType<typeof startOrGetTranslationServerHono> | null =
@@ -43,7 +43,6 @@ export default async function devServerLoader(
     null,
     source
       .replace("__SERVER_URL__", server?.url || "http://127.0.0.1:60000")
-      .replace("__CACHE_DIR__", config.cacheDir)
-      .replace("__SOURCE_LOCALE__", config.sourceLocale),
+      .replace("__CACHE_DIR__", config.cacheDir),
   );
 }

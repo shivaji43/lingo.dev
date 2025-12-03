@@ -91,8 +91,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
           const cacheDir = getCacheDir(config);
 
           return `export const serverUrl = ${JSON.stringify(serverUrl)};
-export const cacheDir = ${JSON.stringify(cacheDir)};
-export const sourceLocale = ${JSON.stringify(config.sourceLocale)};`;
+export const cacheDir = ${JSON.stringify(cacheDir)};`;
         }
         return null;
       },

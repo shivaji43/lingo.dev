@@ -14,7 +14,6 @@ import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.
 import { localeResolver } from "@lingo.dev/_compiler/config";
-import { sourceLocale } from "@lingo.dev/_compiler/dev-config";
 
 /**
  * Get server-side translations function
@@ -59,7 +58,6 @@ export async function getServerTranslations(options: {
     locale,
     options.hashes ?? [],
     {
-      sourceLocale,
       basePath: options.basePath,
     },
   );

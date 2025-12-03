@@ -22,12 +22,6 @@ export interface TranslationFetchConfig {
    * Base path for translation files (default: process.cwd())
    */
   basePath?: string;
-
-  /**
-   * Source locale (default: 'en')
-   * If the requested locale matches source, returns empty dictionary
-   */
-  sourceLocale?: string;
 }
 
 /**
