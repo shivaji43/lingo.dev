@@ -41,10 +41,10 @@ import { parseArgs } from "node:util";
 import { readFile, access } from "fs/promises";
 import { resolve, join } from "path";
 import { pathToFileURL } from "url";
-import { startOrGetTranslationServerHono } from "./translation-server-hono";
 import type { TranslationMiddlewareConfig } from "../types";
 import type { LingoNextPluginOptions } from "../plugin/next";
 import { logger } from "../utils/logger";
+import { startOrGetTranslationServer } from "./translation-server";
 
 interface CLIOptions {
   port?: number;
@@ -449,10 +449,10 @@ export async function main(): Promise<void> {
     }
 
     // Start server
-    const { server, url } = await startOrGetTranslationServerHono({
+    const { server, url } = await startOrGetTranslationServer({
       startPort: cliOpts.port || 60000,
       config,
-      requestTimeout: cliOpts.timeout || 30000,
+      // requestTimeout: cliOpts.timeout || 30000,
       onError: (err) => {
         logger.error("Translation server error:", err);
       },
@@ -485,7 +485,4 @@ export async function main(): Promise<void> {
   }
 }
 
-// Run if called directly (ESM check)
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main();
-}
+main();

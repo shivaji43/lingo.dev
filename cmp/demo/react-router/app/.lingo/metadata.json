@@ -1,0 +1,753 @@
+{
+  "version": "0.1",
+  "entries": {
+    "f1b3e9cf489e": {
+      "sourceText": "Acme",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 23,
+        "column": 65
+      },
+      "hash": "f1b3e9cf489e",
+      "addedAt": "2025-11-30T13:47:47.721Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "252b9a5694a7": {
+      "sourceText": "Home",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 30,
+        "column": 15
+      },
+      "hash": "252b9a5694a7",
+      "addedAt": "2025-11-30T13:47:47.722Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "820033d6516f": {
+      "sourceText": "Pricing",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 36,
+        "column": 15
+      },
+      "hash": "820033d6516f",
+      "addedAt": "2025-11-30T13:47:47.723Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "3939cde4d3f8": {
+      "sourceText": "Contact",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 42,
+        "column": 15
+      },
+      "hash": "3939cde4d3f8",
+      "addedAt": "2025-11-30T13:47:47.723Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "64a28972ad8d": {
+      "sourceText": "Building the future, one line at a time.",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 67,
+        "column": 45
+      },
+      "hash": "64a28972ad8d",
+      "addedAt": "2025-11-30T13:47:47.724Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "290229e856ec": {
+      "sourceText": "Product",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 72,
+        "column": 51
+      },
+      "hash": "290229e856ec",
+      "addedAt": "2025-11-30T13:47:47.725Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "f61d6c55cb1e": {
+      "sourceText": "Features",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 74,
+        "column": 22
+      },
+      "hash": "f61d6c55cb1e",
+      "addedAt": "2025-11-30T13:47:47.725Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "1f3aad963afa": {
+      "sourceText": "Documentation",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 76,
+        "column": 22
+      },
+      "hash": "1f3aad963afa",
+      "addedAt": "2025-11-30T13:47:47.726Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "072085972f80": {
+      "sourceText": "Company",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 80,
+        "column": 51
+      },
+      "hash": "072085972f80",
+      "addedAt": "2025-11-30T13:47:47.727Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "0ce8a309e555": {
+      "sourceText": "About Us",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 82,
+        "column": 22
+      },
+      "hash": "0ce8a309e555",
+      "addedAt": "2025-11-30T13:47:47.727Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "3e2a5b232d1d": {
+      "sourceText": "Careers",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 83,
+        "column": 22
+      },
+      "hash": "3e2a5b232d1d",
+      "addedAt": "2025-11-30T13:47:47.728Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "d64d2a6c07a1": {
+      "sourceText": "Legal",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 88,
+        "column": 51
+      },
+      "hash": "d64d2a6c07a1",
+      "addedAt": "2025-11-30T13:47:47.729Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "c93e94386b2f": {
+      "sourceText": "Privacy Policy",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 90,
+        "column": 22
+      },
+      "hash": "c93e94386b2f",
+      "addedAt": "2025-11-30T13:47:47.730Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "753041d50041": {
+      "sourceText": "Terms of Service",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 91,
+        "column": 22
+      },
+      "hash": "753041d50041",
+      "addedAt": "2025-11-30T13:47:47.731Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "3a43ab342223": {
+      "sourceText": "Cookie Policy",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 92,
+        "column": 22
+      },
+      "hash": "3a43ab342223",
+      "addedAt": "2025-11-30T13:47:47.731Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "a7db255d9fff": {
+      "sourceText": "© 2025 Acme Corporation. All rights reserved.",
+      "context": {
+        "componentName": "App",
+        "filePath": "root.tsx",
+        "line": 97,
+        "column": 17
+      },
+      "hash": "a7db255d9fff",
+      "addedAt": "2025-11-30T13:47:47.732Z",
+      "lastSeenAt": "2025-12-01T22:35:49.380Z"
+    },
+    "ee6d1c14f31f": {
+      "sourceText": "Build Amazing Products Faster",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 11,
+        "column": 76
+      },
+      "hash": "ee6d1c14f31f",
+      "addedAt": "2025-11-30T13:47:48.105Z",
+      "lastSeenAt": "2025-12-01T20:36:00.456Z"
+    },
+    "9f3a5fa2ba87": {
+      "sourceText": "The all-in-one platform for modern teams to collaborate, innovate, and ship products that customers love.",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 14,
+        "column": 61
+      },
+      "hash": "9f3a5fa2ba87",
+      "addedAt": "2025-11-30T13:47:48.106Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "a3edcc3f6c3f": {
+      "sourceText": "Get Started Free",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 22,
+        "column": 13
+      },
+      "hash": "a3edcc3f6c3f",
+      "addedAt": "2025-11-30T13:47:48.106Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "93607b6f18a2": {
+      "sourceText": "Watch Demo",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 25,
+        "column": 175
+      },
+      "hash": "93607b6f18a2",
+      "addedAt": "2025-11-30T13:47:48.107Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "02a1d04248f2": {
+      "sourceText": "No credit card required • Free 14-day trial • Cancel anytime",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 29,
+        "column": 49
+      },
+      "hash": "02a1d04248f2",
+      "addedAt": "2025-11-30T13:47:48.107Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "154111eff4e4": {
+      "sourceText": "Everything You Need to Succeed",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 39,
+        "column": 64
+      },
+      "hash": "154111eff4e4",
+      "addedAt": "2025-11-30T13:47:48.107Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "6160c5a0fb25": {
+      "sourceText": "Powerful features designed to help your team work smarter, not harder.",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 42,
+        "column": 49
+      },
+      "hash": "6160c5a0fb25",
+      "addedAt": "2025-11-30T13:47:48.108Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "fd6d96da29c9": {
+      "sourceText": "Ready to Get Started?",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 86,
+        "column": 62
+      },
+      "hash": "fd6d96da29c9",
+      "addedAt": "2025-11-30T13:47:48.108Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "e200e846f013": {
+      "sourceText": "Join thousands of teams already using Acme to build better products.",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 89,
+        "column": 52
+      },
+      "hash": "e200e846f013",
+      "addedAt": "2025-11-30T13:47:48.109Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "4a42136eb9e5": {
+      "sourceText": "Start Your Free Trial",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 95,
+        "column": 11
+      },
+      "hash": "4a42136eb9e5",
+      "addedAt": "2025-11-30T13:47:48.109Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "76053c76cf20": {
+      "sourceText": "Get started with Acme today. No credit card required for the first 14 days.",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 112,
+        "column": 46
+      },
+      "hash": "76053c76cf20",
+      "addedAt": "2025-11-30T13:47:48.110Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "4f74cfaee05a": {
+      "sourceText": "Cancel",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 134,
+        "column": 17
+      },
+      "hash": "4f74cfaee05a",
+      "addedAt": "2025-11-30T13:47:48.111Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "5bf9fc483882": {
+      "sourceText": "Get Started",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 140,
+        "column": 17
+      },
+      "hash": "5bf9fc483882",
+      "addedAt": "2025-11-30T13:47:48.112Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    },
+    "ebba008c8b82": {
+      "sourceText": "Simple, Transparent Pricing",
+      "context": {
+        "componentName": "Pricing",
+        "filePath": "routes/pricing.tsx",
+        "line": 13,
+        "column": 50
+      },
+      "hash": "ebba008c8b82",
+      "addedAt": "2025-11-30T13:47:48.192Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "54f86844d2e3": {
+      "sourceText": "Choose the perfect plan for your team. All plans include a 14-day free trial.",
+      "context": {
+        "componentName": "Pricing",
+        "filePath": "routes/pricing.tsx",
+        "line": 16,
+        "column": 52
+      },
+      "hash": "54f86844d2e3",
+      "addedAt": "2025-11-30T13:47:48.192Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "6339c29fd6df": {
+      "sourceText": "Monthly",
+      "context": {
+        "componentName": "Pricing",
+        "filePath": "routes/pricing.tsx",
+        "line": 27,
+        "column": 13
+      },
+      "hash": "6339c29fd6df",
+      "addedAt": "2025-11-30T13:47:48.192Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "b05841b41e34": {
+      "sourceText": "Annual <span0>(Save 20%)</span0>",
+      "context": {
+        "componentName": "Pricing",
+        "filePath": "routes/pricing.tsx",
+        "line": 46,
+        "column": 12
+      },
+      "hash": "b05841b41e34",
+      "addedAt": "2025-11-30T13:47:48.193Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "94336a6a2977": {
+      "sourceText": "Most Popular",
+      "context": {
+        "componentName": "PricingCard",
+        "filePath": "routes/pricing.tsx",
+        "line": 140,
+        "column": 135
+      },
+      "hash": "94336a6a2977",
+      "addedAt": "2025-11-30T13:47:48.195Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "f808e4f9fd59": {
+      "sourceText": "${price}",
+      "context": {
+        "componentName": "PricingCard",
+        "filePath": "routes/pricing.tsx",
+        "line": 151,
+        "column": 12
+      },
+      "hash": "f808e4f9fd59",
+      "addedAt": "2025-11-30T13:47:48.195Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "66ba8a7d019b": {
+      "sourceText": "/{expression0}",
+      "context": {
+        "componentName": "PricingCard",
+        "filePath": "routes/pricing.tsx",
+        "line": 152,
+        "column": 12
+      },
+      "hash": "66ba8a7d019b",
+      "addedAt": "2025-11-30T13:47:48.195Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "6200fb8f56b6": {
+      "sourceText": "Custom",
+      "context": {
+        "componentName": "PricingCard",
+        "filePath": "routes/pricing.tsx",
+        "line": 157,
+        "column": 47
+      },
+      "hash": "6200fb8f56b6",
+      "addedAt": "2025-11-30T13:47:48.196Z",
+      "lastSeenAt": "2025-12-01T20:35:59.690Z"
+    },
+    "b5ab5aa14bfa": {
+      "sourceText": "✉️",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 65,
+        "column": 41
+      },
+      "hash": "b5ab5aa14bfa",
+      "addedAt": "2025-11-30T13:47:48.277Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "6f5991454770": {
+      "sourceText": "Thank You!",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 66,
+        "column": 50
+      },
+      "hash": "6f5991454770",
+      "addedAt": "2025-11-30T13:47:48.278Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "25c3705dcf88": {
+      "sourceText": "We've received your message and will get back to you within 24 hours.",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 67,
+        "column": 52
+      },
+      "hash": "25c3705dcf88",
+      "addedAt": "2025-11-30T13:47:48.279Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "be4e2709f741": {
+      "sourceText": "Send Another Message",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 83,
+        "column": 11
+      },
+      "hash": "be4e2709f741",
+      "addedAt": "2025-11-30T13:47:48.280Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "09c086e30ae8": {
+      "sourceText": "Get in Touch",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 96,
+        "column": 50
+      },
+      "hash": "09c086e30ae8",
+      "addedAt": "2025-11-30T13:47:48.282Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "8ef36a4f7d23": {
+      "sourceText": "Have a question? We'd love to hear from you. Send us a message and we'll respond as soon as possible.",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 97,
+        "column": 47
+      },
+      "hash": "8ef36a4f7d23",
+      "addedAt": "2025-11-30T13:47:48.283Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "91d0f1c9057b": {
+      "sourceText": "Contact Information",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 109,
+        "column": 52
+      },
+      "hash": "91d0f1c9057b",
+      "addedAt": "2025-11-30T13:47:48.284Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "287ccb07e60d": {
+      "sourceText": "Fill out the form and our team will get back to you within 24 hours. For urgent matters, please call us directly.",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 110,
+        "column": 62
+      },
+      "hash": "287ccb07e60d",
+      "addedAt": "2025-11-30T13:47:48.285Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "4d3acc645622": {
+      "sourceText": "Need Immediate Help?",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 139,
+        "column": 57
+      },
+      "hash": "4d3acc645622",
+      "addedAt": "2025-11-30T13:47:48.286Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "c900c07f91dd": {
+      "sourceText": "Check out our comprehensive documentation and FAQ section for instant answers.",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 142,
+        "column": 48
+      },
+      "hash": "c900c07f91dd",
+      "addedAt": "2025-11-30T13:47:48.287Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "e86e81972a5f": {
+      "sourceText": "View Documentation →",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 149,
+        "column": 15
+      },
+      "hash": "e86e81972a5f",
+      "addedAt": "2025-11-30T13:47:48.288Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "85c129f8b652": {
+      "sourceText": "Send Us a Message",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 161,
+        "column": 54
+      },
+      "hash": "85c129f8b652",
+      "addedAt": "2025-11-30T13:47:48.289Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "099f94e63253": {
+      "sourceText": "Full Name *",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 164,
+        "column": 73
+      },
+      "hash": "099f94e63253",
+      "addedAt": "2025-11-30T13:47:48.290Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "41191b6d69cd": {
+      "sourceText": "Email Address *",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 185,
+        "column": 74
+      },
+      "hash": "41191b6d69cd",
+      "addedAt": "2025-11-30T13:47:48.291Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "dd401712d26f": {
+      "sourceText": "Company Name",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 206,
+        "column": 76
+      },
+      "hash": "dd401712d26f",
+      "addedAt": "2025-11-30T13:47:48.292Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "18dc57e33b7e": {
+      "sourceText": "Subject *",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 220,
+        "column": 76
+      },
+      "hash": "18dc57e33b7e",
+      "addedAt": "2025-11-30T13:47:48.293Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "bee46bfc2136": {
+      "sourceText": "Select a subject",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 234,
+        "column": 35
+      },
+      "hash": "bee46bfc2136",
+      "addedAt": "2025-11-30T13:47:48.294Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "80807b4afd7d": {
+      "sourceText": "Sales Inquiry",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 235,
+        "column": 40
+      },
+      "hash": "80807b4afd7d",
+      "addedAt": "2025-11-30T13:47:48.295Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "6b42c3857748": {
+      "sourceText": "Technical Support",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 236,
+        "column": 42
+      },
+      "hash": "6b42c3857748",
+      "addedAt": "2025-11-30T13:47:48.296Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "d731a6b9c4a5": {
+      "sourceText": "Billing Question",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 237,
+        "column": 42
+      },
+      "hash": "d731a6b9c4a5",
+      "addedAt": "2025-11-30T13:47:48.297Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "247450fc8584": {
+      "sourceText": "Partnership Opportunity",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 238,
+        "column": 46
+      },
+      "hash": "247450fc8584",
+      "addedAt": "2025-11-30T13:47:48.298Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "12785bb3c5bb": {
+      "sourceText": "Other",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 239,
+        "column": 40
+      },
+      "hash": "12785bb3c5bb",
+      "addedAt": "2025-11-30T13:47:48.299Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "d6aa096ad8f2": {
+      "sourceText": "Message *",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 247,
+        "column": 76
+      },
+      "hash": "d6aa096ad8f2",
+      "addedAt": "2025-11-30T13:47:48.299Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "6142a0eece5f": {
+      "sourceText": "Send Message",
+      "context": {
+        "componentName": "Contact",
+        "filePath": "routes/contact.tsx",
+        "line": 270,
+        "column": 15
+      },
+      "hash": "6142a0eece5f",
+      "addedAt": "2025-11-30T13:47:48.301Z",
+      "lastSeenAt": "2025-12-01T20:35:59.890Z"
+    },
+    "7836f58e435d": {
+      "sourceText": "Translate your app on the flight",
+      "context": {
+        "componentName": "Home",
+        "filePath": "routes/home.tsx",
+        "line": 11,
+        "column": 76
+      },
+      "hash": "7836f58e435d",
+      "addedAt": "2025-12-01T20:37:17.277Z",
+      "lastSeenAt": "2025-12-01T20:37:18.168Z"
+    }
+  },
+  "stats": {
+    "totalEntries": 62,
+    "lastUpdated": "2025-12-01T22:35:49.381Z"
+  }
+}
