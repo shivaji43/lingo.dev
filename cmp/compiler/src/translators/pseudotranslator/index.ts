@@ -113,7 +113,7 @@ export function pseudolocalize(text: string): string {
   // Regular expression to match patterns we should NOT translate:
   // - Variable placeholders: {varName}
   // - Component tags: <tagName> or </tagName>
-  const preserveRegex = /(\{\w+}|<\/?\w+>)/g;
+  const preserveRegex = /(\{\w+}|<\/?\w+\/?>)/g;
 
   // Split text into parts that should be preserved and parts that should be translated
   const parts: Array<{ text: string; preserve: boolean }> = [];
