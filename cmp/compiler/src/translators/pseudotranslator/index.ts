@@ -3,7 +3,7 @@
  */
 
 import type { TranslatableEntry, Translator } from "../api";
-import { logger } from "../../utils/file-logger";
+import { getLogger } from "../../utils/logger";
 
 export interface PseudoTranslatorConfig {
   delayMedian?: number;
@@ -14,26 +14,27 @@ export interface PseudoTranslatorConfig {
  * Useful for testing i18n without actual translation APIs
  */
 export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
+  private readonly logger = getLogger("translation-server");
   constructor(readonly config: PseudoTranslatorConfig) {}
 
   translate(locale: string, entries: Record<string, TranslatableEntry>) {
-    logger.debug(
+    this.logger.debug(
       `[TRACE-PSEUDO] translate() ENTERED for ${locale} with ${Object.keys(entries).length} entries`,
     );
     const delay = this.config?.delayMedian ?? 0;
     const actualDelay = this.getRandomDelay(delay);
 
-    logger.debug(
+    this.logger.debug(
       `[TRACE-PSEUDO] Config delay: ${delay}ms, actual delay: ${actualDelay}ms`,
     );
 
     return new Promise<Record<string, string>>((resolve) => {
-      logger.debug(
+      this.logger.debug(
         `[TRACE-PSEUDO] Promise created, scheduling setTimeout for ${actualDelay}ms`,
       );
 
       setTimeout(() => {
-        logger.debug(
+        this.logger.debug(
           `[TRACE-PSEUDO] setTimeout callback fired for ${locale}, processing entries`,
         );
 
@@ -43,14 +44,16 @@ export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
           }),
         );
 
-        logger.debug(
+        this.logger.debug(
           `[TRACE-PSEUDO] Pseudolocalization complete, resolving with ${Object.keys(result).length} translations`,
         );
         resolve(result);
-        logger.debug(`[TRACE-PSEUDO] Promise resolved for ${locale}`);
+        this.logger.debug(`[TRACE-PSEUDO] Promise resolved for ${locale}`);
       }, actualDelay);
 
-      logger.debug(`[TRACE-PSEUDO] setTimeout scheduled, returning promise`);
+      this.logger.debug(
+        `[TRACE-PSEUDO] setTimeout scheduled, returning promise`,
+      );
     });
   }
 

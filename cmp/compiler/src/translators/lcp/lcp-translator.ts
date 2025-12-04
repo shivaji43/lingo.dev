@@ -1,24 +1,13 @@
-import { createGroq } from "@ai-sdk/groq";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import { createOllama } from "ollama-ai-provider";
-import { createMistral } from "@ai-sdk/mistral";
-import { generateText, type LanguageModel } from "ai";
+import { generateText } from "ai";
 import { LingoDotDevEngine } from "lingo.dev/sdk";
 import type { DictionarySchema, TranslatableEntry, Translator } from "../api";
 import { getSystemPrompt } from "./prompt";
 import { obj2xml, xml2obj } from "./xml2obj";
 import { shots } from "./shots";
-import { getLocaleModel } from "./locales";
-import {
-  getGoogleKey,
-  getGroqKey,
-  getLingoDotDevKey,
-  getMistralKey,
-  getOpenRouterKey,
-} from "./api-keys";
-import { logger } from "../../utils/file-logger";
-import { withTimeout, DEFAULT_TIMEOUTS } from "../../utils/timeout";
+import { getLingoDotDevKey } from "./api-keys";
+import { createAiModel, getLocaleModel } from "./model-factory";
+import { getLogger } from "../../utils/logger";
+import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
 
 /**
  * LCP Translator configuration
@@ -33,6 +22,7 @@ export interface LCPTranslatorConfig {
  * LCP-based translator using AI models
  */
 export class LCPTranslator implements Translator<LCPTranslatorConfig> {
+  private logger = getLogger("translation-server");
   constructor(readonly config: LCPTranslatorConfig) {}
 
   /**
@@ -42,8 +32,8 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
-    logger.debug(`[TRACE-LCP] translate() ENTERED for ${locale}`);
-    logger.debug(
+    this.logger.debug(`[TRACE-LCP] translate() ENTERED for ${locale}`);
+    this.logger.debug(
       `[TRACE-LCP] translate() called for ${locale} with ${Object.keys(entriesMap).length} entries`,
     );
 
@@ -56,14 +46,14 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       ),
     };
 
-    logger.debug(
+    this.logger.debug(
       `[TRACE-LCP] Created source dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
     );
-    logger.debug(`[TRACE-LCP] Calling translateDictionary()`);
+    this.logger.debug(`[TRACE-LCP] Calling translateDictionary()`);
 
     const translated = await this.translateDictionary(sourceDictionary, locale);
 
-    logger.debug(
+    this.logger.debug(
       `[TRACE-LCP] translateDictionary() completed, returned ${Object.keys(translated.entries || {}).length} entries`,
     );
 
@@ -77,21 +67,17 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
-    const timeLabel = `LCPTranslator: ${this.config.sourceLocale} -> ${targetLocale}`;
-    console.time(timeLabel);
-
-    // Split into chunks if needed
-    logger.debug(
+    this.logger.debug(
       `[TRACE-LCP] Chunking dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
     );
     const chunks = this.chunkDictionary(sourceDictionary);
-    logger.debug(`[TRACE-LCP] Split into ${chunks.length} chunks`);
+    this.logger.debug(`[TRACE-LCP] Split into ${chunks.length} chunks`);
 
     const translatedChunks: DictionarySchema[] = [];
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      logger.debug(
+      this.logger.debug(
         `[TRACE-LCP] Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
       );
       const chunkStartTime = performance.now();
@@ -99,20 +85,19 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       const translatedChunk = await this.translateChunk(chunk, targetLocale);
 
       const chunkEndTime = performance.now();
-      logger.debug(
+      this.logger.debug(
         `[TRACE-LCP] Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
       );
 
       translatedChunks.push(translatedChunk);
     }
 
-    logger.debug(`[TRACE-LCP] All chunks translated, merging results`);
+    this.logger.debug(`[TRACE-LCP] All chunks translated, merging results`);
     const result = this.mergeDictionaries(translatedChunks);
-    logger.debug(
+    this.logger.debug(
       `[TRACE-LCP] Merge completed, final dictionary has ${Object.keys(result.entries).length} entries`,
     );
 
-    console.timeEnd(timeLabel);
     return result;
   }
 
@@ -138,7 +123,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
-    logger.debug(`[TRACE-LCP] translateWithLingoDotDev() called`);
+    this.logger.debug(`[TRACE-LCP] translateWithLingoDotDev() called`);
 
     const apiKey = getLingoDotDevKey();
     if (!apiKey) {
@@ -147,15 +132,15 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       );
     }
 
-    logger.info(
+    this.logger.info(
       `Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
-    logger.debug(`[TRACE-LCP] Creating LingoDotDevEngine client`);
+    this.logger.debug(`[TRACE-LCP] Creating LingoDotDevEngine client`);
     const engine = new LingoDotDevEngine({ apiKey });
 
     try {
-      logger.debug(
+      this.logger.debug(
         `[TRACE-LCP] Calling engine.localizeObject() with timeout ${DEFAULT_TIMEOUTS.AI_API}ms`,
       );
       const apiStartTime = performance.now();
@@ -170,13 +155,16 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       );
 
       const apiEndTime = performance.now();
-      logger.debug(
+      this.logger.debug(
         `[TRACE-LCP] engine.localizeObject() completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`,
       );
 
       return result as DictionarySchema;
     } catch (error) {
-      logger.error(`[TRACE-LCP] translateWithLingoDotDev() failed:`, error);
+      this.logger.error(
+        `[TRACE-LCP] translateWithLingoDotDev() failed:`,
+        error,
+      );
       throw new Error(
         `Lingo.dev translation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -191,23 +179,23 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
-    const { provider, model } = getLocaleModel(
+    const localeModel = getLocaleModel(
       this.config.models as Record<string, string>,
       this.config.sourceLocale,
       targetLocale,
     );
 
-    if (!provider || !model) {
+    if (!localeModel) {
       throw new Error(
         `No model configured for translation from ${this.config.sourceLocale} to ${targetLocale}`,
       );
     }
 
-    logger.info(
-      `Using LLM ("${provider}":"${model}") to translate from "${this.config.sourceLocale}" to "${targetLocale}"`,
+    this.logger.info(
+      `Using LLM ("${localeModel.provider}":"${localeModel.name}") to translate from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
-    const aiModel = this.createAiModel(provider, model);
+    const aiModel = createAiModel(localeModel);
 
     try {
       const response = await withTimeout(
@@ -240,7 +228,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
           ],
         }),
         DEFAULT_TIMEOUTS.AI_API,
-        `${provider} LLM translation to ${targetLocale}`,
+        `${localeModel.provider} LLM translation to ${targetLocale}`,
       );
 
       // Extract XML content from response
@@ -255,74 +243,8 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       return xml2obj<DictionarySchema>(responseText);
     } catch (error) {
       throw new Error(
-        `LLM translation failed with ${provider}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        `LLM translation failed with ${localeModel.provider}: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
-    }
-  }
-
-  /**
-   * Create AI model instance
-   */
-  private createAiModel(providerId: string, modelId: string): LanguageModel {
-    switch (providerId) {
-      case "groq": {
-        const apiKey = getGroqKey();
-        if (!apiKey) {
-          throw new Error(
-            "⚠️  GROQ API key not found. Please set GROQ_API_KEY environment variable.",
-          );
-        }
-        logger.debug(`Creating Groq client using model ${modelId}`);
-        return createGroq({ apiKey })(modelId);
-      }
-
-      case "google": {
-        const apiKey = getGoogleKey();
-        if (!apiKey) {
-          throw new Error(
-            "⚠️  Google API key not found. Please set GOOGLE_API_KEY environment variable.",
-          );
-        }
-        logger.debug(
-          `Creating Google Generative AI client using model ${modelId}`,
-        );
-        return createGoogleGenerativeAI({ apiKey })(modelId);
-      }
-
-      case "openrouter": {
-        const apiKey = getOpenRouterKey();
-        if (!apiKey) {
-          throw new Error(
-            "⚠️  OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.",
-          );
-        }
-        logger.debug(`Creating OpenRouter client using model ${modelId}`);
-        return createOpenRouter({ apiKey })(modelId);
-      }
-
-      case "ollama": {
-        logger.debug(
-          `Creating Ollama client using model ${modelId} at default address`,
-        );
-        return createOllama()(modelId);
-      }
-
-      case "mistral": {
-        const apiKey = getMistralKey();
-        if (!apiKey) {
-          throw new Error(
-            "⚠️  Mistral API key not found. Please set MISTRAL_API_KEY environment variable.",
-          );
-        }
-        logger.debug(`Creating Mistral client using model ${modelId}`);
-        return createMistral({ apiKey })(modelId);
-      }
-
-      default: {
-        throw new Error(
-          `⚠️  Provider "${providerId}" is not supported. Supported providers: groq, google, openrouter, ollama, mistral, lingo.dev`,
-        );
-      }
     }
   }
 

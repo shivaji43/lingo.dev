@@ -23,6 +23,12 @@ export const DEFAULT_CONFIG = {
     maxAge: 31536000,
   },
   models: "lingo.dev",
+  pluralization: {
+    enabled: true,
+    model: "groq:llama3-8b-8192",
+    minConfidence: 0.3,
+  },
+  buildMode: "translate",
 } satisfies Omit<LingoConfig, LingoConfigRequiredFields>;
 
 /**
@@ -39,6 +45,10 @@ export function createLingoConfig(options: PartialLingoConfig): LingoConfig {
     dev: {
       ...DEFAULT_CONFIG.dev,
       ...options.dev,
+    },
+    pluralization: {
+      ...DEFAULT_CONFIG.pluralization,
+      ...options.pluralization,
     },
   };
 }

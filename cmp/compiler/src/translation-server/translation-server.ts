@@ -14,13 +14,15 @@
 import http from "http";
 import { URL } from "url";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
-import { logger } from "../utils/file-logger";
+import { getLogger, loggerRegistry } from "../utils/logger";
 import {
   createTranslator,
   LocalTranslationCache,
   TranslationService,
 } from "../translators";
 import { createEmptyMetadata, loadMetadata } from "../metadata/manager";
+import { join } from "path";
+import { configureFileLogger } from "../utils/file-writer";
 
 export interface TranslationServerOptions {
   /**
@@ -48,6 +50,7 @@ export interface TranslationServerOptions {
 export class TranslationServer {
   private server: http.Server | null = null;
   private url: string | undefined = undefined;
+  private logger;
   private config: TranslationMiddlewareConfig;
   private startPort: number;
   private onReadyCallback?: (port: number) => void;
@@ -60,6 +63,20 @@ export class TranslationServer {
     this.startPort = options.startPort || 60000;
     this.onReadyCallback = options.onReady;
     this.onErrorCallback = options.onError;
+    const translationServerLogger = loggerRegistry.create(
+      "translation-server",
+      {
+        enableConsole: false,
+        enableDebug: true,
+      },
+    );
+    const translationServerLogPath = join(
+      this.config.sourceRoot,
+      this.config.lingoDir,
+      "translation-server.log",
+    );
+    configureFileLogger(translationServerLogger, translationServerLogPath);
+    this.logger = getLogger("translation-server");
   }
 
   /**
@@ -70,12 +87,7 @@ export class TranslationServer {
       throw new Error("Server is already running");
     }
 
-    // Enable file logging for translation server
-    const logFilePath = `${this.config.sourceRoot}/${this.config.lingoDir}/translation-server.log`;
-    logger.setLogFile(logFilePath);
-    logger.info(`📝 Logging to file: ${logFilePath}`);
-
-    logger.info(`🔧 Initializing translator...`);
+    this.logger.info(`🔧 Initializing translator...`);
 
     const translator = createTranslator(this.config);
     const isPseudo = translator.constructor.name === "PseudoTranslator";
@@ -87,6 +99,7 @@ export class TranslationServer {
 
     this.translationService = new TranslationService(translator, cache, {
       sourceLocale: this.config.sourceLocale,
+      pluralization: this.config.pluralization,
       isPseudo,
     });
 
@@ -95,12 +108,12 @@ export class TranslationServer {
     return new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
         // Log that we received a request (before async handling)
-        logger.info(`📥 Received: ${req.method} ${req.url}`);
+        this.logger.info(`📥 Received: ${req.method} ${req.url}`);
 
         // Wrap async handler and catch errors explicitly
         this.handleRequest(req, res).catch((error) => {
-          logger.error(`Request handler error:`, error);
-          logger.error(error.stack);
+          this.logger.error(`Request handler error:`, error);
+          this.logger.error(error.stack);
 
           // Send error response if headers not sent
           if (!res.headersSent) {
@@ -110,14 +123,14 @@ export class TranslationServer {
         });
       });
 
-      logger.debug(`Starting translation server on port ${port}`);
+      this.logger.debug(`Starting translation server on port ${port}`);
 
       this.server.on("error", (error: NodeJS.ErrnoException) => {
         if (error.code === "EADDRINUSE") {
           // Port is in use, try next one
           reject(new Error(`Port ${port} is already in use`));
         } else {
-          logger.error(`Translation server error: ${error.message}\n`);
+          this.logger.error(`Translation server error: ${error.message}\n`);
           this.onErrorCallback?.(error);
           reject(error);
         }
@@ -125,7 +138,7 @@ export class TranslationServer {
 
       this.server.listen(port, "127.0.0.1", () => {
         this.url = `http://127.0.0.1:${port}`;
-        logger.info(`Translation server listening on ${this.url}`);
+        this.logger.info(`Translation server listening on ${this.url}`);
         this.onReadyCallback?.(port);
         resolve(port);
       });
@@ -137,7 +150,7 @@ export class TranslationServer {
    */
   async stop(): Promise<void> {
     if (!this.server) {
-      logger.debug("Translation server is not running. Nothing to stop.");
+      this.logger.debug("Translation server is not running. Nothing to stop.");
       return;
     }
 
@@ -146,7 +159,7 @@ export class TranslationServer {
         if (error) {
           reject(error);
         } else {
-          logger.info(`Translation server stopped`);
+          this.logger.info(`Translation server stopped`);
           this.server = null;
           this.url = undefined;
           resolve();
@@ -175,7 +188,7 @@ export class TranslationServer {
   async startOrGetUrl(): Promise<string> {
     // If this instance already has a server running, return its URL
     if (this.server && this.url) {
-      logger.info(`Using existing server instance at ${this.url}`);
+      this.logger.info(`Using existing server instance at ${this.url}`);
       return this.url;
     }
 
@@ -187,20 +200,22 @@ export class TranslationServer {
 
     if (portAvailable) {
       // Port is free, start a new server
-      logger.info(`Port ${preferredPort} is available, starting new server...`);
+      this.logger.info(
+        `Port ${preferredPort} is available, starting new server...`,
+      );
       await this.start();
       return this.url!;
     }
 
     // Port is taken, check if it's our translation server
-    logger.info(
+    this.logger.info(
       `Port ${preferredPort} is in use, checking if it's a translation server...`,
     );
     const isOurServer = await this.checkIfTranslationServer(preferredUrl);
 
     if (isOurServer) {
       // It's our server, reuse it
-      logger.info(
+      this.logger.info(
         `✅ Found existing translation server at ${preferredUrl}, reusing it`,
       );
       this.url = preferredUrl;
@@ -208,7 +223,7 @@ export class TranslationServer {
     }
 
     // Port is taken by something else, start a new server on a different port
-    logger.info(
+    this.logger.info(
       `Port ${preferredPort} is in use by another service, finding alternative...`,
     );
     await this.start();
@@ -229,11 +244,11 @@ export class TranslationServer {
   async reloadMetadata(): Promise<void> {
     try {
       this.metadata = await loadMetadata(this.config);
-      logger.debug(
+      this.logger.debug(
         `Reloaded metadata: ${Object.keys(this.metadata.entries).length} entries`,
       );
     } catch (error) {
-      logger.warn("Failed to reload metadata:", error);
+      this.logger.warn("Failed to reload metadata:", error);
       this.metadata = createEmptyMetadata();
     }
   }
@@ -265,7 +280,9 @@ export class TranslationServer {
 
     const allHashes = Object.keys(this.metadata.entries);
 
-    logger.info(`Translating all ${allHashes.length} entries to ${locale}`);
+    this.logger.info(
+      `Translating all ${allHashes.length} entries to ${locale}`,
+    );
 
     return await this.translationService.translate(
       locale,
@@ -368,13 +385,13 @@ export class TranslationServer {
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
-    logger.info(`🔄 Processing: ${req.method} ${req.url}`);
+    this.logger.info(`🔄 Processing: ${req.method} ${req.url}`);
 
     try {
       const url = new URL(req.url || "", `http://${req.headers.host}`);
 
       // Log request
-      logger.debug(`${req.method} ${url.pathname}`);
+      this.logger.debug(`${req.method} ${url.pathname}`);
 
       // Handle CORS for browser requests
       res.setHeader("Access-Control-Allow-Origin", "*");
@@ -428,7 +445,7 @@ export class TranslationServer {
         }),
       );
     } catch (error) {
-      logger.error("Error handling request:", error);
+      this.logger.error("Error handling request:", error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -450,16 +467,16 @@ export class TranslationServer {
     try {
       // Read request body
       let body = "";
-      logger.debug("Reading request body...");
+      this.logger.debug("Reading request body...");
       for await (const chunk of req) {
         body += chunk.toString();
-        logger.debug(`Chunk read, body: ${body}`);
+        this.logger.debug(`Chunk read, body: ${body}`);
       }
 
       // Parse body
       const { hashes } = JSON.parse(body);
 
-      logger.debug(`Parsed hashes: ${hashes.join(",")}`);
+      this.logger.debug(`Parsed hashes: ${hashes.join(",")}`);
 
       if (!Array.isArray(hashes)) {
         res.writeHead(400, { "Content-Type": "application/json" });
@@ -484,8 +501,8 @@ export class TranslationServer {
         throw new Error("Failed to load metadata");
       }
 
-      logger.info(`🔄 Translating ${hashes.length} hashes to ${locale}`);
-      logger.debug(`🔄 Hashes: ${hashes.join(", ")}`);
+      this.logger.info(`🔄 Translating ${hashes.length} hashes to ${locale}`);
+      this.logger.debug(`🔄 Hashes: ${hashes.join(", ")}`);
 
       // Translate using the stored service
       const result = await this.translationService.translate(
@@ -507,7 +524,10 @@ export class TranslationServer {
         }),
       );
     } catch (error) {
-      logger.error(`Error getting batch translations for ${locale}:`, error);
+      this.logger.error(
+        `Error getting batch translations for ${locale}:`,
+        error,
+      );
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
@@ -538,7 +558,7 @@ export class TranslationServer {
         throw new Error("Failed to load metadata");
       }
 
-      logger.info(`🌐 Requesting full dictionary for ${locale}`);
+      this.logger.info(`🌐 Requesting full dictionary for ${locale}`);
 
       const allHashes = Object.keys(this.metadata.entries);
 
@@ -562,7 +582,7 @@ export class TranslationServer {
         }),
       );
     } catch (error) {
-      logger.error(`Error getting dictionary for ${locale}:`, error);
+      this.logger.error(`Error getting dictionary for ${locale}:`, error);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({

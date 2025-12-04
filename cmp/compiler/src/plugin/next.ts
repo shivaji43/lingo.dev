@@ -1,15 +1,8 @@
 import type { NextConfig } from "next";
 
-import path from "path";
-import fs from "fs/promises";
-import {
-  getCacheDir,
-  getCachePath,
-  getConfigPath,
-} from "../utils/path-helpers";
+import { getConfigPath } from "../utils/path-helpers";
 import { createLingoConfig } from "../utils/config-factory";
-import { logger } from "../utils/logger";
-import { startTranslationServer } from "../translation-server";
+import { logger, loggerRegistry } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import type { TurbopackOptions } from "next/dist/server/config-shared";
 
@@ -70,6 +63,12 @@ function buildLingoConfig(
   lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
   const lingoConfig = createLingoConfig(lingoOptions);
+
+  loggerRegistry.create("plugin", {
+    enableConsole: true,
+    // TODO (AleksandrSl 04/12/2025): Make configurable
+    enableDebug: true,
+  });
 
   // Prepare Turbopack loader configuration
   const loaderConfig = {
@@ -156,63 +155,17 @@ function buildLingoConfig(
     }
 
     logger.info("Running post-build translation generation...");
-    let translationServer:
-      | Awaited<ReturnType<typeof startTranslationServer>>
-      | undefined;
+
     try {
-      translationServer = await startTranslationServer({
-        startPort: lingoConfig.dev?.serverStartPort,
-        onError: (err) => {
-          logger.error("Translation server error:", err);
-        },
+      const { processBuildTranslations } = await import("./build-translator");
+
+      await processBuildTranslations({
         config: lingoConfig,
+        publicOutputPath: distDir,
       });
-
-      logger.info(
-        `Processing translations for ${lingoConfig.targetLocales.length} locale(s)...`,
-      );
-
-      // Translate all locales in parallel
-      // Each translator handles its own batching strategy internally
-      const localePromises = lingoConfig.targetLocales.map(async (locale) => {
-        logger.info(`Translating to ${locale}...`);
-
-        const result = await translationServer!.translateAll(locale);
-
-        if (result.errors.length > 0) {
-          logger.warn(
-            `Translation completed with ${result.errors.length} errors for ${locale}`,
-          );
-        }
-        logger.info(`${locale} completed`);
-      });
-
-      await Promise.all(localePromises);
-
-      const publicPath = distDir;
-      logger.info(`Generating static translation files in ${distDir}`);
-
-      await fs.mkdir(publicPath, { recursive: true });
-
-      for (const locale of lingoOptions.targetLocales) {
-        const cacheFilePath = getCachePath(lingoConfig, locale);
-        const publicFilePath = path.join(publicPath, `${locale}.json`);
-
-        try {
-          await fs.copyFile(cacheFilePath, publicFilePath);
-          logger.info(`✓ Generated ${locale}.json`);
-        } catch (error) {
-          logger.error(`Failed to copy ${locale}.json:`, error);
-        }
-      }
-
-      logger.info("Translation generation completed successfully");
     } catch (error) {
       logger.error("Translation generation failed:", error);
       throw error;
-    } finally {
-      translationServer?.stop();
-      logger.info("Shutting down translation server...");
     }
   };
 

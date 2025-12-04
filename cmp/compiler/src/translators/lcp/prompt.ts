@@ -1,10 +1,12 @@
-import { logger } from "../../utils/logger";
+import { getLogger } from "../../utils/logger";
 
 interface PromptArguments {
   sourceLocale: string;
   targetLocale: string;
   prompt?: string;
 }
+
+const logger = getLogger("translation-server");
 
 export function getSystemPrompt(args: PromptArguments): string {
   // If user provided custom prompt, use it

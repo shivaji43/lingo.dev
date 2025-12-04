@@ -11,7 +11,11 @@
 import type { TranslationCache } from "./cache";
 import type { TranslatableEntry, Translator } from "./api";
 import type { MetadataSchema } from "../types";
-import { logger } from "../utils/file-logger";
+import { getLogger } from "../utils/logger";
+import {
+  processPluralization,
+  type PluralizationConfig,
+} from "./pluralization";
 
 /**
  * Configuration for translation service
@@ -27,6 +31,12 @@ export interface TranslationServiceConfig {
    * If true, translations will NOT be cached
    */
   isPseudo?: boolean;
+
+  /**
+   * Pluralization configuration
+   * If provided, enables automatic pluralization of source messages
+   */
+  pluralization?: PluralizationConfig;
 }
 
 /**
@@ -68,6 +78,8 @@ export interface TranslationError {
  */
 export class TranslationService {
   private useCache = true;
+  private pluralizationProcessed = false;
+  private logger = getLogger("translation-server");
 
   constructor(
     private translator: Translator<any>,
@@ -92,7 +104,26 @@ export class TranslationService {
   ): Promise<TranslationResult> {
     const startTime = performance.now();
 
-    // TODO (AleksandrSl 03/12/2025): This would be the point to remove if we want to process the source files for pluralization
+    // TODO (AleksandrSl 04/12/2025): Think about how to avoid extra processing.
+    // Process pluralization ONCE for source locale metadata
+    // This transforms source text from "You have {count} items" to ICU format
+    if (
+      !this.pluralizationProcessed &&
+      this.config.pluralization?.enabled !== false
+    ) {
+      this.logger.info(
+        "Processing pluralization for source locale metadata...",
+      );
+      const pluralStats = await processPluralization(
+        metadata,
+        this.config.pluralization || { enabled: true },
+      );
+      this.logger.info(
+        `Pluralization stats: ${pluralStats.pluralized} pluralized, ${pluralStats.rejected} rejected, ${pluralStats.failed} failed`,
+      );
+      this.pluralizationProcessed = true;
+    }
+
     // Skip translation if target is source locale
     if (locale === this.config.sourceLocale) {
       return this.createSourceLocaleResult(metadata, requestedHashes);
@@ -101,18 +132,18 @@ export class TranslationService {
     // Determine which hashes we need to work with
     const workingHashes = requestedHashes || Object.keys(metadata.entries);
 
-    logger.info(
+    this.logger.info(
       `Translation requested for ${workingHashes.length} hashes in locale: ${locale}`,
     );
 
     // Step 1: Check cache
-    logger.debug(`[TRACE] Checking cache for locale: ${locale}`);
+    this.logger.debug(`[TRACE] Checking cache for locale: ${locale}`);
     const cacheStartTime = performance.now();
     const cachedTranslations = this.useCache
       ? await this.cache.get(locale)
       : {};
     const cacheEndTime = performance.now();
-    logger.debug(
+    this.logger.debug(
       `[TRACE] Cache check completed in ${(cacheEndTime - cacheStartTime).toFixed(2)}ms, found ${Object.keys(cachedTranslations).length} entries`,
     );
 
@@ -120,7 +151,7 @@ export class TranslationService {
     const missingHashes = workingHashes.filter(
       (hash) => !cachedTranslations[hash],
     );
-    logger.debug(
+    this.logger.debug(
       `[TRACE] ${missingHashes.length} hashes need translation, ${workingHashes.length - missingHashes.length} are cached`,
     );
 
@@ -129,7 +160,7 @@ export class TranslationService {
     if (missingHashes.length === 0) {
       // All cached!
       const endTime = performance.now();
-      logger.info(
+      this.logger.info(
         `Cache hit for all ${workingHashes.length} hashes in ${locale} in ${(endTime - startTime).toFixed(2)}ms`,
       );
 
@@ -145,16 +176,16 @@ export class TranslationService {
       };
     }
 
-    logger.info(
+    this.logger.info(
       `Generating translations for ${missingHashes.length} missing hashes in ${locale}...`,
     );
 
     // Step 3: Prepare entries for translation
-    logger.debug(
+    this.logger.debug(
       `[TRACE] Preparing ${missingHashes.length} entries for translation`,
     );
     const entriesToTranslate = this.prepareEntries(metadata, missingHashes);
-    logger.debug(
+    this.logger.debug(
       `[TRACE] Prepared ${Object.keys(entriesToTranslate).length} entries`,
     );
 
@@ -163,28 +194,28 @@ export class TranslationService {
     const errors: TranslationError[] = [];
 
     try {
-      logger.debug(
+      this.logger.debug(
         `[TRACE] Calling translator.translate() for ${locale} with ${Object.keys(entriesToTranslate).length} entries`,
       );
-      logger.debug(`[TRACE] About to await translator.translate()...`);
+      this.logger.debug(`[TRACE] About to await translator.translate()...`);
       const translateStartTime = performance.now();
-      logger.debug(`[TRACE] Executing translator.translate() NOW`);
+      this.logger.debug(`[TRACE] Executing translator.translate() NOW`);
       newTranslations = await this.translator.translate(
         locale,
         entriesToTranslate,
       );
-      logger.debug(`[TRACE] translator.translate() returned`);
+      this.logger.debug(`[TRACE] translator.translate() returned`);
 
       const translateEndTime = performance.now();
-      logger.debug(
+      this.logger.debug(
         `[TRACE] translator.translate() completed in ${(translateEndTime - translateStartTime).toFixed(2)}ms`,
       );
-      logger.debug(
+      this.logger.debug(
         `[TRACE] Received ${Object.keys(newTranslations).length} translations`,
       );
     } catch (error) {
       // Complete failure - log and return what we have from cache
-      logger.error(`Translation failed completely:`, error);
+      this.logger.error(`Translation failed completely:`, error);
 
       return {
         translations: this.pickTranslations(cachedTranslations, workingHashes),
@@ -222,20 +253,20 @@ export class TranslationService {
     // Step 5: Update cache with successful translations (skip for pseudo)
     if (this.useCache && Object.keys(newTranslations).length > 0) {
       try {
-        logger.debug(
+        this.logger.debug(
           `[TRACE] Updating cache with ${Object.keys(newTranslations).length} translations for ${locale}`,
         );
         const updateStartTime = performance.now();
         await this.cache.update(locale, newTranslations);
         const updateEndTime = performance.now();
-        logger.debug(
+        this.logger.debug(
           `[TRACE] Cache update completed in ${(updateEndTime - updateStartTime).toFixed(2)}ms`,
         );
-        logger.info(
+        this.logger.info(
           `Updated cache with ${Object.keys(newTranslations).length} translations for ${locale}`,
         );
       } catch (error) {
-        logger.error(`Failed to update cache:`, error);
+        this.logger.error(`Failed to update cache:`, error);
         // Don't fail the request if cache update fails
       }
     }
@@ -245,7 +276,7 @@ export class TranslationService {
     const result = this.pickTranslations(allTranslations, workingHashes);
 
     const endTime = performance.now();
-    logger.info(
+    this.logger.info(
       `Translation completed for ${locale}: ${Object.keys(newTranslations).length} new, ${cachedCount} cached, ${errors.length} errors in ${(endTime - startTime).toFixed(2)}ms`,
     );
 

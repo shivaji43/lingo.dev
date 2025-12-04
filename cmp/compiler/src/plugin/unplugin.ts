@@ -131,6 +131,25 @@ export const cacheDir = ${JSON.stringify(cacheDir)};`;
     },
 
     async buildEnd() {
+      // Process build-time translations (only in production)
+      if (!isDev) {
+        try {
+          const { processBuildTranslations } = await import(
+            "./build-translator"
+          );
+
+          await processBuildTranslations({
+            config,
+            // Note: publicOutputPath can be set by users in their config
+            // For Vite, this might be dist/public or public/translations
+            // For now, we don't set it here - users can handle it in their pipeline
+          });
+        } catch (error) {
+          logger.error("Build-time translation processing failed:", error);
+          throw error;
+        }
+      }
+
       // Stop translation server
       if (globalServer) {
         await globalServer.stop();

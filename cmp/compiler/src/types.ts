@@ -37,6 +37,31 @@ export type PartialLingoConfig = Pick<LingoConfig, LingoConfigRequiredFields> &
   >;
 
 /**
+ * Pluralization configuration
+ */
+export interface PluralizationConfig {
+  /**
+   * Whether pluralization is enabled
+   * @default true
+   */
+  enabled: boolean;
+
+  /**
+   * LLM provider for pluralization detection
+   * Format: "provider:model" (e.g., "groq:llama3-8b-8192")
+   * @default "groq:llama3-8b-8192"
+   */
+  model?: string;
+
+  /**
+   * Minimum confidence threshold for pattern-based detection
+   * Candidates with confidence below this won't be sent to LLM
+   * @default 0.3
+   */
+  minConfidence?: number;
+}
+
+/**
  * Lingo config with all the defaults applied
  */
 export type LingoConfig = {
@@ -104,6 +129,14 @@ export type LingoConfig = {
   prompt?: string;
 
   /**
+   * Pluralization configuration
+   * Automatically detects and converts messages to ICU MessageFormat
+   *
+   * @default { enabled: true, model: "groq:llama3-8b-8192", minConfidence: 0.3 }
+   */
+  pluralization: PluralizationConfig;
+
+  /**
    * Development-specific settings
    */
   dev: {
@@ -132,6 +165,17 @@ export type LingoConfig = {
    * Used by both client-side LocaleSwitcher and server-side locale resolver
    */
   cookieConfig: CookieConfig;
+
+  /**
+   * Build mode for CI/production
+   * - "translate": Generate translations at build time, fail if translation fails (default)
+   * - "cache-only": Only use cached translations, fail if cache is incomplete
+   *
+   * Can be overridden by LINGO_BUILD_MODE environment variable
+   *
+   * @default "translate"
+   */
+  buildMode: "translate" | "cache-only";
 };
 
 /**
@@ -162,6 +206,7 @@ export type TranslationMiddlewareConfig = Pick<
   | "prompt"
   | "targetLocales"
   | "dev"
+  | "pluralization"
 >;
 
 /**

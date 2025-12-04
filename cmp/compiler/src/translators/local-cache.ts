@@ -5,7 +5,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { TranslationCache, LocalCacheConfig } from "./cache";
-import { logger } from "../utils/file-logger";
+import { getLogger } from "../utils/logger";
 import type { DictionarySchema } from "./api";
 import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
 
@@ -77,6 +77,7 @@ export class LocalTranslationCache implements TranslationCache {
         `Write cache for ${locale}`,
       );
     } catch (error) {
+      const logger = getLogger("translation-server");
       logger.error(`Failed to write cache for locale ${locale}:`, error);
       throw error;
     }
