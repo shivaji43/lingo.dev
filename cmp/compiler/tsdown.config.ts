@@ -20,6 +20,10 @@ export default defineConfig({
     "src/plugin/turbopack-loader.ts",
     "src/plugin/dev-server-loader.ts",
   ],
+  external: [
+    /^@lingo.dev\/_compiler\/dev-config/,
+    /^@lingo.dev\/_compiler\/config/,
+  ],
   outDir: "build",
   format: ["cjs", "esm"],
   dts: true,
