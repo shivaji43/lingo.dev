@@ -30,7 +30,11 @@ export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
  * Configuration for the Lingo compiler
  */
 export type PartialLingoConfig = Pick<LingoConfig, LingoConfigRequiredFields> &
-  Partial<Omit<LingoConfig, LingoConfigRequiredFields>>;
+  Partial<
+    Omit<LingoConfig, LingoConfigRequiredFields | "dev"> & {
+      dev: Partial<LingoConfig["dev"]>;
+    }
+  >;
 
 /**
  * Lingo config with all the defaults applied

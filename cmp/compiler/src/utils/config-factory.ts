@@ -16,7 +16,7 @@ export const DEFAULT_CONFIG = {
   useDirective: false,
   skipPatterns: [/node_modules/, /\.spec\./, /\.test\./] as RegExp[],
   dev: {
-    serverStartPort: 6000,
+    serverStartPort: 60000,
   },
   cookieConfig: {
     name: "locale",

@@ -38,21 +38,27 @@
  */
 
 import { parseArgs } from "node:util";
-import { readFile, access } from "fs/promises";
-import { resolve, join } from "path";
+import { access } from "fs/promises";
+import { join } from "path";
 import { pathToFileURL } from "url";
-import type { TranslationMiddlewareConfig } from "../types";
+import type {
+  LingoConfig,
+  PartialLingoConfig,
+  TranslationMiddlewareConfig,
+} from "../types";
 import type { LingoNextPluginOptions } from "../plugin/next";
 import { logger } from "../utils/logger";
 import { startOrGetTranslationServer } from "./translation-server";
+import { createLingoConfig } from "../utils/config-factory";
+import { type LocaleCode } from "lingo.dev/spec";
 
 interface CLIOptions {
   port?: number;
-  sourceLocale?: string;
-  targetLocales?: string[];
+  sourceLocale?: LocaleCode;
+  targetLocales?: LocaleCode[];
   lingoDir?: string;
   sourceRoot?: string;
-  models?: string | Record<string, string>;
+  models?: "lingo.dev" | Record<string, string>;
   prompt?: string;
   timeout?: number;
   usePseudo?: boolean;
@@ -83,8 +89,11 @@ function parseCliArgs(): CLIOptions {
 
   return {
     port: values.port ? parseInt(values.port, 10) : undefined,
-    sourceLocale: values["source-locale"],
-    targetLocales: values["target-locales"]?.split(",").map((s) => s.trim()),
+    // TODO (AleksandrSl 04/12/2025): Validation for LocaleCode is needed
+    sourceLocale: values["source-locale"] as LocaleCode,
+    targetLocales: values["target-locales"]
+      ?.split(",")
+      .map((s) => s.trim()) as LocaleCode[],
     lingoDir: values["lingo-dir"],
     sourceRoot: values["source-root"],
     models: values.models ? parseModelsString(values.models) : undefined,
@@ -230,7 +239,7 @@ function extractViteLingoConfig(
  */
 async function loadBundlerConfig(
   cwd: string = process.cwd(),
-): Promise<Partial<TranslationMiddlewareConfig> | null> {
+): Promise<PartialLingoConfig | null> {
   const detected = await findBundlerConfig(cwd);
 
   if (!detected) {
@@ -257,13 +266,13 @@ async function loadBundlerConfig(
       const lingoConfig = extractNextLingoConfig(resolvedConfig);
       if (lingoConfig) {
         logger.info("Extracted Lingo configuration from Next.js config");
-        return lingoConfig as Partial<TranslationMiddlewareConfig>;
+        return lingoConfig as PartialLingoConfig;
       }
     } else if (detected.type === "vite") {
       const lingoConfig = extractViteLingoConfig(resolvedConfig);
       if (lingoConfig) {
         logger.info("Extracted Lingo configuration from Vite config");
-        return lingoConfig;
+        return lingoConfig as PartialLingoConfig;
       }
     }
 
@@ -281,48 +290,33 @@ async function loadBundlerConfig(
 }
 
 /**
- * Load configuration from JSON file (legacy support)
- */
-async function loadConfigFile(
-  configPath: string,
-): Promise<Partial<TranslationMiddlewareConfig>> {
-  try {
-    const absolutePath = resolve(process.cwd(), configPath);
-    const content = await readFile(absolutePath, "utf-8");
-    return JSON.parse(content);
-  } catch (error) {
-    logger.error(`Failed to load config from ${configPath}:`, error);
-    throw error;
-  }
-}
-
-// TODO (AleksandrSl 04/12/2025): SHould probably use createloaderConfig?
-/**
  * Merge CLI options with config file and defaults
  */
 function buildConfig(
   cliOpts: CLIOptions,
-  fileConfig?: Partial<TranslationMiddlewareConfig>,
-): TranslationMiddlewareConfig {
+  fileConfig?: PartialLingoConfig,
+): LingoConfig {
+  const sourceLocale = cliOpts.sourceLocale || fileConfig?.sourceLocale;
+  const targetLocales = cliOpts.targetLocales || fileConfig?.targetLocales;
+  if (!sourceLocale || !targetLocales) {
+    throw new Error(
+      `Missing required sourceLocale or targetLocales. Please provide via CLI options or ensure your config uses the Lingo plugin`,
+    );
+  }
   // Priority: CLI > config file > defaults
-  const config: TranslationMiddlewareConfig = {
-    sourceLocale: (cliOpts.sourceLocale ||
-      fileConfig?.sourceLocale ||
-      "en") as any,
-    targetLocales: (cliOpts.targetLocales ||
-      fileConfig?.targetLocales || ["es", "fr", "de"]) as any,
-    lingoDir: cliOpts.lingoDir || fileConfig?.lingoDir || ".lingo",
+  return createLingoConfig({
+    sourceLocale,
+    targetLocales,
+    lingoDir: cliOpts.lingoDir || fileConfig?.lingoDir,
     sourceRoot: cliOpts.sourceRoot || fileConfig?.sourceRoot || process.cwd(),
-    models: (cliOpts.models || fileConfig?.models || "lingo.dev") as any,
+    models: cliOpts.models || fileConfig?.models,
     prompt: cliOpts.prompt || fileConfig?.prompt,
     dev: {
       usePseudotranslator:
-        cliOpts.usePseudo ?? fileConfig?.dev?.usePseudotranslator ?? false,
-      serverStartPort: fileConfig?.dev?.serverStartPort || 6000,
+        cliOpts.usePseudo ?? fileConfig?.dev?.usePseudotranslator,
+      serverStartPort: fileConfig?.dev?.serverStartPort,
     },
-  };
-
-  return config;
+  });
 }
 
 /**
@@ -416,22 +410,13 @@ export async function main(): Promise<void> {
       process.exit(0);
     }
 
-    // Load configuration in priority order:
-    // 1. Explicit --config file (JSON)
-    // 2. Auto-detect bundler config (next.config.ts / vite.config.ts)
-    let fileConfig: Partial<TranslationMiddlewareConfig> | undefined;
+    // Try to auto-detect bundler config
+    logger.info("Searching for bundler configuration...");
+    const fileConfig: PartialLingoConfig | undefined =
+      (await loadBundlerConfig()) || undefined;
 
-    if (cliOpts.config) {
-      logger.info(`Loading configuration from ${cliOpts.config}...`);
-      fileConfig = await loadConfigFile(cliOpts.config);
-    } else {
-      // Try to auto-detect bundler config
-      logger.info("Searching for bundler configuration...");
-      fileConfig = (await loadBundlerConfig()) || undefined;
-
-      if (!fileConfig) {
-        logger.info("No bundler config found, using defaults + CLI options");
-      }
+    if (!fileConfig) {
+      logger.info("No bundler config found, using defaults + CLI options");
     }
 
     // Build final configuration
