@@ -1,7 +1,7 @@
 /**
  * @vitest-environment node
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
 
 // Mock Next.js cookies
@@ -28,7 +28,6 @@ describe("Server-side rich text rendering", () => {
 
     const { t } = await getServerTranslations({
       locale: "en",
-      sourceLocale: "en",
     });
 
     const result = t("hash1", "Hello World");
@@ -40,7 +39,6 @@ describe("Server-side rich text rendering", () => {
 
     const { t } = await getServerTranslations({
       locale: "en",
-      sourceLocale: "en",
     });
 
     const result = t("hash2", "Hello {name}", { name: "Alice" });
@@ -52,7 +50,6 @@ describe("Server-side rich text rendering", () => {
 
     const { t } = await getServerTranslations({
       locale: "en",
-      sourceLocale: "en",
     });
 
     const result = t("hash3", "Click <a0>here</a0>", {
@@ -68,7 +65,6 @@ describe("Server-side rich text rendering", () => {
 
     const { t } = await getServerTranslations({
       locale: "en",
-      sourceLocale: "en",
     });
 
     const result = t(
@@ -89,7 +85,6 @@ describe("Server-side rich text rendering", () => {
 
     const { t } = await getServerTranslations({
       locale: "en",
-      sourceLocale: "en",
     });
 
     const result = t(

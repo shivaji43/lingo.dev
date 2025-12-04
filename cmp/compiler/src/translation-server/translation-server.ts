@@ -14,7 +14,7 @@
 import http from "http";
 import { URL } from "url";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
-import { logger } from "../utils/logger";
+import { logger } from "../utils/file-logger";
 import {
   createTranslator,
   LocalTranslationCache,
@@ -69,6 +69,11 @@ export class TranslationServer {
     if (this.server) {
       throw new Error("Server is already running");
     }
+
+    // Enable file logging for translation server
+    const logFilePath = `${this.config.sourceRoot}/${this.config.lingoDir}/translation-server.log`;
+    logger.setLogFile(logFilePath);
+    logger.info(`📝 Logging to file: ${logFilePath}`);
 
     logger.info(`🔧 Initializing translator...`);
 
@@ -445,12 +450,16 @@ export class TranslationServer {
     try {
       // Read request body
       let body = "";
+      logger.debug("Reading request body...");
       for await (const chunk of req) {
         body += chunk.toString();
+        logger.debug(`Chunk read, body: ${body}`);
       }
 
       // Parse body
       const { hashes } = JSON.parse(body);
+
+      logger.debug(`Parsed hashes: ${hashes.join(",")}`);
 
       if (!Array.isArray(hashes)) {
         res.writeHead(400, { "Content-Type": "application/json" });

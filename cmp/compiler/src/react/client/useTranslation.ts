@@ -1,10 +1,13 @@
 "use client";
 
-import { ReactNode, useCallback, useEffect } from "react";
+import { type ReactNode, useCallback, useEffect } from "react";
 import { useTranslationContext } from "../shared/TranslationContext";
 import { logger } from "../../utils/logger";
-import { renderRichText, RichTextParams } from "../shared/render-rich-text";
-import { TranslationHook } from "../types";
+import {
+  renderRichText,
+  type RichTextParams,
+} from "../shared/render-rich-text";
+import type { TranslationHook } from "../types";
 
 /**
  * useTranslation Hook

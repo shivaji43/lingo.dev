@@ -1,10 +1,10 @@
-import type { LoaderConfig } from "../types";
+import type { LingoConfig } from "../types";
 import { logger } from "../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
-import { startOrGetTranslationServerHono } from "../translation-server/translation-server-hono";
+import { startOrGetTranslationServer } from "../translation-server/translation-server";
+import { getCacheDir } from "../utils/path-helpers";
 
-let serverPromise: ReturnType<typeof startOrGetTranslationServerHono> | null =
-  null;
+let serverPromise: ReturnType<typeof startOrGetTranslationServer> | null = null;
 
 export default async function devServerLoader(
   this: any,
@@ -14,14 +14,16 @@ export default async function devServerLoader(
   if (typeof this.async !== "function") {
     throw new Error("This module must be run as a loader");
   }
+  logger.debug("devServerLoader called", this.resourcePath);
   const callback = this.async();
   const isDev = process.env.NODE_ENV === "development";
 
-  const config: LoaderConfig & { cacheDir: string } = this.getOptions();
+  const config: LingoConfig = this.getOptions();
+  const startPort = config.dev.serverStartPort;
 
   if (isDev && !serverPromise) {
-    serverPromise = startOrGetTranslationServerHono({
-      startPort: 60000,
+    serverPromise = startOrGetTranslationServer({
+      startPort,
       onError: (err) => {
         logger.error("Translation server error:", err);
       },
@@ -42,7 +44,9 @@ export default async function devServerLoader(
   callback(
     null,
     source
-      .replace("__SERVER_URL__", server?.url || "http://127.0.0.1:60000")
-      .replace("__CACHE_DIR__", config.cacheDir),
+      // TODO (AleksandrSl 04/12/2025): Should we just error instead of the default?
+      .replace("__SERVER_URL__", server?.url || `http://127.0.0.1:${startPort}`)
+      // TODO (AleksandrSl 04/12/2025): Make cacheDir work
+      .replace("__CACHE_DIR__", getCacheDir(config)),
   );
 }

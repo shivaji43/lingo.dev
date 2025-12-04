@@ -5,8 +5,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { TranslationCache, LocalCacheConfig } from "./cache";
-import { logger } from "../utils/logger";
-import { DictionarySchema } from "./api";
+import { logger } from "../utils/file-logger";
+import type { DictionarySchema } from "./api";
 import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
 
 /**

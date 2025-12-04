@@ -20,11 +20,8 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
-  return lingoUnplugin.esbuild({
-    ...options,
-    framework: "esbuild",
-  } as LingoPluginOptions);
+export function lingoCompilerPlugin(options: LingoPluginOptions) {
+  return lingoUnplugin.esbuild(options);
 }
 
 export type { LingoPluginOptions };

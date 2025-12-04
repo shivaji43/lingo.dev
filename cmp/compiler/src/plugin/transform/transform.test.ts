@@ -10,11 +10,11 @@
 
 import { assert, beforeEach, describe, expect, it } from "vitest";
 import { transformComponent } from "./index";
-import type { LoaderConfig } from "../../types";
+import type { LingoConfig } from "../../types";
 import { createMockConfig } from "../../__test-utils__/mocks";
 
 describe("transformComponent", () => {
-  let config: LoaderConfig;
+  let config: LingoConfig;
 
   beforeEach(() => {
     // Create fresh in-memory mocks for each test
@@ -533,7 +533,7 @@ export function Test() {
 
   describe("metadata transformation", () => {
     it("should transform static metadata export to generateMetadata", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 import type { Metadata } from "next";
@@ -578,7 +578,7 @@ export default function Page() {
     });
 
     it("should transform existing generateMetadata function", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export async function generateMetadata({ params }) {
@@ -619,7 +619,7 @@ export default function Page() {
     });
 
     it("should handle nested metadata objects (openGraph, twitter)", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -677,7 +677,7 @@ export const metadata = {
     });
 
     it("should handle metadata with template literals (static only)", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -706,7 +706,7 @@ export const metadata = {
     });
 
     it("should skip metadata with no translatable strings", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -738,7 +738,7 @@ export default function Page() {
     });
 
     it("should not transform generateMetadata without translatable content", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export async function generateMetadata() {
@@ -762,7 +762,7 @@ export async function generateMetadata() {
     });
 
     it("should generate consistent hashes for metadata fields", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -788,7 +788,7 @@ export const metadata = {
     });
 
     it("should translate title.template and title.default", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -827,7 +827,7 @@ export const metadata = {
     });
 
     it("should translate openGraph.images[].alt", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -874,7 +874,7 @@ export const metadata = {
     });
 
     it("should translate twitter.images[].alt", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -910,7 +910,7 @@ export const metadata = {
     });
 
     it("should translate appleWebApp.title", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export const metadata = {
@@ -1182,8 +1182,7 @@ function Home() {
 
   describe("server components", () => {
     it("should transform server component with multiple text nodes in paragraph", () => {
-      // Use Next.js framework config for proper server component detection
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export default async function ServerPage() {
@@ -1226,8 +1225,7 @@ export default async function ServerPage() {
     });
 
     it("should inject correct hash array for server component", () => {
-      // Use Next.js framework config for proper server component detection
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export async function ServerCard() {
@@ -1263,7 +1261,7 @@ export async function ServerCard() {
 
   describe("isomorphic hooks (unified useTranslation)", () => {
     it("should use unified hook for non-async server component", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export default function ServerPage() {
@@ -1302,7 +1300,7 @@ export default function ServerPage() {
     });
 
     it("should use unified hook for client component with 'use client' directive", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 'use client';
@@ -1339,7 +1337,7 @@ export default function ClientPage() {
     });
 
     it("should still use async API for truly async server components", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export default async function AsyncServerPage() {
@@ -1374,7 +1372,7 @@ export default async function AsyncServerPage() {
     });
 
     it("should handle mixed async and non-async components in same file", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export async function AsyncCard() {
@@ -1948,7 +1946,7 @@ export function TestComponent() {
     });
 
     it("should translate attributes in server components", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export default async function ServerPage() {
@@ -1986,7 +1984,7 @@ export default async function ServerPage() {
     });
 
     it("should translate attributes in non-async server components using unified hook", () => {
-      const nextConfig = createMockConfig({ framework: "next" });
+      const nextConfig = createMockConfig();
 
       const code = `
 export default function ServerPage() {

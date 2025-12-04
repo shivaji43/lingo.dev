@@ -1,7 +1,7 @@
 "use client";
 import {
   TranslationProvider as BaseTranslationProvider,
-  TranslationProviderProps,
+  type TranslationProviderProps,
 } from "../shared/TranslationContext";
 import { useRouter } from "next/navigation";
 import { logger } from "../../utils/logger";

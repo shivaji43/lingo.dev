@@ -3,9 +3,9 @@
  * Prevents duplication of test helper functions across test files
  */
 
-import type { LoaderConfig } from "../types";
-import { createLoaderConfig } from "../utils/config-factory";
-import { DictionarySchema } from "../translators";
+import type { LingoConfig } from "../types";
+import { createLingoConfig } from "../utils/config-factory";
+import type { DictionarySchema } from "../translators";
 
 /**
  * Create a mock loader config for testing
@@ -21,11 +21,11 @@ import { DictionarySchema } from "../translators";
  * ```
  */
 export function createMockConfig(
-  overrides?: Partial<LoaderConfig>,
-): LoaderConfig {
-  return createLoaderConfig({
+  overrides?: Partial<LingoConfig>,
+): LingoConfig {
+  return createLingoConfig({
+    sourceLocale: "en",
     sourceRoot: "src",
-    framework: "vite", // Default to vite (all client components)
     targetLocales: ["en", "de"],
     ...overrides,
   });

@@ -1,22 +1,29 @@
 /**
  * Config factory for creating LoaderConfig instances
- * Centralizes default values and reduces duplication
  */
-
-import type { LoaderConfig } from "../types";
-import type { Framework } from "../types/framework";
+import type {
+  LingoConfig,
+  PartialLingoConfig,
+  LingoConfigRequiredFields,
+} from "../types";
 
 /**
  * Default configuration values
  */
 export const DEFAULT_CONFIG = {
-  sourceRoot: process.cwd(),
-  lingoDir: ".lingo",
-  sourceLocale: "en",
+  sourceRoot: "src",
+  lingoDir: "lingo",
   useDirective: false,
-  framework: "unknown" as Framework,
   skipPatterns: [/node_modules/, /\.spec\./, /\.test\./] as RegExp[],
-};
+  dev: {
+    serverStartPort: 6000,
+  },
+  cookieConfig: {
+    name: "locale",
+    maxAge: 31536000,
+  },
+  models: "lingo.dev",
+} satisfies Omit<LingoConfig, LingoConfigRequiredFields>;
 
 /**
  * Create a LoaderConfig with defaults applied
@@ -24,28 +31,14 @@ export const DEFAULT_CONFIG = {
  * @param options - Partial config to override defaults
  * @returns Complete LoaderConfig with all defaults applied
  *
- * @example
- * ```typescript
- * const config = createLoaderConfig({
- *   sourceRoot: "src",
- *   framework: "vite"
- * });
- * ```
  */
-export function createLoaderConfig(
-  options: Partial<Omit<LoaderConfig, "targetLocales">> &
-    Pick<LoaderConfig, "targetLocales">,
-): LoaderConfig {
+export function createLingoConfig(options: PartialLingoConfig): LingoConfig {
   return {
-    sourceRoot: options.sourceRoot ?? DEFAULT_CONFIG.sourceRoot,
-    lingoDir: options.lingoDir ?? DEFAULT_CONFIG.lingoDir,
-    sourceLocale: options.sourceLocale ?? DEFAULT_CONFIG.sourceLocale,
-    useDirective: options.useDirective ?? DEFAULT_CONFIG.useDirective,
-    framework: options.framework ?? DEFAULT_CONFIG.framework,
-    skipPatterns: options.skipPatterns ?? DEFAULT_CONFIG.skipPatterns,
-    models: options.models,
-    prompt: options.prompt,
-    dev: options.dev,
-    targetLocales: options.targetLocales,
+    ...DEFAULT_CONFIG,
+    ...options,
+    dev: {
+      ...DEFAULT_CONFIG.dev,
+      ...options.dev,
+    },
   };
 }

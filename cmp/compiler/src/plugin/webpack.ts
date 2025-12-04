@@ -19,11 +19,8 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
-  return lingoUnplugin.webpack({
-    ...options,
-    framework: "webpack",
-  } as LingoPluginOptions);
+export function lingoCompilerPlugin(options: LingoPluginOptions) {
+  return lingoUnplugin.webpack(options);
 }
 
 export type { LingoPluginOptions };

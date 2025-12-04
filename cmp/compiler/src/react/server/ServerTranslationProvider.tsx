@@ -1,6 +1,6 @@
 import {
   TranslationProvider as BaseTranslationProvider,
-  TranslationProviderProps,
+  type TranslationProviderProps,
 } from "../shared/TranslationContext";
 import { getServerTranslations } from "../server-only";
 import { logger } from "../../utils/logger";

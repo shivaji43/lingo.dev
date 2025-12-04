@@ -6,38 +6,14 @@ import {
   getCacheDir,
   getCachePath,
   getConfigPath,
-  getDevConfigPath,
 } from "../utils/path-helpers";
-import { createLoaderConfig } from "../utils/config-factory";
+import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { startTranslationServer } from "../translation-server";
-import { CookieConfig, LoaderConfig } from "../types";
-import { TurbopackOptions } from "next/dist/server/config-shared";
+import type { PartialLingoConfig } from "../types";
+import type { TurbopackOptions } from "next/dist/server/config-shared";
 
-export type LingoNextPluginOptions = {
-  /**
-   * File patterns to skip during transformation
-   * @default [/node_modules/, /\.spec\./, /\.test\./]
-   */
-  skipPatterns?: RegExp[];
-
-  /**
-   * Cookie configuration for locale persistence
-   * Shared between client-side LocaleSwitcher and server-side locale resolver
-   * @default { name: 'locale', maxAge: 31536000 }
-   */
-  cookieConfig?: CookieConfig;
-} & Pick<
-  LoaderConfig,
-  | "dev"
-  | "prompt"
-  | "models"
-  | "useDirective"
-  | "targetLocales"
-  | "sourceLocale"
-  | "lingoDir"
-  | "sourceRoot"
->;
+export type LingoNextPluginOptions = PartialLingoConfig;
 
 /**
  * Check if Next.js supports stable turbopack config (Next.js 16+)
@@ -93,10 +69,7 @@ function buildLingoConfig(
   userNextConfig: NextConfig,
   lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
-  const lingoConfig = createLoaderConfig({
-    ...lingoOptions,
-    framework: "next",
-  });
+  const lingoConfig = createLingoConfig(lingoOptions);
 
   // Prepare Turbopack loader configuration
   const loaderConfig = {
@@ -106,7 +79,6 @@ function buildLingoConfig(
       lingoDir: lingoConfig.lingoDir,
       sourceLocale: lingoConfig.sourceLocale,
       useDirective: lingoConfig.useDirective,
-      framework: lingoConfig.framework,
     },
   };
 
@@ -118,7 +90,7 @@ function buildLingoConfig(
     }),
     // TODO (AleksandrSl 02/12/2025): We can also inject default resolvers for locale based on the framework
     {
-      pattern: "**/dev-config.ts",
+      pattern: "**/dev-config.mjs",
       config: {
         loaders: [
           {
@@ -126,7 +98,6 @@ function buildLingoConfig(
             options: {
               sourceRoot: lingoConfig.sourceRoot,
               lingoDir: lingoConfig.lingoDir,
-              cacheDir: getCacheDir(lingoConfig),
               dev: lingoConfig.dev,
               sourceLocale: lingoConfig.sourceLocale,
             },
@@ -140,7 +111,6 @@ function buildLingoConfig(
   const mergedResolveAlias = {
     ...existingResolveAlias,
     "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
-    "@lingo.dev/_compiler/dev-config": getDevConfigPath(lingoConfig),
   };
 
   // Build Turbopack config (handles Next.js 16+ vs <16)
@@ -191,7 +161,7 @@ function buildLingoConfig(
       | undefined;
     try {
       translationServer = await startTranslationServer({
-        startPort: 60000,
+        startPort: lingoConfig.dev?.serverStartPort,
         onError: (err) => {
           logger.error("Translation server error:", err);
         },
@@ -267,7 +237,6 @@ function buildLingoConfig(
             sourceLocale: lingoConfig.sourceLocale,
             useDirective: lingoConfig.useDirective,
             skipPatterns: lingoConfig.skipPatterns,
-            framework: lingoConfig.framework,
           },
         },
       ],

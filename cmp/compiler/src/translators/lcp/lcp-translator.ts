@@ -17,7 +17,7 @@ import {
   getMistralKey,
   getOpenRouterKey,
 } from "./api-keys";
-import { logger } from "../../utils/logger";
+import { logger } from "../../utils/file-logger";
 import { withTimeout, DEFAULT_TIMEOUTS } from "../../utils/timeout";
 
 /**
@@ -42,6 +42,11 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
+    logger.debug(`[TRACE-LCP] translate() ENTERED for ${locale}`);
+    logger.debug(
+      `[TRACE-LCP] translate() called for ${locale} with ${Object.keys(entriesMap).length} entries`,
+    );
+
     // Create dictionary from entries map
     const sourceDictionary: DictionarySchema = {
       version: 0.1,
@@ -51,7 +56,16 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       ),
     };
 
+    logger.debug(
+      `[TRACE-LCP] Created source dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
+    );
+    logger.debug(`[TRACE-LCP] Calling translateDictionary()`);
+
     const translated = await this.translateDictionary(sourceDictionary, locale);
+
+    logger.debug(
+      `[TRACE-LCP] translateDictionary() completed, returned ${Object.keys(translated.entries || {}).length} entries`,
+    );
 
     return translated.entries || {};
   }
@@ -67,15 +81,37 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     console.time(timeLabel);
 
     // Split into chunks if needed
+    logger.debug(
+      `[TRACE-LCP] Chunking dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
+    );
     const chunks = this.chunkDictionary(sourceDictionary);
+    logger.debug(`[TRACE-LCP] Split into ${chunks.length} chunks`);
+
     const translatedChunks: DictionarySchema[] = [];
 
-    for (const chunk of chunks) {
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      logger.debug(
+        `[TRACE-LCP] Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
+      );
+      const chunkStartTime = performance.now();
+
       const translatedChunk = await this.translateChunk(chunk, targetLocale);
+
+      const chunkEndTime = performance.now();
+      logger.debug(
+        `[TRACE-LCP] Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
+      );
+
       translatedChunks.push(translatedChunk);
     }
 
+    logger.debug(`[TRACE-LCP] All chunks translated, merging results`);
     const result = this.mergeDictionaries(translatedChunks);
+    logger.debug(
+      `[TRACE-LCP] Merge completed, final dictionary has ${Object.keys(result.entries).length} entries`,
+    );
+
     console.timeEnd(timeLabel);
     return result;
   }
@@ -102,6 +138,8 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
+    logger.debug(`[TRACE-LCP] translateWithLingoDotDev() called`);
+
     const apiKey = getLingoDotDevKey();
     if (!apiKey) {
       throw new Error(
@@ -113,9 +151,15 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       `Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
+    logger.debug(`[TRACE-LCP] Creating LingoDotDevEngine client`);
     const engine = new LingoDotDevEngine({ apiKey });
 
     try {
+      logger.debug(
+        `[TRACE-LCP] Calling engine.localizeObject() with timeout ${DEFAULT_TIMEOUTS.AI_API}ms`,
+      );
+      const apiStartTime = performance.now();
+
       const result = await withTimeout(
         engine.localizeObject(sourceDictionary, {
           sourceLocale: this.config.sourceLocale,
@@ -125,8 +169,14 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
         `Lingo.dev API translation to ${targetLocale}`,
       );
 
+      const apiEndTime = performance.now();
+      logger.debug(
+        `[TRACE-LCP] engine.localizeObject() completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`,
+      );
+
       return result as DictionarySchema;
     } catch (error) {
+      logger.error(`[TRACE-LCP] translateWithLingoDotDev() failed:`, error);
       throw new Error(
         `Lingo.dev translation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );

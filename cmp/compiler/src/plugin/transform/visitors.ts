@@ -2,13 +2,9 @@
  * Keep mutations to the current node and children. e.g. do not mutate program inserting imports when processing the component. This should be done in the end.
  */
 import * as t from "@babel/types";
-import { VariableDeclaration } from "@babel/types";
+import type { VariableDeclaration } from "@babel/types";
 import type { NodePath, TraverseOptions } from "@babel/traverse";
-import type {
-  ComponentType,
-  LoaderConfig,
-  TranslationEntry,
-} from "../../types";
+import type { ComponentType, LingoConfig, TranslationEntry } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
 import { logger } from "../../utils/logger";
 
@@ -21,7 +17,7 @@ type ComponentEntry = {
 export interface VisitorsSharedState {
   newEntries: TranslationEntry[];
   filePath: string;
-  config: LoaderConfig;
+  config: LingoConfig;
 }
 
 /**
@@ -832,7 +828,7 @@ function injectServerHook(
   componentPath: NodePath<
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
-  config: LoaderConfig,
+  config: LingoConfig,
   hashes: string[],
 ): void {
   const body = componentPath.get("body");

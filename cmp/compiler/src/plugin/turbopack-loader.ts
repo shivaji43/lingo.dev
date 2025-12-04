@@ -1,4 +1,4 @@
-import type { LoaderConfig } from "../types";
+import type { LingoConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { logger } from "../utils/logger";
@@ -23,7 +23,7 @@ export default async function lingoCompilerTurbopackLoader(
   const isDev = process.env.NODE_ENV === "development";
 
   try {
-    const config: LoaderConfig = this.getOptions();
+    const config: LingoConfig = this.getOptions();
 
     // Check if this file should be transformed
     if (!shouldTransformFile(this.resourcePath, config)) {

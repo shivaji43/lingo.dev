@@ -2,8 +2,7 @@
  * Core types for the compiler-beta translation system
  */
 
-import type { Framework } from "./types/framework";
-import { LocaleCode } from "lingo.dev/spec";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Cookie configuration for locale persistence
@@ -23,9 +22,20 @@ export interface CookieConfig {
 }
 
 /**
- * Configuration for the translation loader
+ * Field that we require users to fill in in the config. The rest could be taken from defaults.
  */
-export interface LoaderConfig {
+export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
+
+/**
+ * Configuration for the Lingo compiler
+ */
+export type PartialLingoConfig = Pick<LingoConfig, LingoConfigRequiredFields> &
+  Partial<Omit<LingoConfig, LingoConfigRequiredFields>>;
+
+/**
+ * Lingo config with all the defaults applied
+ */
+export type LingoConfig = {
   /**
    * Root directory of the source code
    */
@@ -63,12 +73,12 @@ export interface LoaderConfig {
   /**
    * Whether to require 'use i18n' directive
    */
-  useDirective?: boolean;
+  useDirective: boolean;
 
   /**
    * Skip transformation for specific patterns
    */
-  skipPatterns?: RegExp[];
+  skipPatterns: RegExp[];
 
   /**
    * Model configuration for LCP translator
@@ -81,7 +91,7 @@ export interface LoaderConfig {
    *
    * @default "lingo.dev"
    */
-  models?: "lingo.dev" | Record<string, string>;
+  models: "lingo.dev" | Record<string, string>;
 
   /**
    * Custom translation prompt for LCP translator
@@ -92,7 +102,7 @@ export interface LoaderConfig {
   /**
    * Development-specific settings
    */
-  dev?: {
+  dev: {
     /**
      * Use pseudotranslator in development instead of real translator
      * Useful for:
@@ -103,32 +113,35 @@ export interface LoaderConfig {
      * @default false
      */
     usePseudotranslator?: boolean;
-  };
 
-  /**
-   * Framework being used (affects component detection)
-   */
-  framework?: Framework;
+    /**
+     * Starting port for the translation server in development mode
+     * Server will try this port first, then increment if unavailable
+     *
+     * @default 60000
+     */
+    serverStartPort: number;
+  };
 
   /**
    * Cookie configuration for locale persistence
    * Used by both client-side LocaleSwitcher and server-side locale resolver
    */
-  cookieConfig?: CookieConfig;
-}
+  cookieConfig: CookieConfig;
+};
 
 /**
  * Minimal config needed for metadata operations
  * Used by metadata manager functions
  */
-export type MetadataConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
+export type MetadataConfig = Pick<LingoConfig, "sourceRoot" | "lingoDir">;
 
 /**
  * Config needed for translation operations
  * Includes translator configuration
  */
 export type TranslationConfig = Pick<
-  LoaderConfig,
+  LingoConfig,
   "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt"
 >;
 
@@ -137,16 +150,21 @@ export type TranslationConfig = Pick<
  * Extends TranslationConfig with optional fields
  */
 export type TranslationMiddlewareConfig = Pick<
-  LoaderConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt"
-> &
-  Partial<Pick<LoaderConfig, "targetLocales" | "dev">>;
+  LingoConfig,
+  | "sourceRoot"
+  | "lingoDir"
+  | "sourceLocale"
+  | "models"
+  | "prompt"
+  | "targetLocales"
+  | "dev"
+>;
 
 /**
  * Config needed for path operations
  * Alias for MetadataConfig (same fields)
  */
-export type PathConfig = Pick<LoaderConfig, "sourceRoot" | "lingoDir">;
+export type PathConfig = Pick<LingoConfig, "sourceRoot" | "lingoDir">;
 
 /**
  * A single translation entry

@@ -19,11 +19,8 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
-  return lingoUnplugin.rollup({
-    ...options,
-    framework: "rollup",
-  } as LingoPluginOptions);
+export function lingoCompilerPlugin(options: LingoPluginOptions) {
+  return lingoUnplugin.rollup(options);
 }
 
 export type { LingoPluginOptions };

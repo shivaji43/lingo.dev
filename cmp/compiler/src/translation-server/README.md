@@ -235,6 +235,40 @@ pnpm server:help
 pnpm server -- --port 3456 --use-pseudo
 ```
 
+### Server Logs
+
+The translation server writes logs to both:
+
+1. **Console output** - Standard console.log output
+2. **Log file** - `.lingo/translation-server.log`
+
+The log file includes:
+
+- Timestamped entries
+- All log levels (debug, info, warn, error)
+- Formatted JSON objects
+- Full request/response traces
+
+**View logs:**
+
+```bash
+# Tail the log file
+tail -f .lingo/translation-server.log
+
+# Windows (PowerShell)
+Get-Content .lingo/translation-server.log -Wait -Tail 50
+```
+
+**Note:** The log file is appended to on each server start, so you may want to clear it periodically:
+
+```bash
+# Unix
+rm .lingo/translation-server.log
+
+# Windows
+del .lingo\translation-server.log
+```
+
 ### Switching to Hono Implementation
 
 The loader already uses Hono by default (see `dev-server-loader.ts`):

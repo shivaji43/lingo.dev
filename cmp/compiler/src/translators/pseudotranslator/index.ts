@@ -3,6 +3,7 @@
  */
 
 import type { TranslatableEntry, Translator } from "../api";
+import { logger } from "../../utils/file-logger";
 
 export interface PseudoTranslatorConfig {
   delayMedian?: number;
@@ -16,18 +17,40 @@ export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
   constructor(readonly config: PseudoTranslatorConfig) {}
 
   translate(locale: string, entries: Record<string, TranslatableEntry>) {
+    logger.debug(
+      `[TRACE-PSEUDO] translate() ENTERED for ${locale} with ${Object.keys(entries).length} entries`,
+    );
     const delay = this.config?.delayMedian ?? 0;
+    const actualDelay = this.getRandomDelay(delay);
+
+    logger.debug(
+      `[TRACE-PSEUDO] Config delay: ${delay}ms, actual delay: ${actualDelay}ms`,
+    );
 
     return new Promise<Record<string, string>>((resolve) => {
+      logger.debug(
+        `[TRACE-PSEUDO] Promise created, scheduling setTimeout for ${actualDelay}ms`,
+      );
+
       setTimeout(() => {
-        resolve(
-          Object.fromEntries(
-            Object.entries(entries).map(([hash, entry]) => {
-              return [hash, `${locale}/${pseudolocalize(entry.text)}`];
-            }),
-          ),
+        logger.debug(
+          `[TRACE-PSEUDO] setTimeout callback fired for ${locale}, processing entries`,
         );
-      }, this.getRandomDelay(delay));
+
+        const result = Object.fromEntries(
+          Object.entries(entries).map(([hash, entry]) => {
+            return [hash, `${locale}/${pseudolocalize(entry.text)}`];
+          }),
+        );
+
+        logger.debug(
+          `[TRACE-PSEUDO] Pseudolocalization complete, resolving with ${Object.keys(result).length} translations`,
+        );
+        resolve(result);
+        logger.debug(`[TRACE-PSEUDO] Promise resolved for ${locale}`);
+      }, actualDelay);
+
+      logger.debug(`[TRACE-PSEUDO] setTimeout scheduled, returning promise`);
     });
   }
 

@@ -296,6 +296,7 @@ async function loadConfigFile(
   }
 }
 
+// TODO (AleksandrSl 04/12/2025): SHould probably use createloaderConfig?
 /**
  * Merge CLI options with config file and defaults
  */
@@ -317,6 +318,7 @@ function buildConfig(
     dev: {
       usePseudotranslator:
         cliOpts.usePseudo ?? fileConfig?.dev?.usePseudotranslator ?? false,
+      serverStartPort: fileConfig?.dev?.serverStartPort || 6000,
     },
   };
 
@@ -435,9 +437,12 @@ export async function main(): Promise<void> {
     // Build final configuration
     const config = buildConfig(cliOpts, fileConfig);
 
+    // Determine final port: CLI option > config > default
+    const startPort = cliOpts.port || config.dev?.serverStartPort || 60000;
+
     // Log configuration
     logger.info("Starting translation server with configuration:");
-    logger.info(`  Port: ${cliOpts.port || 60000}`);
+    logger.info(`  Port: ${startPort}`);
     logger.info(`  Source Locale: ${config.sourceLocale}`);
     logger.info(`  Target Locales: ${(config.targetLocales || []).join(", ")}`);
     logger.info(`  Lingo Directory: ${config.lingoDir}`);
@@ -450,7 +455,7 @@ export async function main(): Promise<void> {
 
     // Start server
     const { server, url } = await startOrGetTranslationServer({
-      startPort: cliOpts.port || 60000,
+      startPort,
       config,
       // requestTimeout: cliOpts.timeout || 30000,
       onError: (err) => {

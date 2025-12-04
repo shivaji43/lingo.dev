@@ -14,35 +14,17 @@
 
 import { createUnplugin } from "unplugin";
 import { transformComponent } from "./transform";
-import type { LoaderConfig } from "../types";
+import type { PartialLingoConfig } from "../types";
 import {
   startTranslationServer,
   type TranslationServer,
 } from "../translation-server";
 import { saveMetadataWithEntries } from "../metadata/manager";
-import { createLoaderConfig } from "../utils/config-factory";
+import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { getCacheDir } from "../utils/path-helpers";
 
-export interface LingoPluginOptions extends LoaderConfig {
-  /**
-   * Cookie configuration for locale persistence
-   * Shared between client-side LocaleSwitcher and server-side locale resolver
-   * @default { name: 'locale', maxAge: 31536000 }
-   */
-  cookieConfig?: {
-    /**
-     * Name of the cookie to store the locale
-     * @default 'locale'
-     */
-    name: string;
-    /**
-     * Maximum age of the cookie in seconds
-     * @default 31536000 (1 year)
-     */
-    maxAge: number;
-  };
-}
+export type LingoPluginOptions = PartialLingoConfig;
 
 let globalServer: TranslationServer;
 
@@ -50,112 +32,109 @@ let globalServer: TranslationServer;
  * Universal plugin for Lingo.dev compiler
  * Supports Vite, Webpack, Rollup, and esbuild
  */
-export const lingoUnplugin = createUnplugin<LingoPluginOptions>(
-  (options = {} as LingoPluginOptions, meta) => {
-    const config: LoaderConfig = createLoaderConfig({
-      ...options,
-      sourceRoot: options.sourceRoot ?? "src",
-    });
+export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
+  const config = createLingoConfig(options);
 
-    const isDev = process.env.NODE_ENV === "development";
+  const isDev = process.env.NODE_ENV === "development";
+  const startPort = config.dev.serverStartPort;
 
-    return {
-      name: "lingo-compiler",
-      enforce: "pre", // Run before other plugins (especially before React plugin)
+  return {
+    name: "lingo-compiler",
+    enforce: "pre", // Run before other plugins (especially before React plugin)
 
-      // Start translation server on build start
-      async buildStart() {
-        // Start translation server if not already running
-        if (!globalServer) {
-          globalServer = await startTranslationServer({
-            startPort: 60000,
-            onError: (err) => {
-              logger.error("Translation server error:", err);
-            },
+    // Start translation server on build start
+    async buildStart() {
+      // Start translation server if not already running
+      if (!globalServer) {
+        globalServer = await startTranslationServer({
+          startPort,
+          onError: (err) => {
+            logger.error("Translation server error:", err);
+          },
+          config,
+        });
+      }
+    },
+
+    resolveId(id) {
+      if (id === "@lingo.dev/_compiler/dev-config") {
+        // Return a virtual module ID (prefix with \0 to mark it as virtual)
+        return "\0virtual:lingo-dev-config";
+      }
+      return null;
+    },
+
+    load(id) {
+      if (id === "\0virtual:lingo-dev-config") {
+        const serverUrl =
+          globalServer?.getUrl() || `http://127.0.0.1:${startPort}`;
+        const cacheDir = getCacheDir(config);
+
+        return `export const serverUrl = ${JSON.stringify(serverUrl)};
+export const cacheDir = ${JSON.stringify(cacheDir)};`;
+      }
+      return null;
+    },
+
+    transform: {
+      filter: {
+        id: {
+          include: [/\.[tj]sx$/],
+          exclude: /node_modules/,
+        },
+      },
+      handler: async (code, id) => {
+        try {
+          // Transform the component
+          const result = transformComponent({
+            code,
+            filePath: id,
             config,
           });
-        }
-      },
 
-      resolveId(id) {
-        if (id === "@lingo.dev/_compiler/dev-config") {
-          // Return a virtual module ID (prefix with \0 to mark it as virtual)
-          return "\0virtual:lingo-dev-config";
-        }
-        return null;
-      },
+          logger.debug(`Transforming ${result.code}`);
 
-      load(id) {
-        if (id === "\0virtual:lingo-dev-config") {
-          const serverUrl = globalServer?.getUrl() || "http://127.0.0.1:60000";
-          const cacheDir = getCacheDir(config);
-
-          return `export const serverUrl = ${JSON.stringify(serverUrl)};
-export const cacheDir = ${JSON.stringify(cacheDir)};`;
-        }
-        return null;
-      },
-
-      transform: {
-        filter: {
-          id: {
-            include: [/\.[tj]sx$/],
-            exclude: /node_modules/,
-          },
-        },
-        handler: async (code, id) => {
-          try {
-            // Transform the component
-            const result = transformComponent({
-              code,
-              filePath: id,
-              config,
-            });
-
-            logger.debug(`Transforming ${result.code}`);
-
-            // If no transformation occurred, return original code
-            if (!result.transformed) {
-              logger.debug(`No transformation needed for ${id}`);
-              return null;
-            }
-
-            // Update metadata with new entries (thread-safe)
-            if (result.newEntries && result.newEntries.length > 0) {
-              logger.debug(
-                `Updating metadata with ${result.newEntries.length} new entries`,
-              );
-
-              // TODO (AleksandrSl 30/11/2025): Could make async in the future, so we don't pause the main transform, translation server should be able to know if the metadata is finished writing then.
-              // Thread-safe atomic update
-              await saveMetadataWithEntries(config, result.newEntries);
-
-              // Log new translations discovered (in dev mode)
-              if (isDev) {
-                logger.info(
-                  `Found ${result.newEntries.length} translatable text(s) in ${id}`,
-                );
-              }
-            }
-
-            logger.debug(`Returning transformed code for ${id}`);
-            return {
-              code: result.code,
-              map: result.map,
-            };
-          } catch (error) {
-            logger.error(`Transform error in ${id}:`, error);
+          // If no transformation occurred, return original code
+          if (!result.transformed) {
+            logger.debug(`No transformation needed for ${id}`);
             return null;
           }
-        },
-      },
 
-      async buildEnd() {
-        // Stop translation server
-        if (globalServer) {
-          await globalServer.stop();
+          // Update metadata with new entries (thread-safe)
+          if (result.newEntries && result.newEntries.length > 0) {
+            logger.debug(
+              `Updating metadata with ${result.newEntries.length} new entries`,
+            );
+
+            // TODO (AleksandrSl 30/11/2025): Could make async in the future, so we don't pause the main transform, translation server should be able to know if the metadata is finished writing then.
+            // Thread-safe atomic update
+            await saveMetadataWithEntries(config, result.newEntries);
+
+            // Log new translations discovered (in dev mode)
+            if (isDev) {
+              logger.info(
+                `Found ${result.newEntries.length} translatable text(s) in ${id}`,
+              );
+            }
+          }
+
+          logger.debug(`Returning transformed code for ${id}`);
+          return {
+            code: result.code,
+            map: result.map,
+          };
+        } catch (error) {
+          logger.error(`Transform error in ${id}:`, error);
+          return null;
         }
       },
-    };
-  },
-);
+    },
+
+    async buildEnd() {
+      // Stop translation server
+      if (globalServer) {
+        await globalServer.stop();
+      }
+    },
+  };
+});

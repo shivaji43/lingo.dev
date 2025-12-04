@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslationContext } from "../shared/TranslationContext";
-import { CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 /**
  * Locale configuration

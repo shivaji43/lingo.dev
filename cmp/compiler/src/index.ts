@@ -1,5 +1,5 @@
 export type {
-  LoaderConfig,
+  PartialLingoConfig,
   MetadataConfig,
   TranslationConfig,
   PathConfig,

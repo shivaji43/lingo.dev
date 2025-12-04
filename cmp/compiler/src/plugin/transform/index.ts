@@ -2,8 +2,8 @@ import * as parser from "@babel/parser";
 import traverseDefault from "@babel/traverse";
 import generateDefault from "@babel/generator";
 import path from "path";
-import { LoaderConfig, MetadataSchema, TranslationEntry } from "../../types";
-import { createBabelVisitors, VisitorsSharedState } from "./visitors";
+import type { LingoConfig, TranslationEntry } from "../../types";
+import { createBabelVisitors, type VisitorsSharedState } from "./visitors";
 import { logger } from "../../utils/logger";
 
 // Handle ESM/CJS interop - these packages may export differently
@@ -36,7 +36,7 @@ export interface BabelTransformOptions {
   /**
    * Loader configuration
    */
-  config: LoaderConfig;
+  config: LingoConfig;
 }
 
 /**
@@ -107,7 +107,7 @@ export function transformComponent({
  */
 export function shouldTransformFile(
   filePath: string,
-  config: LoaderConfig,
+  config: LingoConfig,
 ): boolean {
   // Only transform .tsx and .jsx files
   if (!filePath.match(/\.(tsx|jsx)$/)) {

@@ -20,13 +20,8 @@
 
 import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
 
-export function lingoCompilerPlugin(options: Partial<LingoPluginOptions> = {}) {
-  const fullOptions = {
-    ...options,
-    framework: "vite",
-  } as LingoPluginOptions;
-
-  const plugin = lingoUnplugin.vite(fullOptions);
+export function lingoCompilerPlugin(options: LingoPluginOptions) {
+  const plugin = lingoUnplugin.vite(options);
 
   // Attach Lingo config for CLI extraction
   // @ts-expect-error - Internal property for CLI access

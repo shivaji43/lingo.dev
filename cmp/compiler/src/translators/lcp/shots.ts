@@ -1,4 +1,4 @@
-import { DictionarySchema } from "../api";
+import type { DictionarySchema } from "../api";
 
 /**
  * Few-shot examples for LLM translation
