@@ -1,7 +1,8 @@
-import { Counter } from "@/components/counter";
+import { Counter } from "@/components/Counter";
 import { LocaleSwitcher } from "@lingo.dev/_compiler/react";
 import Link from "next/link";
-import { CounterServerChild } from "@/components/counterServerChild";
+import { ServerChild } from "@/components/ServerChild";
+import { ClientChildWrapper } from "@/components/ClientChildWrapper";
 
 const externalText = <>External text</>;
 
@@ -26,7 +27,7 @@ export default function Home() {
             { code: "en", label: "English" },
             { code: "es", label: "Spanish" },
             { code: "de", label: "Deutsch" },
-            { code: "fr", label: "Français" },
+            { code: "ru", label: "Русский" },
           ]}
         />
       </header>
@@ -40,9 +41,12 @@ export default function Home() {
           It supports both server and client components.
         </p>
         <div className="my-2">
-          <Counter>
-            <CounterServerChild />
-          </Counter>
+          <Counter />
+        </div>
+        <div className="my-2">
+          <ClientChildWrapper>
+            <ServerChild />
+          </ClientChildWrapper>
         </div>
         <div>
           Text inserted as an <code>{"{expression}"}</code> is not translated:{" "}
