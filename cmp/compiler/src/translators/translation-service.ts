@@ -78,7 +78,6 @@ export interface TranslationError {
  */
 export class TranslationService {
   private useCache = true;
-  private pluralizationProcessed = false;
 
   constructor(
     private translator: Translator<any>,
@@ -104,13 +103,8 @@ export class TranslationService {
   ): Promise<TranslationResult> {
     const startTime = performance.now();
 
-    // TODO (AleksandrSl 04/12/2025): Think about how to avoid extra processing.
-    // Process pluralization ONCE for source locale metadata
-    // This transforms source text from "You have {count} items" to ICU format
-    if (
-      !this.pluralizationProcessed &&
-      this.config.pluralization?.enabled !== false
-    ) {
+    // TODO (AleksandrSl 05/12/2025): Most likely you don't need pluralization for the pseudo translation. We could move it as a part of the lcp translator
+    if (this.config.pluralization?.enabled !== false && !this.config.isPseudo) {
       this.logger.info(
         "Processing pluralization for source locale metadata...",
       );
@@ -125,7 +119,6 @@ export class TranslationService {
       this.logger.info(
         `Pluralization stats: ${pluralStats.pluralized} pluralized, ${pluralStats.rejected} rejected, ${pluralStats.failed} failed`,
       );
-      this.pluralizationProcessed = true;
     }
 
     // Skip translation if target is source locale

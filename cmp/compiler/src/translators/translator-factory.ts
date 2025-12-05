@@ -5,88 +5,7 @@
 import type { Translator } from "./api";
 import { PseudoTranslator } from "./pseudotranslator";
 import { LCPTranslator } from "./lcp";
-import {
-  getGoogleKey,
-  getGroqKey,
-  getLingoDotDevKey,
-  getMistralKey,
-  getOpenRouterKey,
-} from "./lcp/api-keys";
-import { formatNoApiKeysError } from "./lcp/provider-details";
 import { Logger } from "../utils/logger";
-
-/**
- * Check if API keys are available for the configured models
- * Returns validation result with:
- * - hasKeys: true if ALL required providers have API keys
- * - providers: list of all configured providers
- * - missingProviders: list of providers missing API keys
- */
-function validateApiKeys(models: "lingo.dev" | Record<string, string>): {
-  hasKeys: boolean;
-  providers: string[];
-  missingProviders: string[];
-} {
-  if (models === "lingo.dev") {
-    const hasKey = !!getLingoDotDevKey();
-    return {
-      hasKeys: hasKey,
-      providers: ["lingo.dev"],
-      missingProviders: hasKey ? [] : ["lingo.dev"],
-    };
-  }
-
-  // Extract unique providers from model strings
-  // Models are like: { "es": "groq:llama3-70b", "fr": "google:gemini-pro" }
-  const uniqueProviders = new Set<string>();
-
-  for (const modelString of Object.values(models)) {
-    const colonIndex = modelString.indexOf(":");
-    if (colonIndex !== -1) {
-      const provider = modelString.substring(0, colonIndex);
-      uniqueProviders.add(provider);
-    }
-  }
-
-  const providers = Array.from(uniqueProviders);
-  const missingProviders: string[] = [];
-
-  // Check if ALL providers have their API keys
-  for (const provider of providers) {
-    let hasKey = false;
-
-    switch (provider) {
-      case "groq":
-        hasKey = !!getGroqKey();
-        break;
-      case "google":
-        hasKey = !!getGoogleKey();
-        break;
-      case "openrouter":
-        hasKey = !!getOpenRouterKey();
-        break;
-      case "ollama":
-        hasKey = true; // Ollama doesn't need API key
-        break;
-      case "mistral":
-        hasKey = !!getMistralKey();
-        break;
-      default:
-        // Unknown provider - consider it missing
-        hasKey = false;
-    }
-
-    if (!hasKey) {
-      missingProviders.push(provider);
-    }
-  }
-
-  return {
-    hasKeys: missingProviders.length === 0,
-    providers,
-    missingProviders,
-  };
-}
 
 /**
  * Configuration required for creating a translator
@@ -115,6 +34,9 @@ export interface TranslatorFactoryConfig {
  *
  * Note: Translators are stateless and don't handle caching.
  * Caching is handled by TranslationService layer.
+ *
+ * API key validation is now done in the LCPTranslator constructor
+ * which validates and fetches all keys once at initialization.
  */
 export function createTranslator(
   config: TranslatorFactoryConfig,
@@ -128,22 +50,16 @@ export function createTranslator(
     return new PseudoTranslator({ delayMedian: 100 }, logger);
   }
 
+  // 2. Try to create real translator
+  // LCPTranslator constructor will validate and fetch API keys
+  // If validation fails, it will throw an error with helpful message
   try {
     const models = config.models || "lingo.dev";
-    const validation = validateApiKeys(models);
-
-    if (!validation.hasKeys) {
-      // Format helpful error message with specific missing providers
-      const errorMessage = formatNoApiKeysError(
-        validation.missingProviders,
-        validation.providers,
-      );
-      throw new Error(errorMessage);
-    }
 
     logger.info(
-      `✅ Creating LCP translator with models: ${JSON.stringify(models)}`,
+      `Creating LCP translator with models: ${JSON.stringify(models)}`,
     );
+
     return new LCPTranslator(
       {
         models,
@@ -153,6 +69,7 @@ export function createTranslator(
       logger,
     );
   } catch (error) {
+    // 3. Auto-fallback in dev mode if creation fails
     if (isDev) {
       // Use console.error to ensure visibility in all contexts (loader, server, etc.)
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -165,7 +82,7 @@ export function createTranslator(
       return new PseudoTranslator({ delayMedian: 100 }, logger);
     }
 
-    // Fail in production
+    // 4. Fail in production
     throw error;
   }
 }

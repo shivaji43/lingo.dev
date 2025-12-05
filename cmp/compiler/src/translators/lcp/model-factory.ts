@@ -8,16 +8,87 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOllama } from "ollama-ai-provider";
 import { createMistral } from "@ai-sdk/mistral";
 import type { LanguageModel } from "ai";
-import {
-  getGoogleKey,
-  getGroqKey,
-  getMistralKey,
-  getOpenRouterKey,
-} from "./api-keys";
+import { getKeyFromEnv } from "./api-keys";
 
-type LocaleModel = {
+export type LocaleModel = {
   provider: string;
   name: string;
+};
+
+/**
+ * Pre-validated API keys for all providers
+ * Keys are fetched and validated once at initialization
+ */
+export type ValidatedApiKeys = Record<string, string>;
+
+/**
+ * Provider configuration including env var names and requirements
+ */
+type ProviderConfig = {
+  name: string; // Display name (e.g., "Groq", "Google")
+  apiKeyEnvVar?: string; // Environment variable name (e.g., "GROQ_API_KEY")
+  apiKeyConfigKey?: string; // Config key if applicable (e.g., "llm.groqApiKey")
+  getKeyLink: string; // Link to get API key
+  docsLink: string; // Link to API docs for troubleshooting
+};
+
+export const providerDetails: Record<string, ProviderConfig> = {
+  groq: {
+    name: "Groq",
+    apiKeyEnvVar: "GROQ_API_KEY",
+    apiKeyConfigKey: "llm.groqApiKey",
+    getKeyLink: "https://groq.com",
+    docsLink: "https://console.groq.com/docs/errors",
+  },
+  google: {
+    name: "Google",
+    apiKeyEnvVar: "GOOGLE_API_KEY",
+    apiKeyConfigKey: "llm.googleApiKey",
+    getKeyLink: "https://ai.google.dev/",
+    docsLink: "https://ai.google.dev/gemini-api/docs/troubleshooting",
+  },
+  openai: {
+    name: "OpenAI",
+    apiKeyEnvVar: "OPENAI_API_KEY",
+    apiKeyConfigKey: "llm.openaiApiKey",
+    getKeyLink: "https://platform.openai.com/account/api-keys",
+    docsLink: "https://platform.openai.com/docs",
+  },
+  anthropic: {
+    name: "Anthropic",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+    apiKeyConfigKey: "llm.anthropicApiKey",
+    getKeyLink: "https://console.anthropic.com/get-api-key",
+    docsLink: "https://console.anthropic.com/docs",
+  },
+  openrouter: {
+    name: "OpenRouter",
+    apiKeyEnvVar: "OPENROUTER_API_KEY",
+    apiKeyConfigKey: "llm.openrouterApiKey",
+    getKeyLink: "https://openrouter.ai",
+    docsLink: "https://openrouter.ai/docs",
+  },
+  ollama: {
+    name: "Ollama",
+    apiKeyEnvVar: undefined, // Ollama doesn't require an API key
+    apiKeyConfigKey: undefined, // Ollama doesn't require an API key
+    getKeyLink: "https://ollama.com/download",
+    docsLink: "https://github.com/ollama/ollama/tree/main/docs",
+  },
+  mistral: {
+    name: "Mistral",
+    apiKeyEnvVar: "MISTRAL_API_KEY",
+    apiKeyConfigKey: "llm.mistralApiKey",
+    getKeyLink: "https://console.mistral.ai",
+    docsLink: "https://docs.mistral.ai",
+  },
+  "lingo.dev": {
+    name: "Lingo.dev",
+    apiKeyEnvVar: "LINGODOTDEV_API_KEY",
+    apiKeyConfigKey: "auth.apiKey",
+    getKeyLink: "https://lingo.dev",
+    docsLink: "https://lingo.dev/docs",
+  },
 };
 
 /**
@@ -68,61 +139,128 @@ export function parseModelString(modelString: string): LocaleModel | undefined {
 }
 
 /**
+ * Validate and fetch all necessary API keys for the given configuration
+ * This should be called once at initialization time
+ *
+ * @param config Model configuration ("lingo.dev" or locale-pair mapping)
+ * @returns Validated API keys (provider ID -> API key)
+ * @throws Error if required keys are missing
+ */
+export function validateAndGetApiKeys(
+  config: "lingo.dev" | Record<string, string>,
+): ValidatedApiKeys {
+  const keys: ValidatedApiKeys = {};
+  const missingKeys: Array<{ provider: string; envVar: string }> = [];
+
+  // Determine which providers are configured
+  let providersToValidate: string[];
+
+  if (config === "lingo.dev") {
+    // Only need lingo.dev provider
+    providersToValidate = ["lingo.dev"];
+  } else {
+    // Extract unique providers from model strings
+    const providerSet = new Set<string>();
+    Object.values(config).forEach((modelString) => {
+      const model = parseModelString(modelString);
+      if (model) {
+        providerSet.add(model.provider);
+      }
+    });
+    providersToValidate = Array.from(providerSet);
+  }
+
+  // Validate and fetch keys for each provider
+  for (const provider of providersToValidate) {
+    const providerConfig = providerDetails[provider];
+
+    if (!providerConfig) {
+      throw new Error(
+        `⚠️  Unknown provider "${provider}". Supported providers: ${Object.keys(providerDetails).join(", ")}`,
+      );
+    }
+
+    // Skip providers that don't require keys (like Ollama)
+    if (!providerConfig.apiKeyEnvVar) {
+      continue;
+    }
+
+    const key = getKeyFromEnv(providerConfig.apiKeyEnvVar);
+    if (key) {
+      keys[provider] = key;
+    } else {
+      missingKeys.push({
+        provider: providerConfig.name,
+        envVar: providerConfig.apiKeyEnvVar,
+      });
+    }
+  }
+
+  // If any keys are missing, throw with detailed error
+  if (missingKeys.length > 0) {
+    const errorLines = missingKeys.map(
+      ({ provider, envVar }) => `  - ${provider}: ${envVar}`,
+    );
+    throw new Error(
+      `⚠️  Missing API keys for configured providers:\n${errorLines.join("\n")}\n\nPlease set the required environment variables.`,
+    );
+  }
+
+  return keys;
+}
+
+/**
  * Create AI model instance from provider and model ID
  *
- * @param model Provider name (groq, google, openrouter, ollama, mistral) and model identifier as an object
+ * @param model Provider name (groq, google, openrouter, ollama, mistral) and model identifier
+ * @param validatedKeys Pre-validated API keys from validateAndFetchApiKeys()
  * @returns LanguageModel instance
  * @throws Error if provider is not supported or API key is missing
  */
-export function createAiModel(model: LocaleModel): LanguageModel {
+export function createAiModel(
+  model: LocaleModel,
+  validatedKeys: ValidatedApiKeys,
+): LanguageModel {
+  const providerConfig = providerDetails[model.provider];
+
+  if (!providerConfig) {
+    throw new Error(
+      `⚠️  Provider "${model.provider}" is not supported. Supported providers: ${Object.keys(providerDetails).join(", ")}`,
+    );
+  }
+
+  // Get API key if required
+  const apiKey = providerConfig.apiKeyEnvVar
+    ? validatedKeys[model.provider]
+    : undefined;
+
+  // Verify key is present for providers that require it
+  if (providerConfig.apiKeyEnvVar && !apiKey) {
+    throw new Error(
+      `⚠️  ${providerConfig.name} API key not found. Please set ${providerConfig.apiKeyEnvVar} environment variable.\n\n` +
+        `This should not happen if validateAndFetchApiKeys() was called. Please restart the service.`,
+    );
+  }
+
+  // Create the appropriate model instance
   switch (model.provider) {
-    case "groq": {
-      const apiKey = getGroqKey();
-      if (!apiKey) {
-        throw new Error(
-          "⚠️  GROQ API key not found. Please set GROQ_API_KEY environment variable.",
-        );
-      }
-      return createGroq({ apiKey })(model.name);
-    }
+    case "groq":
+      return createGroq({ apiKey: apiKey! })(model.name);
 
-    case "google": {
-      const apiKey = getGoogleKey();
-      if (!apiKey) {
-        throw new Error(
-          "⚠️  Google API key not found. Please set GOOGLE_GENERATIVE_AI_API_KEY environment variable.",
-        );
-      }
-      return createGoogleGenerativeAI({ apiKey })(model.name);
-    }
+    case "google":
+      return createGoogleGenerativeAI({ apiKey: apiKey! })(model.name);
 
-    case "openrouter": {
-      const apiKey = getOpenRouterKey();
-      if (!apiKey) {
-        throw new Error(
-          "⚠️  OpenRouter API key not found. Please set OPENROUTER_API_KEY environment variable.",
-        );
-      }
-      return createOpenRouter({ apiKey })(model.name);
-    }
+    case "openrouter":
+      return createOpenRouter({ apiKey: apiKey! })(model.name);
 
-    case "ollama": {
+    case "ollama":
       return createOllama()(model.name);
-    }
 
-    case "mistral": {
-      const apiKey = getMistralKey();
-      if (!apiKey) {
-        throw new Error(
-          "⚠️  Mistral API key not found. Please set MISTRAL_API_KEY environment variable.",
-        );
-      }
-      return createMistral({ apiKey })(model.name);
-    }
+    case "mistral":
+      return createMistral({ apiKey: apiKey! })(model.name);
 
     default:
-      throw new Error(
-        `⚠️  Provider "${model.provider}" is not supported. Supported providers: groq, google, openrouter, ollama, mistral`,
-      );
+      // This should be unreachable due to check above
+      throw new Error(`⚠️  Provider "${model.provider}" is not implemented`);
   }
 }

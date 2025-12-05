@@ -4,8 +4,12 @@ import type { DictionarySchema, TranslatableEntry, Translator } from "../api";
 import { getSystemPrompt } from "./prompt";
 import { obj2xml, xml2obj } from "./xml2obj";
 import { shots } from "./shots";
-import { getLingoDotDevKey } from "./api-keys";
-import { createAiModel, getLocaleModel } from "./model-factory";
+import {
+  createAiModel,
+  getLocaleModel,
+  validateAndGetApiKeys,
+  type ValidatedApiKeys,
+} from "./model-factory";
 import { Logger } from "../../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
 
@@ -22,10 +26,16 @@ export interface LCPTranslatorConfig {
  * LCP-based translator using AI models
  */
 export class LCPTranslator implements Translator<LCPTranslatorConfig> {
+  private readonly validatedKeys: ValidatedApiKeys;
+
   constructor(
     readonly config: LCPTranslatorConfig,
     private logger: Logger,
-  ) {}
+  ) {
+    this.logger.info("Validating API keys for translation...");
+    this.validatedKeys = validateAndGetApiKeys(config.models);
+    this.logger.info("✅ API keys validated successfully");
+  }
 
   /**
    * Translate multiple entries
@@ -127,10 +137,10 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
   ): Promise<DictionarySchema> {
     this.logger.debug(`[TRACE-LCP] translateWithLingoDotDev() called`);
 
-    const apiKey = getLingoDotDevKey();
+    const apiKey = this.validatedKeys["lingo.dev"];
     if (!apiKey) {
       throw new Error(
-        "⚠️  Lingo.dev API key not found. Please set LINGODOTDEV_API_KEY environment variable.",
+        "Internal error: Lingo.dev API key not found after validation. Please restart the service.",
       );
     }
 
@@ -197,7 +207,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
       `Using LLM ("${localeModel.provider}":"${localeModel.name}") to translate from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
-    const aiModel = createAiModel(localeModel);
+    const aiModel = createAiModel(localeModel, this.validatedKeys);
 
     try {
       const response = await withTimeout(
