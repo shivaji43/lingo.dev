@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 import { getConfigPath } from "../utils/path-helpers";
 import { createLingoConfig } from "../utils/config-factory";
-import { logger, loggerRegistry } from "../utils/logger";
+import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import type { TurbopackOptions } from "next/dist/server/config-shared";
 
@@ -63,12 +63,6 @@ function buildLingoConfig(
   lingoOptions: LingoNextPluginOptions,
 ): NextConfig {
   const lingoConfig = createLingoConfig(lingoOptions);
-
-  loggerRegistry.create("plugin", {
-    enableConsole: true,
-    // TODO (AleksandrSl 04/12/2025): Make configurable
-    enableDebug: true,
-  });
 
   // Prepare Turbopack loader configuration
   const loaderConfig = {

@@ -11,11 +11,10 @@
 import type { TranslationCache } from "./cache";
 import type { TranslatableEntry, Translator } from "./api";
 import type { MetadataSchema } from "../types";
-import { getLogger } from "../utils/logger";
-import {
-  processPluralization,
-  type PluralizationConfig,
-} from "./pluralization";
+import { processPluralization } from "./pluralization";
+import type { Logger } from "../utils/logger";
+import type { PartialPluralizationConfig } from "./pluralization/types";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Configuration for translation service
@@ -24,7 +23,8 @@ export interface TranslationServiceConfig {
   /**
    * Source locale (e.g., "en")
    */
-  sourceLocale: string;
+  // TODO (AleksandrSl 05/12/2025): Sort out these fields, they should most likely pick from the global config
+  sourceLocale: LocaleCode;
 
   /**
    * Whether the translator is a pseudo translator
@@ -36,7 +36,7 @@ export interface TranslationServiceConfig {
    * Pluralization configuration
    * If provided, enables automatic pluralization of source messages
    */
-  pluralization?: PluralizationConfig;
+  pluralization?: Omit<PartialPluralizationConfig, "sourceLocale">;
 }
 
 /**
@@ -79,12 +79,12 @@ export interface TranslationError {
 export class TranslationService {
   private useCache = true;
   private pluralizationProcessed = false;
-  private logger = getLogger("translation-server");
 
   constructor(
     private translator: Translator<any>,
     private cache: TranslationCache,
     private config: TranslationServiceConfig,
+    private logger: Logger,
   ) {
     this.useCache = !this.config.isPseudo;
   }
@@ -116,7 +116,11 @@ export class TranslationService {
       );
       const pluralStats = await processPluralization(
         metadata,
-        this.config.pluralization || { enabled: true },
+        {
+          ...this.config.pluralization,
+          sourceLocale: this.config.sourceLocale,
+        },
+        this.logger,
       );
       this.logger.info(
         `Pluralization stats: ${pluralStats.pluralized} pluralized, ${pluralStats.rejected} rejected, ${pluralStats.failed} failed`,

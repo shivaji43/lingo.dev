@@ -13,7 +13,7 @@ import {
   getOpenRouterKey,
 } from "./lcp/api-keys";
 import { formatNoApiKeysError } from "./lcp/provider-details";
-import { logger } from "../utils/logger";
+import { Logger } from "../utils/logger";
 
 /**
  * Check if API keys are available for the configured models
@@ -118,13 +118,14 @@ export interface TranslatorFactoryConfig {
  */
 export function createTranslator(
   config: TranslatorFactoryConfig,
+  logger: Logger,
 ): Translator<any> {
   const isDev = process.env.NODE_ENV === "development";
 
   // 1. Explicit dev override takes precedence
   if (isDev && config.dev?.usePseudotranslator) {
     logger.info("📝 Using pseudotranslator (dev.usePseudotranslator enabled)");
-    return new PseudoTranslator({ delayMedian: 100 });
+    return new PseudoTranslator({ delayMedian: 100 }, logger);
   }
 
   try {
@@ -143,11 +144,14 @@ export function createTranslator(
     logger.info(
       `✅ Creating LCP translator with models: ${JSON.stringify(models)}`,
     );
-    return new LCPTranslator({
-      models,
-      sourceLocale: config.sourceLocale,
-      prompt: config.prompt || null,
-    });
+    return new LCPTranslator(
+      {
+        models,
+        sourceLocale: config.sourceLocale,
+        prompt: config.prompt || null,
+      },
+      logger,
+    );
   } catch (error) {
     if (isDev) {
       // Use console.error to ensure visibility in all contexts (loader, server, etc.)
@@ -158,7 +162,7 @@ export function createTranslator(
           `   Set the required API keys for real translations.\n`,
       );
 
-      return new PseudoTranslator({ delayMedian: 100 });
+      return new PseudoTranslator({ delayMedian: 100 }, logger);
     }
 
     // Fail in production

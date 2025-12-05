@@ -14,15 +14,13 @@
 import http from "http";
 import { URL } from "url";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
-import { getLogger, loggerRegistry } from "../utils/logger";
+import { getLogger } from "./logger";
 import {
   createTranslator,
   LocalTranslationCache,
   TranslationService,
 } from "../translators";
 import { createEmptyMetadata, loadMetadata } from "../metadata/manager";
-import { join } from "path";
-import { configureFileLogger } from "../utils/file-writer";
 
 export interface TranslationServerOptions {
   /**
@@ -63,20 +61,7 @@ export class TranslationServer {
     this.startPort = options.startPort || 60000;
     this.onReadyCallback = options.onReady;
     this.onErrorCallback = options.onError;
-    const translationServerLogger = loggerRegistry.create(
-      "translation-server",
-      {
-        enableConsole: false,
-        enableDebug: true,
-      },
-    );
-    const translationServerLogPath = join(
-      this.config.sourceRoot,
-      this.config.lingoDir,
-      "translation-server.log",
-    );
-    configureFileLogger(translationServerLogger, translationServerLogPath);
-    this.logger = getLogger("translation-server");
+    this.logger = getLogger(this.config);
   }
 
   /**
@@ -89,19 +74,27 @@ export class TranslationServer {
 
     this.logger.info(`🔧 Initializing translator...`);
 
-    const translator = createTranslator(this.config);
+    const translator = createTranslator(this.config, this.logger);
     const isPseudo = translator.constructor.name === "PseudoTranslator";
 
-    const cache = new LocalTranslationCache({
-      cacheDir: this.config.lingoDir,
-      sourceRoot: this.config.sourceRoot,
-    });
+    const cache = new LocalTranslationCache(
+      {
+        cacheDir: this.config.lingoDir,
+        sourceRoot: this.config.sourceRoot,
+      },
+      this.logger,
+    );
 
-    this.translationService = new TranslationService(translator, cache, {
-      sourceLocale: this.config.sourceLocale,
-      pluralization: this.config.pluralization,
-      isPseudo,
-    });
+    this.translationService = new TranslationService(
+      translator,
+      cache,
+      {
+        sourceLocale: this.config.sourceLocale,
+        pluralization: this.config.pluralization,
+        isPseudo,
+      },
+      this.logger,
+    );
 
     const port = await this.findAvailablePort(this.startPort);
 

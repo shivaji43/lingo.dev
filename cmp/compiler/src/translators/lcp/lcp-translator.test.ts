@@ -1,12 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { LCPTranslator } from "./lcp-translator";
+import { logger } from "../../utils/logger";
 
 describe("LCPTranslator", () => {
   it("should create an instance with config", () => {
-    const translator = new LCPTranslator({
-      models: "lingo.dev",
-      sourceLocale: "en",
-    });
+    const translator = new LCPTranslator(
+      {
+        models: "lingo.dev",
+        sourceLocale: "en",
+      },
+      logger,
+    );
 
     expect(translator).toBeDefined();
     expect(translator.config.models).toBe("lingo.dev");
@@ -14,14 +18,17 @@ describe("LCPTranslator", () => {
   });
 
   it("should create an instance with custom models", () => {
-    const translator = new LCPTranslator({
-      models: {
-        "en:es": "google:gemini-2.0-flash",
-        "*:*": "groq:llama3-8b-8192",
+    const translator = new LCPTranslator(
+      {
+        models: {
+          "en:es": "google:gemini-2.0-flash",
+          "*:*": "groq:llama3-8b-8192",
+        },
+        sourceLocale: "en",
+        prompt: "Translate professionally",
       },
-      sourceLocale: "en",
-      prompt: "Translate professionally",
-    });
+      logger,
+    );
 
     expect(translator).toBeDefined();
     expect(translator.config.models).toEqual({
@@ -32,10 +39,13 @@ describe("LCPTranslator", () => {
   });
 
   it("should implement Translator interface methods", () => {
-    const translator = new LCPTranslator({
-      models: "lingo.dev",
-      sourceLocale: "en",
-    });
+    const translator = new LCPTranslator(
+      {
+        models: "lingo.dev",
+        sourceLocale: "en",
+      },
+      logger,
+    );
 
     expect(typeof translator.translate).toBe("function");
   });

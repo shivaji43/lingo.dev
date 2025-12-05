@@ -3,7 +3,7 @@
  */
 
 import type { TranslatableEntry, Translator } from "../api";
-import { getLogger } from "../../utils/logger";
+import { Logger } from "../../utils/logger";
 
 export interface PseudoTranslatorConfig {
   delayMedian?: number;
@@ -14,8 +14,10 @@ export interface PseudoTranslatorConfig {
  * Useful for testing i18n without actual translation APIs
  */
 export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
-  private readonly logger = getLogger("translation-server");
-  constructor(readonly config: PseudoTranslatorConfig) {}
+  constructor(
+    readonly config: PseudoTranslatorConfig,
+    private readonly logger: Logger,
+  ) {}
 
   translate(locale: string, entries: Record<string, TranslatableEntry>) {
     this.logger.debug(

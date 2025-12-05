@@ -1,10 +1,13 @@
+import { Logger, type LogLevel } from "../utils/logger";
+import { join } from "path";
+import type { TranslationMiddlewareConfig } from "../types";
+
 /**
  * Such weird separation of file writer from logger
  * is needed to avoid leaking node deps to the client build in next,
  * but still keep the main logger logic in one place.
  */
 import { appendFile } from "fs/promises";
-import { getLogger, type LogLevel } from "./logger";
 
 /**
  * Create a file writer function for a specific log file
@@ -36,13 +39,20 @@ export function createFileWriter(
   };
 }
 
-/**
- * Configure a logger with file output
- */
-export function configureFileLogger(
-  logger: ReturnType<typeof getLogger>,
-  filePath: string,
-): void {
-  const fileWriter = createFileWriter(filePath);
-  logger.setFileWriter(fileWriter);
+let logger: Logger | undefined = undefined;
+
+export function getLogger(config: TranslationMiddlewareConfig) {
+  if (!logger) {
+    const translationServerLogPath = join(
+      config.sourceRoot,
+      config.lingoDir,
+      "translation-server.log",
+    );
+    logger = new Logger({
+      enableConsole: false,
+      enableDebug: true,
+      writeToFile: createFileWriter(translationServerLogPath),
+    });
+  }
+  return logger;
 }

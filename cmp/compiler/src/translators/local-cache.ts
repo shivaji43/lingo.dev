@@ -4,10 +4,10 @@
 
 import * as fs from "fs/promises";
 import * as path from "path";
-import type { TranslationCache, LocalCacheConfig } from "./cache";
-import { getLogger } from "../utils/logger";
+import type { LocalCacheConfig, TranslationCache } from "./cache";
 import type { DictionarySchema } from "./api";
-import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
+import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
+import type { Logger } from "../utils/logger";
 
 /**
  * Local file system cache for translations
@@ -16,7 +16,10 @@ import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
 export class LocalTranslationCache implements TranslationCache {
   private config: LocalCacheConfig;
 
-  constructor(config: LocalCacheConfig) {
+  constructor(
+    config: LocalCacheConfig,
+    private logger: Logger,
+  ) {
     this.config = config;
   }
 
@@ -77,8 +80,7 @@ export class LocalTranslationCache implements TranslationCache {
         `Write cache for ${locale}`,
       );
     } catch (error) {
-      const logger = getLogger("translation-server");
-      logger.error(`Failed to write cache for locale ${locale}:`, error);
+      this.logger.error(`Failed to write cache for locale ${locale}:`, error);
       throw error;
     }
   }

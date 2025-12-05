@@ -6,7 +6,7 @@ import { obj2xml, xml2obj } from "./xml2obj";
 import { shots } from "./shots";
 import { getLingoDotDevKey } from "./api-keys";
 import { createAiModel, getLocaleModel } from "./model-factory";
-import { getLogger } from "../../utils/logger";
+import { Logger } from "../../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
 
 /**
@@ -22,8 +22,10 @@ export interface LCPTranslatorConfig {
  * LCP-based translator using AI models
  */
 export class LCPTranslator implements Translator<LCPTranslatorConfig> {
-  private logger = getLogger("translation-server");
-  constructor(readonly config: LCPTranslatorConfig) {}
+  constructor(
+    readonly config: LCPTranslatorConfig,
+    private logger: Logger,
+  ) {}
 
   /**
    * Translate multiple entries

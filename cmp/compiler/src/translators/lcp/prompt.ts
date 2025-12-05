@@ -1,22 +1,16 @@
-import { getLogger } from "../../utils/logger";
-
 interface PromptArguments {
   sourceLocale: string;
   targetLocale: string;
   prompt?: string;
 }
 
-const logger = getLogger("translation-server");
-
 export function getSystemPrompt(args: PromptArguments): string {
   // If user provided custom prompt, use it
   if (args.prompt?.trim()) {
-    const userPrompt = args.prompt
+    return args.prompt
       .trim()
       .replace("{SOURCE_LOCALE}", args.sourceLocale)
       .replace("{TARGET_LOCALE}", args.targetLocale);
-    logger.info("✨ Using user-defined translation prompt");
-    return userPrompt;
   }
 
   // Otherwise use built-in prompt

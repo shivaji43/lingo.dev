@@ -6,7 +6,7 @@ interface LoggerConfig {
   writeToFile?: (level: LogLevel, message: string) => void;
 }
 
-class Logger {
+export class Logger {
   private config: LoggerConfig;
   private readonly prefix = "\x1b[42m\x1b[30m[Lingo.dev]\x1b[0m";
 
@@ -79,52 +79,6 @@ class Logger {
   }
 }
 
-class LoggerRegistry {
-  private loggers = new Map<string, Logger>();
-  private readonly defaultLogger: Logger;
-
-  constructor() {
-    this.defaultLogger = new Logger({
-      enableConsole: true,
-    });
-  }
-
-  /**
-   * Get a logger by key, or return the default logger if not found
-   */
-  get(key?: string): Logger {
-    if (!key) return this.defaultLogger;
-    return this.loggers.get(key) ?? this.defaultLogger;
-  }
-
-  /**
-   * Create or update a named logger with specific configuration
-   */
-  create(key: string, config: Partial<LoggerConfig>): Logger {
-    const logger = new Logger(config);
-    this.loggers.set(key, logger);
-    return logger;
-  }
-
-  /**
-   * Remove a logger from the registry
-   */
-  remove(key: string): void {
-    this.loggers.delete(key);
-  }
-
-  /**
-   * Check if a logger exists
-   */
-  has(key: string): boolean {
-    return this.loggers.has(key);
-  }
-}
-
-export const loggerRegistry = new LoggerRegistry();
-
-export function getLogger(key?: string): Logger {
-  return loggerRegistry.get(key);
-}
-
-export const logger = loggerRegistry.get();
+export const logger = new Logger({
+  enableConsole: true,
+});
