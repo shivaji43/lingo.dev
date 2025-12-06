@@ -1,11 +1,51 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, expect, it } from "vitest";
-import React from "react";
+import {
+  beforeAll,
+  describe,
+  expect,
+  it,
+  type SerializedConfig,
+  type SnapshotSerializer,
+} from "vitest";
+import React, { isValidElement, type ReactElement } from "react";
 import { renderRichText } from "./render-rich-text";
 
+const SERIALIZED_MARKER = Symbol("serialized");
+
+const serializer = {
+  serialize(val: ReactElement, config, indentation, depth, refs, printer) {
+    const element = val;
+
+    if ((element as any)[SERIALIZED_MARKER]) {
+      return printer(element, config, indentation, depth, refs);
+    }
+
+    // Clone the element to avoid modifying the original
+    const clone = { ...element, [SERIALIZED_MARKER]: true };
+
+    // If there's a key prop, include it in the props
+    if (element.key != null) {
+      clone.props = {
+        ...clone.props,
+        "data-key": element.key, // Use data-key to make it visible in snapshots
+      };
+    }
+
+    // Use default printer for the rest
+    return printer(clone, config, indentation, depth, refs);
+  },
+  test(val: any) {
+    return isValidElement(val) && !(val as any)[SERIALIZED_MARKER];
+  },
+} satisfies SnapshotSerializer;
+
 describe("renderRichText", () => {
+  beforeAll(() => {
+    expect.addSnapshotSerializer(serializer);
+  });
+
   it("should return plain text when only text (no placeholders)", () => {
     const result = renderRichText("Hello World", {});
     expect(result).toBe("Hello World");
@@ -96,7 +136,7 @@ describe("renderRichText", () => {
   });
 
   it("should render untranslatable content as is", () => {
-    const result = renderRichText("Install using <code0/> command", {
+    const result = renderRichText("Install using <code0></code0> command", {
       code0: () => <code>npm install package</code>,
     });
     expect(result).toMatchSnapshot();
@@ -113,7 +153,7 @@ describe("renderRichText", () => {
     );
 
     const result = renderRichText(
-      "Content that has text and other tags inside will br translated as a single entity: {translatableMixedContextFragment}",
+      "Content that has text and other tags inside will be translated as a single entity: {translatableMixedContextFragment}",
       {
         translatableMixedContextFragment,
       },

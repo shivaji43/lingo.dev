@@ -1,8 +1,8 @@
 /**
  * Keep mutations to the current node and children. e.g. do not mutate program inserting imports when processing the component. This should be done in the end.
  */
-import * as t from "@babel/types";
 import type { VariableDeclaration } from "@babel/types";
+import * as t from "@babel/types";
 import type { NodePath, TraverseOptions } from "@babel/traverse";
 import type { ComponentType, LingoConfig, TranslationEntry } from "../../types";
 import { generateTranslationHash } from "../../utils/hash";
@@ -504,7 +504,8 @@ function serializeJSXChildren(
           components.set(`${tagName}_${nestedTag}`, nestedElement);
         }
       } else {
-        text += `<${tagName}/>`;
+        // There is no support for self-closing tags in format js, so we should generate empty ones.
+        text += `<${tagName}></${tagName}>`;
         child.extra = {
           ...child.extra,
           shouldTranslate: false,
@@ -551,7 +552,8 @@ function createRichTextTranslationCall(
   for (const [tagName, element] of components) {
     const renderFn =
       element.extra?.shouldTranslate === false
-        ? t.arrowFunctionExpression([], element)
+        ? // Even when doing: tagName: () => <Element />, we need a function for formatjs to work.
+          t.arrowFunctionExpression([], element)
         : // Create: tagName: (chunks) => <Element>{chunks}</Element>
           t.arrowFunctionExpression(
             // TODO (AleksandrSl 28/11/2025): Use content instead of the chunks later

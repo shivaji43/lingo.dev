@@ -4,7 +4,7 @@
 
 import type { Translator } from "./api";
 import { PseudoTranslator } from "./pseudotranslator";
-import { LCPTranslator } from "./lcp";
+import { Service } from "./lcp";
 import { Logger } from "../utils/logger";
 
 /**
@@ -60,7 +60,7 @@ export function createTranslator(
       `Creating LCP translator with models: ${JSON.stringify(models)}`,
     );
 
-    return new LCPTranslator(
+    return new Service(
       {
         models,
         sourceLocale: config.sourceLocale,

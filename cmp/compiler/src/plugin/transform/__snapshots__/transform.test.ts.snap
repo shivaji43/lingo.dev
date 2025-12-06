@@ -446,8 +446,8 @@ export default function Spaced() {
 exports[`transformComponent > mixed content (rich text) > should keep text separated by void elements as the single translation 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export default function Links() {
-  const t = useTranslation(["35a60a2a9411"]);
-  return <p>{t("35a60a2a9411", "Click <br0/>there", {
+  const t = useTranslation(["a935cf526185"]);
+  return <p>{t("a935cf526185", "Click <br0></br0>there", {
       br0: () => <br />
     })}</p>;
 }"
@@ -665,9 +665,9 @@ export function Card() {
 exports[`transformComponent > skip translation > should skip translation for <code> elements 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export function Example() {
-  const t = useTranslation(["89b67cab5fe3"]);
+  const t = useTranslation(["fc543267bd22"]);
   return <div>
-      <p>{t("89b67cab5fe3", "Install using <code0/> command", {
+      <p>{t("fc543267bd22", "Install using <code0></code0> command", {
         code0: () => <code>npm install package</code>
       })}</p>
     </div>;

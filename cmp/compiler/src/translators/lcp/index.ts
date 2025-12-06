@@ -4,5 +4,5 @@
  * Real AI-powered translation using various LLM providers
  */
 
-export { LCPTranslator } from "./lcp-translator";
-export type { LCPTranslatorConfig } from "./lcp-translator";
+export { Service } from "./service";
+export type { LCPTranslatorConfig } from "./service";

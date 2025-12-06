@@ -107,7 +107,14 @@ export function obj2xml<T>(obj: T): string {
   return builder.build({ [TAG_OBJECT]: rootNode });
 }
 
-export function xml2obj<T = any>(xml: string): T {
+export function parseXmlFromResponseText<T = any>(text: string): T {
+  const xmlStart = text.indexOf("<");
+  const xmlEnd = text.lastIndexOf(">") + 1;
+
+  if (xmlStart !== -1 && xmlEnd > xmlStart) {
+    text = text.substring(xmlStart, xmlEnd);
+  }
+
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: "",
@@ -116,7 +123,7 @@ export function xml2obj<T = any>(xml: string): T {
     processEntities: true,
     isArray: (name) => [TAG_VALUE, TAG_ARRAY, TAG_OBJECT].includes(name),
   });
-  const parsed = parser.parse(xml);
+  const parsed = parser.parse(text);
 
   // Remove XML declaration
   const { "?xml": _, ...withoutDeclaration } = parsed;

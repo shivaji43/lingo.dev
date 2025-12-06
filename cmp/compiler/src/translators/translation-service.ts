@@ -11,9 +11,9 @@
 import type { TranslationCache } from "./cache";
 import type { TranslatableEntry, Translator } from "./api";
 import type { MetadataSchema } from "../types";
-import { processPluralization } from "./pluralization";
+import { PluralizationService } from "./pluralization";
 import type { Logger } from "../utils/logger";
-import type { PartialPluralizationConfig } from "./pluralization/types";
+import type { PartialPluralizationConfig } from "./pluralization";
 import type { LocaleCode } from "lingo.dev/spec";
 
 /**
@@ -78,6 +78,7 @@ export interface TranslationError {
  */
 export class TranslationService {
   private useCache = true;
+  private pluralizationService?: PluralizationService;
 
   constructor(
     private translator: Translator<any>,
@@ -86,12 +87,27 @@ export class TranslationService {
     private logger: Logger,
   ) {
     this.useCache = !this.config.isPseudo;
+
+    // Initialize pluralization service if enabled
+    // Do this once at construction to avoid repeated API key validation and model creation
+    if (this.config.pluralization?.enabled !== false && !this.config.isPseudo) {
+      this.logger.info("Initializing pluralization service...");
+      this.pluralizationService = new PluralizationService(
+        {
+          enabled: true,
+          model:
+            this.config.pluralization?.model || "groq:llama-3.1-8b-instant",
+          sourceLocale: this.config.sourceLocale,
+        },
+        this.logger,
+      );
+    }
   }
 
   /**
    * Translate entries to target locale
    *
-   * @param locale Target locale
+   * @param locale Target locale (including source locale)
    * @param metadata Metadata schema with all entries
    * @param requestedHashes Optional: only translate specific hashes
    * @returns Translation result with translations and errors
@@ -103,37 +119,14 @@ export class TranslationService {
   ): Promise<TranslationResult> {
     const startTime = performance.now();
 
-    // TODO (AleksandrSl 05/12/2025): Most likely you don't need pluralization for the pseudo translation. We could move it as a part of the lcp translator
-    if (this.config.pluralization?.enabled !== false && !this.config.isPseudo) {
-      this.logger.info(
-        "Processing pluralization for source locale metadata...",
-      );
-      const pluralStats = await processPluralization(
-        metadata,
-        {
-          ...this.config.pluralization,
-          sourceLocale: this.config.sourceLocale,
-        },
-        this.logger,
-      );
-      this.logger.info(
-        `Pluralization stats: ${pluralStats.pluralized} pluralized, ${pluralStats.rejected} rejected, ${pluralStats.failed} failed`,
-      );
-    }
-
-    // Skip translation if target is source locale
-    if (locale === this.config.sourceLocale) {
-      return this.createSourceLocaleResult(metadata, requestedHashes);
-    }
-
-    // Determine which hashes we need to work with
+    // Step 1: Determine which hashes we need to work with
     const workingHashes = requestedHashes || Object.keys(metadata.entries);
 
     this.logger.info(
       `Translation requested for ${workingHashes.length} hashes in locale: ${locale}`,
     );
 
-    // Step 1: Check cache
+    // Step 2: Check cache first (same for all locales, including source)
     this.logger.debug(`[TRACE] Checking cache for locale: ${locale}`);
     const cacheStartTime = performance.now();
     const cachedTranslations = this.useCache
@@ -144,17 +137,17 @@ export class TranslationService {
       `[TRACE] Cache check completed in ${(cacheEndTime - cacheStartTime).toFixed(2)}ms, found ${Object.keys(cachedTranslations).length} entries`,
     );
 
-    // Step 2: Determine what needs translation
-    const missingHashes = workingHashes.filter(
+    // Step 3: Determine what needs translation/pluralization
+    const uncachedHashes = workingHashes.filter(
       (hash) => !cachedTranslations[hash],
     );
     this.logger.debug(
-      `[TRACE] ${missingHashes.length} hashes need translation, ${workingHashes.length - missingHashes.length} are cached`,
+      `[TRACE] ${uncachedHashes.length} hashes need processing, ${workingHashes.length - uncachedHashes.length} are cached`,
     );
 
-    const cachedCount = workingHashes.length - missingHashes.length;
+    const cachedCount = workingHashes.length - uncachedHashes.length;
 
-    if (missingHashes.length === 0) {
+    if (uncachedHashes.length === 0) {
       // All cached!
       const endTime = performance.now();
       this.logger.info(
@@ -174,76 +167,115 @@ export class TranslationService {
     }
 
     this.logger.info(
-      `Generating translations for ${missingHashes.length} missing hashes in ${locale}...`,
+      `Generating translations for ${uncachedHashes.length} uncached hashes in ${locale}...`,
     );
 
-    // Step 3: Prepare entries for translation
+    // Step 4: Filter metadata to only uncached entries
+    const filteredMetadata: MetadataSchema = {
+      ...metadata,
+      entries: Object.fromEntries(
+        uncachedHashes
+          .map((hash) => [hash, metadata.entries[hash]])
+          .filter(([_, entry]) => entry !== undefined),
+      ),
+    };
+
+    // Step 5: Process pluralization for filtered entries
+    if (this.pluralizationService) {
+      this.logger.info(
+        `Processing pluralization for ${Object.keys(filteredMetadata.entries).length} entries...`,
+      );
+      const pluralStats =
+        await this.pluralizationService.process(filteredMetadata);
+      this.logger.info(
+        `Pluralization stats: ${pluralStats.pluralized} pluralized, ${pluralStats.rejected} rejected, ${pluralStats.failed} failed`,
+      );
+    }
+
+    // Step 6: Prepare entries for translation
     this.logger.debug(
-      `[TRACE] Preparing ${missingHashes.length} entries for translation`,
+      `[TRACE] Preparing ${uncachedHashes.length} entries for translation`,
     );
-    const entriesToTranslate = this.prepareEntries(metadata, missingHashes);
+    const entriesToTranslate = this.prepareEntries(
+      filteredMetadata,
+      uncachedHashes,
+    );
     this.logger.debug(
       `[TRACE] Prepared ${Object.keys(entriesToTranslate).length} entries`,
     );
 
-    // Step 4: Translate
+    // Step 7: Translate or return source text
     let newTranslations: Record<string, string> = {};
     const errors: TranslationError[] = [];
 
-    try {
+    if (locale === this.config.sourceLocale) {
+      // For source locale, just return the (possibly pluralized) sourceText
       this.logger.debug(
-        `[TRACE] Calling translator.translate() for ${locale} with ${Object.keys(entriesToTranslate).length} entries`,
+        `[TRACE] Source locale detected, returning sourceText for ${uncachedHashes.length} entries`,
       );
-      this.logger.debug(`[TRACE] About to await translator.translate()...`);
-      const translateStartTime = performance.now();
-      this.logger.debug(`[TRACE] Executing translator.translate() NOW`);
-      newTranslations = await this.translator.translate(
-        locale,
-        entriesToTranslate,
-      );
-      this.logger.debug(`[TRACE] translator.translate() returned`);
+      for (const [hash, entry] of Object.entries(entriesToTranslate)) {
+        newTranslations[hash] = entry.text;
+      }
+    } else {
+      // For other locales, translate
+      try {
+        this.logger.debug(
+          `[TRACE] Calling translator.translate() for ${locale} with ${Object.keys(entriesToTranslate).length} entries`,
+        );
+        this.logger.debug(`[TRACE] About to await translator.translate()...`);
+        const translateStartTime = performance.now();
+        this.logger.debug(`[TRACE] Executing translator.translate() NOW`);
+        newTranslations = await this.translator.translate(
+          locale,
+          entriesToTranslate,
+        );
+        this.logger.debug(`[TRACE] translator.translate() returned`);
 
-      const translateEndTime = performance.now();
-      this.logger.debug(
-        `[TRACE] translator.translate() completed in ${(translateEndTime - translateStartTime).toFixed(2)}ms`,
-      );
-      this.logger.debug(
-        `[TRACE] Received ${Object.keys(newTranslations).length} translations`,
-      );
-    } catch (error) {
-      // Complete failure - log and return what we have from cache
-      this.logger.error(`Translation failed completely:`, error);
+        const translateEndTime = performance.now();
+        this.logger.debug(
+          `[TRACE] translator.translate() completed in ${(translateEndTime - translateStartTime).toFixed(2)}ms`,
+        );
+        this.logger.debug(
+          `[TRACE] Received ${Object.keys(newTranslations).length} translations`,
+        );
+      } catch (error) {
+        // Complete failure - log and return what we have from cache
+        this.logger.error(`Translation failed completely:`, error);
 
-      return {
-        translations: this.pickTranslations(cachedTranslations, workingHashes),
-        errors: [
-          {
-            hash: "all",
-            sourceText: "all",
-            error:
-              error instanceof Error
-                ? error.message
-                : "Unknown translation error",
+        return {
+          translations: this.pickTranslations(
+            cachedTranslations,
+            workingHashes,
+          ),
+          errors: [
+            {
+              hash: "all",
+              sourceText: "all",
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Unknown translation error",
+            },
+          ],
+          stats: {
+            total: workingHashes.length,
+            cached: cachedCount,
+            translated: 0,
+            failed: uncachedHashes.length,
           },
-        ],
-        stats: {
-          total: workingHashes.length,
-          cached: cachedCount,
-          translated: 0,
-          failed: missingHashes.length,
-        },
-      };
-    }
+        };
+      }
 
-    // Check for partial failures (some hashes didn't get translated)
-    for (const hash of missingHashes) {
-      if (!newTranslations[hash]) {
-        const entry = metadata.entries[hash];
-        errors.push({
-          hash,
-          sourceText: entry?.sourceText || "",
-          error: "Translation not returned by translator",
-        });
+      // Check for partial failures (some hashes didn't get translated)
+      for (const hash of uncachedHashes) {
+        if (!newTranslations[hash]) {
+          const entry = filteredMetadata.entries[hash];
+          errors.push({
+            hash,
+            sourceText: entry?.sourceText || "",
+            error: "Translation not returned by translator",
+          });
+        }
       }
     }
 
@@ -285,35 +317,6 @@ export class TranslationService {
         cached: cachedCount,
         translated: Object.keys(newTranslations).length,
         failed: errors.length,
-      },
-    };
-  }
-
-  /**
-   * Create result for source locale (no translation needed)
-   */
-  private createSourceLocaleResult(
-    metadata: MetadataSchema,
-    requestedHashes?: string[],
-  ): TranslationResult {
-    const hashes = requestedHashes || Object.keys(metadata.entries);
-    const translations: Record<string, string> = {};
-
-    for (const hash of hashes) {
-      const entry = metadata.entries[hash];
-      if (entry) {
-        translations[hash] = entry.sourceText;
-      }
-    }
-
-    return {
-      translations,
-      errors: [],
-      stats: {
-        total: hashes.length,
-        cached: 0,
-        translated: 0,
-        failed: 0,
       },
     };
   }

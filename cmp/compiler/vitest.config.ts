@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    snapshotSerializers: ["./src/react/shared/test-serializer.ts"],
   },
 });

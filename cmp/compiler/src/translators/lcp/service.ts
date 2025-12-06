@@ -2,7 +2,7 @@ import { generateText } from "ai";
 import { LingoDotDevEngine } from "lingo.dev/sdk";
 import type { DictionarySchema, TranslatableEntry, Translator } from "../api";
 import { getSystemPrompt } from "./prompt";
-import { obj2xml, xml2obj } from "./xml2obj";
+import { obj2xml, parseXmlFromResponseText } from "../parse-xml";
 import { shots } from "./shots";
 import {
   createAiModel,
@@ -25,7 +25,7 @@ export interface LCPTranslatorConfig {
 /**
  * LCP-based translator using AI models
  */
-export class LCPTranslator implements Translator<LCPTranslatorConfig> {
+export class Service implements Translator<LCPTranslatorConfig> {
   private readonly validatedKeys: ValidatedApiKeys;
 
   constructor(
@@ -243,16 +243,7 @@ export class LCPTranslator implements Translator<LCPTranslatorConfig> {
         `${localeModel.provider} LLM translation to ${targetLocale}`,
       );
 
-      // Extract XML content from response
-      let responseText = response.text;
-      const xmlStart = responseText.indexOf("<");
-      const xmlEnd = responseText.lastIndexOf(">") + 1;
-
-      if (xmlStart !== -1 && xmlEnd > xmlStart) {
-        responseText = responseText.substring(xmlStart, xmlEnd);
-      }
-
-      return xml2obj<DictionarySchema>(responseText);
+      return parseXmlFromResponseText<DictionarySchema>(response.text);
     } catch (error) {
       throw new Error(
         `LLM translation failed with ${localeModel.provider}: ${error instanceof Error ? error.message : "Unknown error"}`,

@@ -26,7 +26,6 @@ export const DEFAULT_CONFIG = {
   pluralization: {
     enabled: true,
     model: "groq:llama3-8b-8192",
-    minConfidence: 0.3,
   },
   buildMode: "translate",
 } satisfies Omit<LingoConfig, LingoConfigRequiredFields>;

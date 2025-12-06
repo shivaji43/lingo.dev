@@ -81,10 +81,13 @@ export function transformComponent({
       ast,
       {
         sourceMaps: true,
+        // TODO (AleksandrSl 05/12/2025): Why is it false?
         retainLines: false,
       },
       code,
     );
+
+    logger.debug(`Transformed ${filePath}. Code: ${output.code}`);
 
     return {
       code: output.code,

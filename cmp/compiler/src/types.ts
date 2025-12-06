@@ -52,13 +52,6 @@ export interface PluralizationConfig {
    * @default "groq:llama3-8b-8192"
    */
   model?: string;
-
-  /**
-   * Minimum confidence threshold for pattern-based detection
-   * Candidates with confidence below this won't be sent to LLM
-   * @default 0.3
-   */
-  minConfidence?: number;
 }
 
 /**
@@ -132,7 +125,7 @@ export type LingoConfig = {
    * Pluralization configuration
    * Automatically detects and converts messages to ICU MessageFormat
    *
-   * @default { enabled: true, model: "groq:llama3-8b-8192", minConfidence: 0.3 }
+   * @default { enabled: true, model: "groq:llama3-8b-8192" }
    */
   pluralization: PluralizationConfig;
 

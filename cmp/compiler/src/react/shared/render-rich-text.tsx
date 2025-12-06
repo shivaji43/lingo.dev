@@ -1,19 +1,75 @@
-import { Fragment, isValidElement, type ReactNode } from "react";
+import {
+  Children,
+  cloneElement,
+  Fragment,
+  isValidElement,
+  type ReactNode,
+} from "react";
+import IntlMessageFormat, { type FormatXMLElementFn } from "intl-messageformat";
 
 /**
  * Component renderer function for rich text translation
  */
-export type ComponentRenderer = (chunks: ReactNode) => ReactNode;
+export type ComponentRenderer = FormatXMLElementFn<ReactNode>;
 
 /**
  * Rich text parameters for translation
  */
 export type RichTextParams = Record<string, ReactNode | ComponentRenderer>;
 
+//
+/**
+ * Adds keys to React elements in an array
+ */
+function toKeyedReactNodeArray(children: Array<ReactNode>): Array<ReactNode> {
+  return (
+    // TODO (AleksandrSl 06/12/2025): Seems like map is adding it's own keys anyway, so we can skip the clone?
+    Children.map(children, (child, index) => {
+      if (isValidElement(child)) {
+        return child;
+        // return cloneElement(child, { key: child.key ?? index });
+      }
+      return child;
+    }) ?? []
+  );
+}
+
+/**
+ * Wraps a FormatXMLElementFn to automatically assign keys to parts
+ */
+function assignUniqueKeysToParts(
+  formatXMLElementFn: FormatXMLElementFn<ReactNode>,
+): FormatXMLElementFn<ReactNode> {
+  return function (parts: Array<ReactNode>) {
+    // return formatXMLElementFn(toKeyedReactNodeArray(parts));
+    return formatXMLElementFn(parts);
+  };
+}
+
+/**
+ * Wraps all FormatXMLElementFn values in params with key assignment
+ */
+function assignUniqueKeysToParams(params: RichTextParams): RichTextParams {
+  const result: RichTextParams = {};
+
+  for (const [key, value] of Object.entries(params)) {
+    // Check if value is a FormatXMLElementFn (function that's not a React component)
+    if (typeof value === "function") {
+      result[key] = assignUniqueKeysToParts(value);
+    } else {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+//
+
 /**
  * Parse rich text translation string with placeholders (server-side version)
  *
  * Supports:
+ * - ICU MessageFormat: {count, plural, one {# item} other {# items}}
  * - Variable placeholders: {name}
  * - Component placeholders: <tag0>content</tag0>
  *
@@ -25,83 +81,18 @@ export function renderRichText(
   text: string,
   params: RichTextParams,
 ): ReactNode {
-  // Create a new regex for each call to avoid state conflicts in recursive calls
-  // We can't reuse a shared regex because recursive calls would corrupt the parent's state
-  const regex =
-    /\{(?<variable>\w+)}|<(?<openTag>\w+)>(?<content>.*?)<\/\k<openTag>>|<(?<selfClosing>\w+)\/>/gs;
+  const formatter = new IntlMessageFormat(text, "en");
+  const keyedParams = assignUniqueKeysToParams(params);
+  const result = formatter.format<ReactNode>(keyedParams);
 
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-  let hasElements = false;
-
-  while ((match = regex.exec(text)) !== null && match.groups) {
-    // Add text before the match
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    if (match.groups.variable) {
-      // Variable placeholder: {varName}
-      const varName = match.groups.variable;
-      const value = params[varName];
-      if (isValidElement(value)) {
-        parts.push(<Fragment key={varName}>{value}</Fragment>);
-        hasElements = true;
-      } else if (value !== undefined && typeof value !== "function") {
-        parts.push(value);
-      } else {
-        parts.push(match[0]); // Keep placeholder if not found
-      }
-    } else if (match.groups.openTag) {
-      // Component placeholder: <tag0>content</tag0>
-      const tagName = match.groups.openTag;
-      const content = match.groups.content;
-      const renderer = params[tagName];
-
-      if (typeof renderer === "function") {
-        // Recursively parse the content
-        const parsedContent = renderRichText(content, params);
-        parts.push(
-          <Fragment key={tagName}>{renderer(parsedContent)}</Fragment>,
-        );
-        hasElements = true;
-      } else {
-        parts.push(match[0]); // Keep placeholder if not found
-      }
-    } else if (match.groups.selfClosing) {
-      const renderer = params[match.groups.selfClosing];
-      if (typeof renderer === "function") {
-        parts.push(
-          <Fragment key={match.groups.selfClosing}>{renderer(null)}</Fragment>,
-        );
-        hasElements = true;
-      }
-    }
-
-    lastIndex = regex.lastIndex;
+  if (Array.isArray(result)) {
+    // Making all elements keyed here somehow fixes all the things. Maybe I also need to key everything in toKeyedReactNodeArray and I just don't get the error because I don't have a corner case for it? Need to investigate
+    return result.map((item, index) => {
+      // Each item gets wrapped in Fragment with unique key
+      // This handles strings, React elements (like <>text</>), everything
+      return <Fragment key={index}>{item}</Fragment>;
+    });
   }
 
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  // If no parts were created (no matches), return original text
-  if (parts.length === 0) {
-    return text;
-  }
-
-  // If no React elements, concatenate all parts into a string
-  if (!hasElements) {
-    return parts.join("");
-  }
-
-  // Return single element if only one part
-  if (parts.length === 1) {
-    return parts[0];
-  }
-
-  // Return array of nodes wrapped in Fragment
-  return parts;
+  return result;
 }

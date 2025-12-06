@@ -9,7 +9,7 @@ export type { Translator, TranslatableEntry } from "./api";
 
 // Translators
 export { PseudoTranslator } from "./pseudotranslator";
-export { LCPTranslator } from "./lcp";
+export { Service } from "./lcp";
 export type { LCPTranslatorConfig } from "./lcp";
 export { createTranslator } from "./translator-factory";
 export type { TranslatorFactoryConfig } from "./translator-factory";
