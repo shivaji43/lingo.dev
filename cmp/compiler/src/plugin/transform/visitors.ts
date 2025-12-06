@@ -39,6 +39,8 @@ export interface VisitorsInternalState extends VisitorsSharedState {
 
 const root = "@lingo.dev/_compiler";
 
+const SKIP_ATTRIBUTE = "data-lingo-skip";
+
 // ============================================================================
 // TEXT NORMALIZATION UTILITIES
 // ============================================================================
@@ -242,8 +244,7 @@ function shouldSkipTranslation(element: t.JSXElement | t.JSXFragment): boolean {
         }
       }
 
-      // Check for data-lingo-skip attribute (presence is enough)
-      if (attr.name.name === "data-lingo-skip") {
+      if (attr.name.name === SKIP_ATTRIBUTE) {
         return true;
       }
     }
@@ -1269,27 +1270,21 @@ function handleComponentFunction(
 }
 
 const componentVisitors = {
-  FunctionDeclaration: {
-    enter(path: NodePath<t.FunctionDeclaration>) {
-      handleComponentFunction(path, this.visitorState);
-    },
+  // 1. Handle nested components. FunctionDeclaration|FunctionExpression|ArrowFunctionExpression unfortunately doesn't give the correct type signature for the path.
+  FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
+    handleComponentFunction(path, this.visitorState);
   },
-
-  ArrowFunctionExpression: {
-    enter(path: NodePath<t.ArrowFunctionExpression>) {
-      handleComponentFunction(path, this.visitorState);
-    },
+  ArrowFunctionExpression(path: NodePath<t.ArrowFunctionExpression>) {
+    handleComponentFunction(path, this.visitorState);
   },
-
-  FunctionExpression: {
-    enter(path: NodePath<t.FunctionExpression>) {
-      handleComponentFunction(path, this.visitorState);
-    },
+  FunctionExpression(path: NodePath<t.FunctionExpression>) {
+    handleComponentFunction(path, this.visitorState);
   },
-
+  // 2. Fragments are separate from other JSX elements. Both <> and <Fragment> are the same AST node type.
   JSXFragment(path: NodePath<t.JSXFragment>) {
-    path.skip();
-
+    // No attributes to translate on the fragment, so we only check if it has mixed content. If it doesn't, go ahead and its children will be checked.
+    // We also do not check for translation skip, because fragments are mostly used to make the bare text translatable.
+    // But if we want to support <Fragment data-lingo-skip>Text</Fragment> we should do it here.
     if (hasMixedContent(path.node)) {
       transformMixedJSXElement(path, this.visitorState);
       // Skip traversing children since we've already processed them
@@ -1297,8 +1292,7 @@ const componentVisitors = {
     }
   },
 
-  // Transform JSX elements with mixed content (text + expressions + nested elements)
-  // This runs BEFORE JSXText visitor due to traversal order
+  // Transform JSX elements with mixed content (text + expressions or nested elements)
   JSXElement(path: NodePath<t.JSXElement>) {
     translateAttributes(path.node, this.visitorState);
 
@@ -1313,8 +1307,8 @@ const componentVisitors = {
     }
   },
 
-  // Transform JSX text nodes - finds nearest component ancestor
-  // This only runs for simple text nodes (not part of mixed content)
+  // Transform JSX text nodes
+  // This only runs for simple text nodes, both inside fragments and elements. Mixed content is handled separately.
   JSXText(path: NodePath<t.JSXText>) {
     transformJSXText(path, this.visitorState);
   },

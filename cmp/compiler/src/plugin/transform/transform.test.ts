@@ -2272,12 +2272,44 @@ export function ExplicitTranslate() {
     });
   });
 
-  describe("corner cases", () => {
-    it("should handle function expressions correctly", () => {
+  describe("fragments", () => {
+    it("should translate fragments", () => {
       const code = `
-export const Button = function() { return <button>Click me</button>; }
-`;
+export default function Home() {
+  const translatableText = <>Hello World</>;
+  return (
+    <main>
+      <div>
+        To translate it you have to wrap it into the {translatableText}
+      </div>
+    </main>
+    )
+ }
+ `;
+      const result = transformComponent({
+        code,
+        filePath: "src/FunctionExpression.tsx",
+        config,
+      });
 
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate both <> and <Fragment>", () => {
+      const code = `
+export default function Home() {
+  const translatableText = <>
+    <>These two pieces of text.</>
+    <Fragment>Considered separate, because no one in the world should write this code.</Fragment>
+  </>;
+
+  return (
+    <div>
+      {translatableText}
+    </div>
+  )
+ }
+ `;
       const result = transformComponent({
         code,
         filePath: "src/FunctionExpression.tsx",
@@ -2290,7 +2322,6 @@ export const Button = function() { return <button>Click me</button>; }
     it("should handle separate fragments used in expressions correctly", () => {
       const code = `
 export default function Home() {
-  const translatableText = <>Hello World</>;
   const translatableMixedContextFragment = (
     <>
       <b>Mixed</b> content <i>fragment</i>
@@ -2299,17 +2330,30 @@ export default function Home() {
 
   return (
     <main>
-        <div>
-          To translate it you have to wrap it into the {translatableText}
-        </div>
-        <div>
-          Content that has text and other tags inside will br translated as a
-          single entity: {translatableMixedContextFragment}
-        </div>
+      <div>
+        Content that has text and other tags inside will br translated as a
+        single entity: {translatableMixedContextFragment}
+      </div>
     </main>
     )
  }
  `;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/FunctionExpression.tsx",
+        config,
+      });
+
+      expect(result.code).toMatchSnapshot();
+    });
+  });
+
+  describe("corner cases", () => {
+    it("should handle function expressions correctly", () => {
+      const code = `
+export const Button = function() { return <button>Click me</button>; }
+`;
 
       const result = transformComponent({
         code,
