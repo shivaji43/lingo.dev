@@ -15,6 +15,8 @@ export default function Home() {
     </>
   );
 
+  const something = { cool: "cool", translatedCool: <>translated cool</> };
+
   return (
     <main className="flex w-full min-h-screen flex-col items-center bg-white dark:bg-black sm:items-start">
       <header className="flex justify-between p-10 w-full">
@@ -56,6 +58,10 @@ export default function Home() {
           To translate it you have to wrap it into the {"<>"}
           {translatableText}
           {"</>"}
+        </div>
+        <div>
+          What happens if I use a property {something.cool} and{" "}
+          {something.translatedCool}
         </div>
         <div>
           Text external to the component is not translated: {externalText}
