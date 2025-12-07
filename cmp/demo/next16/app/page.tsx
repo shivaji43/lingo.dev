@@ -53,7 +53,9 @@ export default function Home() {
           {text}
         </div>
         <div>
-          To translate it you have to wrap it into the {translatableText}
+          To translate it you have to wrap it into the {"<>"}
+          {translatableText}
+          {"</>"}
         </div>
         <div>
           Text external to the component is not translated: {externalText}
