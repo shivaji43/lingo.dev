@@ -82,6 +82,11 @@ export const cacheDir = ${JSON.stringify(cacheDir)};`;
           include: [/\.[tj]sx$/],
           exclude: /node_modules/,
         },
+        // If useDirective is enabled, only process files with "use i18n"
+        // This is more efficient than checking in the handler
+        code: config.useDirective
+          ? /^\s*(?:["']use (?:strict|client|server)["']\s*;?\s*)*["']use i18n["']\s*;?/m
+          : undefined,
       },
       handler: async (code, id) => {
         try {

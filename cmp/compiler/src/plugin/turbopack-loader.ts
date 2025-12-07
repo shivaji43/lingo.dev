@@ -2,6 +2,7 @@ import type { LingoConfig } from "../types";
 import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { logger } from "../utils/logger";
+import { hasI18nDirective } from "../utils/directive-check";
 
 /**
  * Turbopack/Webpack loader for automatic translation
@@ -27,6 +28,12 @@ export default async function lingoCompilerTurbopackLoader(
 
     // Check if this file should be transformed
     if (!shouldTransformFile(this.resourcePath, config)) {
+      return callback(null, source);
+    }
+
+    // Fast path: if useDirective is enabled, check for directive before parsing
+    // This avoids expensive Babel parsing for files without "use i18n"
+    if (config.useDirective && !hasI18nDirective(source)) {
       return callback(null, source);
     }
 

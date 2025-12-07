@@ -1,6 +1,6 @@
 import type { SnapshotSerializer } from "vitest";
 
-export default {
+const serializer: SnapshotSerializer = {
   serialize(val, config, indentation, depth, refs, printer) {
     console.warn("Serializing React element:", {
       type: typeof val.type,
@@ -43,4 +43,6 @@ export default {
     }
     return isReactElement;
   },
-} satisfies SnapshotSerializer;
+};
+
+export default serializer;

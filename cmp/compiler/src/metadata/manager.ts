@@ -147,16 +147,7 @@ export function upsertEntry(
   metadata: MetadataSchema,
   entry: TranslationEntry,
 ): MetadataSchema {
-  const existing = metadata.entries[entry.hash];
-
-  if (existing) {
-    metadata.entries[entry.hash] = {
-      ...existing,
-      lastSeenAt: new Date().toISOString(),
-    };
-  } else {
-    metadata.entries[entry.hash] = entry;
-  }
+  metadata.entries[entry.hash] = entry;
 
   return metadata;
 }
@@ -193,21 +184,16 @@ export function hasEntry(metadata: MetadataSchema, hash: string): boolean {
 }
 
 /**
- * Remove stale entries (entries not seen in a while)
- * This is useful for cleanup but should be done carefully
+ * Remove entries by hash
  */
-export function removeStaleEntries(
+export function removeEntries(
   metadata: MetadataSchema,
-  maxAgeMs: number = 30 * 24 * 60 * 60 * 1000, // 30 days default
+  hashesToRemove: Set<string>,
 ): MetadataSchema {
-  const now = Date.now();
   const filtered: Record<string, TranslationEntry> = {};
 
   for (const [hash, entry] of Object.entries(metadata.entries)) {
-    const lastSeen = entry.lastSeenAt || entry.addedAt;
-    const age = now - new Date(lastSeen).getTime();
-
-    if (age < maxAgeMs) {
+    if (!hashesToRemove.has(hash)) {
       filtered[hash] = entry;
     }
   }

@@ -1,10 +1,15 @@
 import type { NextConfig } from "next";
+import type {
+  NextJsWebpackConfig,
+  TurbopackOptions,
+  WebpackConfigContext,
+} from "next/dist/server/config-shared";
 
 import { getConfigPath } from "../utils/path-helpers";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
-import type { TurbopackOptions } from "next/dist/server/config-shared";
+import { lingoUnplugin } from "./unplugin";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
 
@@ -75,11 +80,23 @@ function buildLingoConfig(
     },
   };
 
+  // Build rule config with optional content condition for useDirective
+  const lingoRuleConfig: any = { loaders: [loaderConfig] };
+
+  // If useDirective is enabled, add content condition to skip files without "use i18n"
+  // This is more efficient than checking in the loader itself
+  if (lingoConfig.useDirective) {
+    lingoRuleConfig.condition = {
+      content:
+        /^\s*(?:["']use (?:strict|client|server)["']\s*;?\s*)*["']use i18n["']\s*;?/m,
+    };
+  }
+
   const existingTurbopackConfig = getTurbopackConfig(userNextConfig);
   const mergedRules = mergeTurbopackRules(
     mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
       pattern: "*.{tsx,jsx}",
-      config: { loaders: [loaderConfig] },
+      config: lingoRuleConfig,
     }),
     // TODO (AleksandrSl 02/12/2025): We can also inject default resolvers for locale based on the framework
     {
@@ -163,31 +180,18 @@ function buildLingoConfig(
     }
   };
 
-  // Build webpack function that chains user's webpack
-  const webpack = (config: any, options: any) => {
+  const webpack: NextJsWebpackConfig = (
+    config: any,
+    options: WebpackConfigContext,
+  ) => {
     // Apply user's webpack config first if it exists
     let modifiedConfig = config;
     if (typeof userNextConfig.webpack === "function") {
       modifiedConfig = userNextConfig.webpack(config, options);
     }
 
-    // Add the Lingo loader
-    modifiedConfig.module.rules.push({
-      test: /\.(tsx|jsx)$/,
-      exclude: /node_modules/,
-      use: [
-        {
-          loader: "@lingo.dev/_compiler/turbopack-loader",
-          options: {
-            sourceRoot: lingoConfig.sourceRoot,
-            lingoDir: lingoConfig.lingoDir,
-            sourceLocale: lingoConfig.sourceLocale,
-            useDirective: lingoConfig.useDirective,
-            skipPatterns: lingoConfig.skipPatterns,
-          },
-        },
-      ],
-    });
+    modifiedConfig.plugins = modifiedConfig.plugins || [];
+    modifiedConfig.plugins.push(lingoUnplugin.webpack(lingoOptions));
 
     return modifiedConfig;
   };

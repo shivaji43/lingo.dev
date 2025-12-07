@@ -208,40 +208,51 @@ export type TranslationMiddlewareConfig = Pick<
  */
 export type PathConfig = Pick<LingoConfig, "sourceRoot" | "lingoDir">;
 
+export type MetadataTranslationEntry = BaseTranslationEntry<
+  "metadata",
+  {
+    filePath: string;
+    fieldPath: string;
+  }
+>;
+
+export type AttributeTranslationEntry = BaseTranslationEntry<
+  "attribute",
+  {
+    filePath: string;
+    componentName: string;
+    attributeName: string;
+    parentComponents?: string[];
+  }
+>;
+
+export type ContentTranslationEntry = BaseTranslationEntry<
+  "content",
+  {
+    filePath: string;
+    componentName: string;
+  }
+>;
+
+export type TranslationEntry =
+  | ContentTranslationEntry
+  | AttributeTranslationEntry
+  | MetadataTranslationEntry;
+
 /**
  * A single translation entry
  */
-export interface TranslationEntry {
-  /**
-   * Original source text
-   */
+export type BaseTranslationEntry<Type, Context> = {
+  type: Type;
   sourceText: string;
-
-  /**
-   * Context information
-   */
-  context: Record<string, any>;
-
+  context: Context;
   location: {
     filePath: string;
     line?: number;
     column?: number;
   };
-  /**
-   * Hash of the entry (sourceText + componentName + filePath)
-   */
   hash: string;
-
-  /**
-   * When this entry was first added
-   */
-  addedAt: string;
-
-  /**
-   * Last time this entry was seen during compilation
-   */
-  lastSeenAt?: string;
-}
+};
 
 /**
  * Metadata file schema

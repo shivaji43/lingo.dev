@@ -10,8 +10,30 @@
 
 import { assert, beforeEach, describe, expect, it } from "vitest";
 import { transformComponent } from "./index";
-import type { LingoConfig } from "../../types";
+import type {
+  AttributeTranslationEntry,
+  ContentTranslationEntry,
+  LingoConfig,
+  MetadataTranslationEntry,
+  TranslationEntry,
+} from "../../types";
 import { createMockConfig } from "../../__test-utils__/mocks";
+
+// Test helpers to safely cast entries (tests know the expected types)
+function asContent(entry: TranslationEntry): ContentTranslationEntry {
+  expect(entry.type).toBe("content");
+  return entry as ContentTranslationEntry;
+}
+
+function asAttribute(entry: TranslationEntry): AttributeTranslationEntry {
+  expect(entry.type).toBe("attribute");
+  return entry as AttributeTranslationEntry;
+}
+
+function asMetadata(entry: TranslationEntry): MetadataTranslationEntry {
+  expect(entry.type).toBe("metadata");
+  return entry as MetadataTranslationEntry;
+}
 
 describe("transformComponent", () => {
   let config: LingoConfig;
@@ -131,9 +153,15 @@ export function Main() {
       ]);
 
       // Each component should have correct context
-      expect(result.newEntries[0].context.componentName).toBe("Header");
-      expect(result.newEntries[1].context.componentName).toBe("Footer");
-      expect(result.newEntries[2].context.componentName).toBe("Main");
+      expect(asContent(result.newEntries[0]).context.componentName).toBe(
+        "Header",
+      );
+      expect(asContent(result.newEntries[1]).context.componentName).toBe(
+        "Footer",
+      );
+      expect(asContent(result.newEntries[2]).context.componentName).toBe(
+        "Main",
+      );
 
       expect(result.code).toMatchSnapshot();
     });
@@ -164,8 +192,12 @@ export { Welcome, Goodbye };
       ]);
 
       // Each component has its own context
-      expect(result.newEntries[0].context.componentName).toBe("Welcome");
-      expect(result.newEntries[1].context.componentName).toBe("Goodbye");
+      expect(asContent(result.newEntries[0]).context.componentName).toBe(
+        "Welcome",
+      );
+      expect(asContent(result.newEntries[1]).context.componentName).toBe(
+        "Goodbye",
+      );
 
       expect(result.code).toMatchSnapshot();
     });
@@ -211,10 +243,18 @@ export default function Container() {
       ]);
 
       // Each component has its own context
-      expect(result.newEntries[0].context.componentName).toBe("Title");
-      expect(result.newEntries[1].context.componentName).toBe("Subtitle");
-      expect(result.newEntries[2].context.componentName).toBe("Description");
-      expect(result.newEntries[3].context.componentName).toBe("Container");
+      expect(asContent(result.newEntries[0]).context.componentName).toBe(
+        "Title",
+      );
+      expect(asContent(result.newEntries[1]).context.componentName).toBe(
+        "Subtitle",
+      );
+      expect(asContent(result.newEntries[2]).context.componentName).toBe(
+        "Description",
+      );
+      expect(asContent(result.newEntries[3]).context.componentName).toBe(
+        "Container",
+      );
 
       expect(result.code).toMatchSnapshot();
     });
@@ -562,17 +602,17 @@ export default function Page() {
 
       // Check metadata entries
       const metadataEntries = result.newEntries.filter(
-        (e) => e.context.type === "metadata",
+        (e) => e.type === "metadata",
       );
       expect(metadataEntries).toHaveLength(2);
       expect(metadataEntries.map((e) => e.sourceText)).toEqual([
         "My Page Title",
         "This is my page description",
       ]);
-      expect(metadataEntries[0].context.metadataField).toBe("title");
-      expect(metadataEntries[1].context.metadataField).toBe("description");
-      expect(metadataEntries[0].context.type).toBe("metadata");
-      expect(metadataEntries[1].context.type).toBe("metadata");
+      expect(metadataEntries[0].type).toBe("metadata");
+      expect(metadataEntries[1].type).toBe("metadata");
+      expect(metadataEntries[0].context.fieldPath).toBe("title");
+      expect(metadataEntries[1].context.fieldPath).toBe("description");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -607,7 +647,7 @@ export default function Page() {
 
       // Check metadata entries
       const metadataEntries = result.newEntries.filter(
-        (e) => e.context.type === "metadata",
+        (e) => e.type === "metadata",
       );
       expect(metadataEntries).toHaveLength(2);
       expect(metadataEntries.map((e) => e.sourceText)).toEqual([
@@ -650,12 +690,12 @@ export const metadata = {
       expect(result.newEntries).toHaveLength(6);
 
       const metadataEntries = result.newEntries.filter(
-        (e) => e.context.type === "metadata",
+        (e) => e.type === "metadata",
       );
       expect(metadataEntries).toHaveLength(6);
 
       // Check field paths (twitter.card should be excluded)
-      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+      expect(metadataEntries.map((e) => e.context.fieldPath)).toEqual([
         "title",
         "description",
         "openGraph.title",
@@ -729,8 +769,8 @@ export default function Page() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
+      expect(result.newEntries[0].type).not.toBe("metadata");
       expect(result.newEntries[0].sourceText).toBe("Content");
-      expect(result.newEntries[0].context.type).not.toBe("metadata");
 
       // Metadata export should remain unchanged
       expect(result.code).toContain("export const metadata");
@@ -811,9 +851,9 @@ export const metadata = {
       expect(result.newEntries).toHaveLength(3);
 
       const metadataEntries = result.newEntries.filter(
-        (e) => e.context.type === "metadata",
+        (e) => e.type === "metadata",
       );
-      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+      expect(metadataEntries.map((e) => e.context.fieldPath)).toEqual([
         "title.template",
         "title.default",
         "description",
@@ -857,9 +897,9 @@ export const metadata = {
       expect(result.newEntries).toHaveLength(2);
 
       const metadataEntries = result.newEntries.filter(
-        (e) => e.context.type === "metadata",
+        (e) => e.type === "metadata",
       );
-      expect(metadataEntries.map((e) => e.context.metadataField)).toEqual([
+      expect(metadataEntries.map((e) => e.context.fieldPath)).toEqual([
         "openGraph.images[0].alt",
         "openGraph.images[1].alt",
       ]);
@@ -900,8 +940,8 @@ export const metadata = {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
 
-      const metadataEntry = result.newEntries[0];
-      expect(metadataEntry.context.metadataField).toBe("twitter.images[0].alt");
+      const metadataEntry = asMetadata(result.newEntries[0]);
+      expect(metadataEntry.context.fieldPath).toBe("twitter.images[0].alt");
       expect(metadataEntry.sourceText).toBe("Twitter card image");
 
       // URL and card should NOT be translated
@@ -931,8 +971,8 @@ export const metadata = {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
 
-      const metadataEntry = result.newEntries[0];
-      expect(metadataEntry.context.metadataField).toBe("appleWebApp.title");
+      const metadataEntry = asMetadata(result.newEntries[0]);
+      expect(metadataEntry.context.fieldPath).toBe("appleWebApp.title");
       expect(metadataEntry.sourceText).toBe("Apple Web App");
 
       // statusBarStyle should NOT be translated
@@ -959,7 +999,7 @@ export default function Welcome() {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
 
-      const entry = result.newEntries[0];
+      const entry = asContent(result.newEntries[0]);
       expect(entry.sourceText).toBe("Hello {name}, welcome!");
       expect(entry.context.componentName).toBe("Welcome");
 
@@ -989,7 +1029,7 @@ export default function Message() {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
 
-      const entry = result.newEntries[0];
+      const entry = asContent(result.newEntries[0]);
       expect(entry.sourceText).toBe(
         "Hello {name}, you have <strong0>{count}</strong0> messages",
       );
@@ -1144,11 +1184,11 @@ export default function Button() {
       expect(result.newEntries).toHaveLength(2);
 
       const altEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "alt",
+        (e) => e.type === "attribute" && e.context.attributeName === "alt",
       );
       expect(altEntry?.sourceText).toBe("Icon");
 
-      const textEntry = result.newEntries.find((e) => !e.context.attributeName);
+      const textEntry = result.newEntries.find((e) => e.type === "content");
       expect(textEntry?.sourceText).toBe("Deploy Now");
 
       // Should NOT generate rich text with Image0
@@ -1432,15 +1472,13 @@ export function Button() {
       expect(result.newEntries).toHaveLength(2);
 
       // Check attribute entry
-      const attrEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "title",
-      );
-      expect(attrEntry).toBeDefined();
-      expect(attrEntry?.sourceText).toBe("Click to submit");
-      expect(attrEntry?.context.componentName).toBe("Button");
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
+      assert.isDefined(attrEntry);
+      expect(attrEntry.sourceText).toBe("Click to submit");
+      expect(attrEntry.context.componentName).toBe("Button");
 
       // Check text entry
-      const textEntry = result.newEntries.find((e) => !e.context.attributeName);
+      const textEntry = result.newEntries.find((e) => e.type === "content");
       expect(textEntry?.sourceText).toBe("Submit");
 
       expect(result.code).toMatchSnapshot();
@@ -1462,8 +1500,9 @@ export function Image() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Company logo");
-      expect(result.newEntries[0].context.attributeName).toBe("alt");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Company logo");
+      expect(entry.context.attributeName).toBe("alt");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1485,11 +1524,11 @@ export function CloseButton() {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(2);
 
-      const attrEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "aria-label",
-      );
-      expect(attrEntry).toBeDefined();
-      expect(attrEntry?.sourceText).toBe("Close dialog");
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
+
+      assert.isDefined(attrEntry);
+      expect(attrEntry.context.attributeName).toBe("aria-label");
+      expect(attrEntry.sourceText).toBe("Close dialog");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1511,11 +1550,10 @@ export function InfoIcon() {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(2);
 
-      const attrEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "aria-description",
-      );
-      expect(attrEntry).toBeDefined();
-      expect(attrEntry?.sourceText).toBe(
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
+      assert.isDefined(attrEntry);
+      expect(attrEntry.context.attributeName).toBe("aria-description");
+      expect(attrEntry.sourceText).toBe(
         "Additional information about this feature",
       );
 
@@ -1538,8 +1576,9 @@ export function SearchBox() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Search products...");
-      expect(result.newEntries[0].context.attributeName).toBe("placeholder");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Search products...");
+      expect(entry.context.attributeName).toBe("placeholder");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1560,8 +1599,9 @@ export function CustomInput() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Enter your name");
-      expect(result.newEntries[0].context.attributeName).toBe("label");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Enter your name");
+      expect(entry.context.attributeName).toBe("label");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1582,10 +1622,9 @@ export function Card() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe(
-        "This is a product description",
-      );
-      expect(result.newEntries[0].context.attributeName).toBe("description");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("This is a product description");
+      expect(entry.context.attributeName).toBe("description");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1606,32 +1645,9 @@ export function MetaTag() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Website description");
-      expect(result.newEntries[0].context.attributeName).toBe("content");
-
-      expect(result.code).toMatchSnapshot();
-    });
-
-    it("should translate subtitle attribute", () => {
-      const code = `
-export function Section() {
-  return <Section subtitle="Learn more about our features" />;
-}
-`;
-
-      const result = transformComponent({
-        code,
-        filePath: "src/Section.tsx",
-        config,
-      });
-
-      expect(result.transformed).toBe(true);
-      assert.isDefined(result.newEntries);
-      expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe(
-        "Learn more about our features",
-      );
-      expect(result.newEntries[0].context.attributeName).toBe("subtitle");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Website description");
+      expect(entry.context.attributeName).toBe("content");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1658,9 +1674,9 @@ export function Input() {
       assert.isDefined(result.newEntries);
       expect(result.newEntries).toHaveLength(3);
 
-      const attributeNames = result.newEntries.map(
-        (e) => e.context.attributeName,
-      );
+      const attributeNames = result.newEntries
+        .filter((e) => e.type === "attribute")
+        .map((e) => e.context.attributeName);
       expect(attributeNames).toContain("title");
       expect(attributeNames).toContain("placeholder");
       expect(attributeNames).toContain("aria-label");
@@ -1697,7 +1713,7 @@ export function Form() {
       expect(result.newEntries).toHaveLength(4);
 
       const attrEntries = result.newEntries.filter(
-        (e) => e.context.attributeName,
+        (e) => e.type === "attribute",
       );
       expect(attrEntries).toHaveLength(3);
 
@@ -1727,9 +1743,10 @@ export function Link() {
       expect(result.newEntries).toHaveLength(2);
 
       // Only title should be translated
-      const attrEntry = result.newEntries.find((e) => e.context.attributeName);
-      expect(attrEntry?.context.attributeName).toBe("title");
-      expect(attrEntry?.sourceText).toBe("Go home");
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
+      assert.isDefined(attrEntry);
+      expect(attrEntry.context.attributeName).toBe("title");
+      expect(attrEntry.sourceText).toBe("Go home");
 
       // href, className, data-testid should remain unchanged
       expect(result.code).toContain('href="/home"');
@@ -1758,12 +1775,11 @@ export function DynamicButton() {
 
       // Only the text "Submit" should be translated, not the title expression
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Submit");
-      expect(result.newEntries[0].context.attributeName).toBeUndefined();
+      const entry = asContent(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Submit");
 
       // Expression should remain unchanged
       expect(result.code).toContain("title={tooltip}");
-
       expect(result.code).toMatchSnapshot();
     });
 
@@ -1785,8 +1801,9 @@ export function EmptyAttr() {
 
       // Only placeholder should be translated (title is empty)
       expect(result.newEntries).toHaveLength(1);
-      expect(result.newEntries[0].sourceText).toBe("Type here");
-      expect(result.newEntries[0].context.attributeName).toBe("placeholder");
+      const entry = asAttribute(result.newEntries[0]);
+      expect(entry.sourceText).toBe("Type here");
+      expect(entry.context.attributeName).toBe("placeholder");
 
       expect(result.code).toMatchSnapshot();
     });
@@ -1815,7 +1832,7 @@ export function Card() {
       expect(result.newEntries).toHaveLength(5);
 
       const attrEntries = result.newEntries.filter(
-        (e) => e.context.attributeName,
+        (e) => e.type === "attribute",
       );
       expect(attrEntries).toHaveLength(3);
 
@@ -1843,9 +1860,7 @@ export function Button() {
       expect(result.transformed).toBe(true);
       assert.isDefined(result.newEntries);
 
-      const attrEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "title",
-      );
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
       expect(attrEntry).toBeDefined();
       // Whitespace should be normalized
       expect(attrEntry?.sourceText).toBe("Click to submit");
@@ -1875,12 +1890,8 @@ export function Button() {
       assert.isDefined(result1.newEntries);
       assert.isDefined(result2.newEntries);
 
-      const attr1 = result1.newEntries.find(
-        (e) => e.context.attributeName === "title",
-      );
-      const attr2 = result2.newEntries.find(
-        (e) => e.context.attributeName === "title",
-      );
+      const attr1 = result1.newEntries.find((e) => e.type === "attribute");
+      const attr2 = result2.newEntries.find((e) => e.type === "attribute");
 
       expect(attr1?.hash).toBe(attr2?.hash);
     });
@@ -1933,9 +1944,7 @@ export function TestComponent() {
       });
 
       assert.isDefined(result.newEntries);
-      const attrEntry = result.newEntries.find(
-        (e) => e.context.attributeName === "title",
-      );
+      const attrEntry = result.newEntries.find((e) => e.type === "attribute");
 
       expect(attrEntry).toBeDefined();
       expect(attrEntry?.context.attributeName).toBe("title");
@@ -1969,7 +1978,7 @@ export default async function ServerPage() {
       assert.isDefined(result.newEntries);
 
       const attrEntries = result.newEntries.filter(
-        (e) => e.context.attributeName,
+        (e) => e.type === "attribute",
       );
       expect(attrEntries).toHaveLength(2);
 
@@ -2007,7 +2016,7 @@ export default function ServerPage() {
       assert.isDefined(result.newEntries);
 
       const attrEntries = result.newEntries.filter(
-        (e) => e.context.attributeName,
+        (e) => e.type === "attribute",
       );
       expect(attrEntries).toHaveLength(2);
 

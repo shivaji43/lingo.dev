@@ -1,16 +1,9 @@
 import * as parser from "@babel/parser";
-import traverseDefault from "@babel/traverse";
-import generateDefault from "@babel/generator";
 import path from "path";
 import type { LingoConfig, TranslationEntry } from "../../types";
-import { createBabelVisitors, type VisitorsSharedState } from "./visitors";
+import { processFile } from "./process-file";
 import { logger } from "../../utils/logger";
-
-// Handle ESM/CJS interop - these packages may export differently
-// @ts-expect-error - Handle both default and named exports
-const traverse = traverseDefault.default ?? traverseDefault;
-// @ts-expect-error - Handle both default and named exports
-const generate = generateDefault.default ?? generateDefault;
+import { generate } from "./babel-compat";
 
 export interface TransformResult {
   code: string;
@@ -60,29 +53,17 @@ export function transformComponent({
       plugins: ["jsx", "typescript"],
     });
 
-    // TODO (AleksandrSl 01/12/2025): Search for use i18n directives with regex, probably will be faster to skip the files
-
-    const visitorState = {
-      filePath: relativeFilePath,
-      config,
-      newEntries: [] as any[],
-    } satisfies VisitorsSharedState;
-
     logger.debug(`Transforming ${filePath}`);
 
-    // TODO (AleksandrSl 02/12/2025): Can I pass state to the traverse here as well?
-    const visitors = createBabelVisitors({
-      visitorState,
+    const translationEntries = processFile(ast, {
+      relativeFilePath,
+      needsDirective: config.useDirective,
     });
-
-    traverse(ast, visitors);
 
     const output = generate(
       ast,
       {
         sourceMaps: true,
-        // TODO (AleksandrSl 05/12/2025): Why is it false?
-        retainLines: false,
       },
       code,
     );
@@ -92,8 +73,8 @@ export function transformComponent({
     return {
       code: output.code,
       map: output.map,
-      newEntries: visitorState.newEntries,
-      transformed: visitorState.newEntries.length > 0,
+      newEntries: translationEntries,
+      transformed: translationEntries.length > 0,
     };
   } catch (error) {
     logger.error(`Failed to transform ${filePath}:`, error);
