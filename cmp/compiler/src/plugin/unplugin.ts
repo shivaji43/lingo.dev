@@ -23,6 +23,7 @@ import { saveMetadataWithEntries } from "../metadata/manager";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { getCacheDir } from "../utils/path-helpers";
+import { useI18nRegex } from "./transform/use-i18n";
 
 export type LingoPluginOptions = PartialLingoConfig;
 
@@ -84,9 +85,7 @@ export const cacheDir = ${JSON.stringify(cacheDir)};`;
         },
         // If useDirective is enabled, only process files with "use i18n"
         // This is more efficient than checking in the handler
-        code: config.useDirective
-          ? /^\s*(?:["']use (?:strict|client|server)["']\s*;?\s*)*["']use i18n["']\s*;?/m
-          : undefined,
+        code: config.useDirective ? useI18nRegex : undefined,
       },
       handler: async (code, id) => {
         try {

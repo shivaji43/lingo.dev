@@ -3,6 +3,7 @@ import type { NodePath } from "@babel/traverse";
 import type { VariableDeclaration } from "@babel/types";
 import * as t from "@babel/types";
 import { generateTranslationHash } from "../../utils/hash";
+import { useI18n } from "./use-i18n";
 
 type TranslationEntryByType = {
   [T in TranslationEntry as T["type"]]: T;
@@ -104,7 +105,7 @@ export function inferComponentName(path: NodePath<any>): string | null {
 export function hasUseI18nDirective(program: NodePath<t.Program>): boolean {
   const directives = program.node.directives || [];
   return directives.some(
-    (directive: t.Directive) => directive.value.value === "use i18n",
+    (directive: t.Directive) => directive.value.value === useI18n,
   );
 }
 

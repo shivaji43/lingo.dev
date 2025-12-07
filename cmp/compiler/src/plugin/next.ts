@@ -10,6 +10,7 @@ import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import { lingoUnplugin } from "./unplugin";
+import { useI18nRegex } from "./transform/use-i18n";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
 
@@ -87,8 +88,7 @@ function buildLingoConfig(
   // This is more efficient than checking in the loader itself
   if (lingoConfig.useDirective) {
     lingoRuleConfig.condition = {
-      content:
-        /^\s*(?:["']use (?:strict|client|server)["']\s*;?\s*)*["']use i18n["']\s*;?/m,
+      content: useI18nRegex,
     };
   }
 
