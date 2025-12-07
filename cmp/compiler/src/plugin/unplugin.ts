@@ -43,10 +43,10 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
     name: "lingo-compiler",
     enforce: "pre", // Run before other plugins (especially before React plugin)
 
-    // Start translation server on build start
+    // Start translation server on build start (dev mode only)
     async buildStart() {
-      // Start translation server if not already running
-      if (!globalServer) {
+      // Only start translation server in development mode
+      if (isDev && !globalServer) {
         globalServer = await startTranslationServer({
           startPort,
           onError: (err) => {
@@ -144,9 +144,7 @@ export const cacheDir = ${JSON.stringify(cacheDir)};`;
 
           await processBuildTranslations({
             config,
-            // Note: publicOutputPath can be set by users in their config
-            // For Vite, this might be dist/public or public/translations
-            // For now, we don't set it here - users can handle it in their pipeline
+            publicOutputPath: "public/translations",
           });
         } catch (error) {
           logger.error("Build-time translation processing failed:", error);

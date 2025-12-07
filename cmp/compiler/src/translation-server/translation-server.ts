@@ -12,6 +12,7 @@
  */
 
 import http from "http";
+import type { Socket } from "net";
 import { URL } from "url";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
 import { getLogger } from "./logger";
@@ -55,6 +56,7 @@ export class TranslationServer {
   private onErrorCallback?: (error: Error) => void;
   private translationService: TranslationService | null = null;
   private metadata: MetadataSchema | null = null;
+  private connections: Set<Socket> = new Set();
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
@@ -118,6 +120,14 @@ export class TranslationServer {
 
       this.logger.debug(`Starting translation server on port ${port}`);
 
+      // Track connections for graceful shutdown
+      this.server.on("connection", (socket) => {
+        this.connections.add(socket);
+        socket.once("close", () => {
+          this.connections.delete(socket);
+        });
+      });
+
       this.server.on("error", (error: NodeJS.ErrnoException) => {
         if (error.code === "EADDRINUSE") {
           // Port is in use, try next one
@@ -146,6 +156,12 @@ export class TranslationServer {
       this.logger.debug("Translation server is not running. Nothing to stop.");
       return;
     }
+
+    // Destroy all active connections to prevent hanging
+    for (const socket of this.connections) {
+      socket.destroy();
+    }
+    this.connections.clear();
 
     return new Promise((resolve, reject) => {
       this.server!.close((error) => {

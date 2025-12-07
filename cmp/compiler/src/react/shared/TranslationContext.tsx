@@ -165,6 +165,9 @@ function TranslationProvider__Prod({
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
   // TODO (AleksandrSl 01/12/2025): Correctly provide default locale.
   const [locale, setLocaleState] = useState(initialLocale ?? "en");
+  const [translations, setTranslations] =
+    useState<Record<string, string>>(initialTranslations);
+  const [isLoading, setIsLoading] = useState(false);
 
   logger.debug(
     `TranslationProvider initialized with locale: ${locale}`,
@@ -172,8 +175,54 @@ function TranslationProvider__Prod({
   );
 
   /**
-   * Change locale - triggers server re-render via router.refresh()
-   * Following next-intl pattern: locale changes reload the page with new translations from server
+   * Load translations from public/translations/{locale}.json
+   * Lazy loads on-demand for SPAs
+   */
+  const loadTranslations = useCallback(
+    async (targetLocale: string) => {
+      // If we already have initialTranslations (Next.js SSR), don't fetch
+      if (Object.keys(initialTranslations).length > 0) {
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/translations/${targetLocale}.json`);
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load translations for ${targetLocale}: ${response.statusText}`,
+          );
+        }
+
+        const data = await response.json();
+        // Translation files have format: { version, locale, entries: {...} }
+        setTranslations(data.entries || data);
+        logger.debug(
+          `Loaded translations for ${targetLocale}:`,
+          Object.keys(data.entries || data).length,
+        );
+      } catch (error) {
+        logger.error(`Failed to load translations for ${targetLocale}:`, error);
+        // Fallback to empty translations
+        setTranslations({});
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [initialTranslations],
+  );
+
+  // Load translations on mount if not provided via initialTranslations
+  useEffect(() => {
+    if (Object.keys(initialTranslations).length === 0) {
+      loadTranslations(locale);
+    }
+  }, []); // Only run on mount
+
+  /**
+   * Change locale
+   * - For Next.js SSR: triggers server re-render via router.refresh()
+   * - For SPAs: lazy loads translations from /translations/{locale}.json
    */
   const setLocale = useCallback(
     async (newLocale: string) => {
@@ -183,13 +232,16 @@ function TranslationProvider__Prod({
       // 2. Update local state for immediate UI feedback
       setLocaleState(newLocale);
 
-      // 3. Trigger server re-render - Server Components will fetch new translations
-      // and pass them as initialTranslations prop, causing this component to re-render
+      // 3a. Next.js pattern: Trigger server re-render
       if (router) {
         router.refresh();
       }
+      // 3b. SPA pattern: Lazy load translations
+      else {
+        await loadTranslations(newLocale);
+      }
     },
-    [cookieConfig, router],
+    [cookieConfig, router, loadTranslations],
   );
 
   return (
@@ -197,9 +249,9 @@ function TranslationProvider__Prod({
       value={{
         locale,
         setLocale,
-        translations: initialTranslations,
+        translations,
         registerHashes: () => {}, // No-op in production
-        isLoading: false, // No loading state - translations come from server
+        isLoading,
         sourceLocale,
       }}
     >
