@@ -317,7 +317,6 @@ function serializeJSXChildren(
       } else if (expr.type === "StringLiteral") {
         // String literal (like {" "}) - include the literal text directly
         text += escapeTextForICU(expr.value);
-        // TODO (AleksandrSl 07/12/2025): Should we just ignore the empty expression?
       } else if (expr.type !== "JSXEmptyExpression") {
         const name = `expression${expressions.size}`;
         text += `{${name}}`;
