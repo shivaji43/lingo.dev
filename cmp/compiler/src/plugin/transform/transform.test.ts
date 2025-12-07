@@ -2372,5 +2372,35 @@ export const Button = function() { return <button>Click me</button>; }
 
       expect(result.code).toMatchSnapshot();
     });
+
+    it.only("should escape literal angle brackets in text", () => {
+      const code = `
+export default function Help() {
+  return (
+    <div>
+      <p>To wrap text, write &lt;&gt;content&lt;/&gt;</p>
+      <p>Or use &lt;Fragment&gt;content&lt;/Fragment&gt;</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Help.tsx",
+        config,
+      });
+
+      expect(result.newEntries).toHaveLength(2);
+      const firstEntry = asContent(result.newEntries![0]);
+      expect(firstEntry.sourceText).toBe(
+        "To wrap text, write '<'>content'<'/>",
+      );
+
+      const secondEntry = asContent(result.newEntries![1]);
+      expect(secondEntry.sourceText).toBe(
+        "Or use '<'Fragment>content'<'/Fragment>",
+      );
+    });
   });
 });

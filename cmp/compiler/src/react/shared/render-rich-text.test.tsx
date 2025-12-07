@@ -160,4 +160,14 @@ describe("renderRichText", () => {
     );
     expect(result).toMatchSnapshot();
   });
+
+  it("should handle text with literal angle brackets", () => {
+    const result = renderRichText(
+      "To wrap text use: '<'>content'<'/> or '<'Fragment>content'<'/Fragment>",
+      {},
+    );
+    expect(result).toBe(
+      "To wrap text use: <>content</> or <Fragment>content</Fragment>",
+    );
+  });
 });

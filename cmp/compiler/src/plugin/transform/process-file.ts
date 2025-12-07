@@ -10,6 +10,7 @@ import {
   constructServerImport,
   constructTranslationCall,
   createTranslationEntry,
+  escapeTextForICU,
   hasUseI18nDirective,
   inferComponentName,
   injectServerHook,
@@ -293,18 +294,18 @@ function serializeJSXChildren(
         normalized.length > 0
       ) {
         if (!text.endsWith(" ")) {
-          text += " ";
+          normalized = ` ${normalized}`;
         }
       }
-
-      text += normalized;
 
       // If this node ends with whitespace and has content, add trailing space
       if (normalized.length > 0 && child.value.match(/\s$/)) {
         if (!text.endsWith(" ")) {
-          text += " ";
+          normalized = `${normalized} `;
         }
       }
+
+      text += escapeTextForICU(normalized);
     } else if (child.type === "JSXExpressionContainer") {
       // Extract variable name from expression
       const expr = child.expression;
@@ -436,6 +437,7 @@ function transformJSXText(
   path: NodePath<t.JSXText>,
   state: VisitorsInternalState,
 ): void {
+  // These messages are rendered as is, so no ICU escaping is required.
   const text = normalizeWhitespace(path.node.value);
   if (text.length == 0) return;
 

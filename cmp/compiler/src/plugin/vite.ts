@@ -25,7 +25,7 @@ export function lingoCompilerPlugin(options: LingoPluginOptions) {
 
   // Attach Lingo config for CLI extraction
   // @ts-expect-error - Internal property for CLI access
-  plugin._lingoConfig = fullOptions;
+  plugin._lingoConfig = options;
 
   return plugin;
 }

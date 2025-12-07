@@ -26,6 +26,19 @@ export function normalizeWhitespace(text: string): string {
 }
 
 /**
+ * Escape literal angle brackets that are not part of ICU MessageFormat tags
+ */
+export function escapeTextForICU(text: string): string {
+  // Related spec - https://unicode-org.github.io/icu/userguide/format_parse/messages/#quotingescaping
+  return text
+    .replace(/'/g, "''")
+    .replace(/\{/g, "'{'")
+    .replace(/}/g, "'}'")
+    .replace(/</g, "'<'")
+    .replace(/#/g, "'#'");
+}
+
+/**
  * Detect if a function is a React component by checking if it returns JSX
  */
 export function isReactComponent(
