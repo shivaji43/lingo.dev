@@ -23,6 +23,7 @@ export default defineConfig({
   external: [
     /^@lingo.dev\/_compiler\/dev-config/,
     /^@lingo.dev\/_compiler\/config/,
+    "unplugin", // Keep unplugin external so webpack can resolve its internal loaders
   ],
   outDir: "build",
   format: ["cjs", "esm"],
