@@ -193,6 +193,17 @@ export function ListComponent({
 }"
 `;
 
+exports[`transformComponent > corner cases > should escape literal angle brackets in text 1`] = `
+"import { useTranslation } from "@lingo.dev/_compiler/react";
+export default function Help() {
+  const t = useTranslation(["9839f15c9f2b"]);
+  return <div>{t("9839f15c9f2b", "To wrap text, write '<'>content'<'/> <p0>Or use '<'Fragment>content'<'/Fragment></p0> or wrap it into the '<'>{content}'<'/>", {
+      content,
+      p0: chunks => <p>{chunks}</p>
+    })}</div>;
+}"
+`;
+
 exports[`transformComponent > corner cases > should handle function expressions correctly 1`] = `
 "import { useTranslation } from "@lingo.dev/_compiler/react";
 export const Button = function () {

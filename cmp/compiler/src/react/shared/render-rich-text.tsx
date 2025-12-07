@@ -1,11 +1,6 @@
-import {
-  Children,
-  cloneElement,
-  Fragment,
-  isValidElement,
-  type ReactNode,
-} from "react";
+import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import IntlMessageFormat, { type FormatXMLElementFn } from "intl-messageformat";
+import { logger } from "../../utils/logger";
 
 /**
  * Component renderer function for rich text translation
@@ -81,18 +76,24 @@ export function renderRichText(
   text: string,
   params: RichTextParams,
 ): ReactNode {
-  const formatter = new IntlMessageFormat(text, "en");
-  const keyedParams = assignUniqueKeysToParams(params);
-  const result = formatter.format<ReactNode>(keyedParams);
+  try {
+    const formatter = new IntlMessageFormat(text, "en");
+    const keyedParams = assignUniqueKeysToParams(params);
+    const result = formatter.format<ReactNode>(keyedParams);
 
-  if (Array.isArray(result)) {
-    // Making all elements keyed here somehow fixes all the things. Maybe I also need to key everything in toKeyedReactNodeArray and I just don't get the error because I don't have a corner case for it? Need to investigate
-    return result.map((item, index) => {
-      // Each item gets wrapped in Fragment with unique key
-      // This handles strings, React elements (like <>text</>), everything
-      return <Fragment key={index}>{item}</Fragment>;
-    });
+    if (Array.isArray(result)) {
+      // Making all elements keyed here somehow fixes all the things. Maybe I also need to key everything in toKeyedReactNodeArray and I just don't get the error because I don't have a corner case for it? Need to investigate
+      return result.map((item, index) => {
+        // Each item gets wrapped in Fragment with unique key
+        // This handles strings, React elements (like <>text</>), everything
+        return <Fragment key={index}>{item}</Fragment>;
+      });
+    }
+
+    return result;
+  } catch (error) {
+    // It's better to render at least something than break the whole app.
+    logger.warn(`Error rendering rich text (${text}): ${error}`);
+    return text;
   }
-
-  return result;
 }
