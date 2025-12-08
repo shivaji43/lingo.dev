@@ -427,7 +427,6 @@ function processJSXElement(
       textNode = path.node.children[textNodeIndex] as t.JSXText;
     }
   }
-  logger.warn(`Type: ${type}`);
 
   if (!type) {
     return;
@@ -468,7 +467,6 @@ function processJSXElement(
 
   if (type === "mixed") {
     path.node.children = [constructTranslationCall(entry.hash, text, args)];
-    path.skip();
   } else {
     path.node.children = path.node.children.map((it, index) => {
       if (index === textNodeIndex) {
@@ -480,8 +478,8 @@ function processJSXElement(
         return it;
       }
     });
-    path.skip();
   }
+  path.skip();
 }
 
 /**
@@ -622,7 +620,7 @@ function processComponentFunction(
     isAsync: path.node.async,
   };
   state.componentsStack.push(componentEntry);
-  console.debug(`Component ${JSON.stringify(componentEntry)} entered`);
+  logger.debug(`Component ${JSON.stringify(componentEntry)} entered`);
 
   path.setData("componentName", componentName);
   path.traverse(componentVisitors, { visitorState: state });

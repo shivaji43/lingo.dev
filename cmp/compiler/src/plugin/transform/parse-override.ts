@@ -171,14 +171,12 @@ export function validateOverrides(overrides: Record<string, string>): boolean {
 export function findOverrideAttribute(
   attributes: (t.JSXAttribute | t.JSXSpreadAttribute)[],
 ): JSXAttribute | undefined {
-  console.log(`[FIND_OVERRIDE] Searching in ${attributes.length} attributes`);
   const found = attributes.find(
     (attr): attr is JSXAttribute =>
       t.isJSXAttribute(attr) &&
       t.isJSXIdentifier(attr.name) &&
       attr.name.name === OVERRIDE_ATTRIBUTE,
   );
-  console.log(`[FIND_OVERRIDE] Found override attribute: ${!!found}`);
   return found;
 }
 

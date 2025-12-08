@@ -17,32 +17,32 @@ export default async function devServerLoader(
   logger.debug("Running devServerLoader");
   const callback = this.async();
   const isDev = process.env.NODE_ENV === "development";
-  if (!isDev) {
-    return;
-  }
 
   const config: LingoConfig = this.getOptions();
   const startPort = config.dev.serverStartPort;
 
-  if (!serverPromise) {
-    serverPromise = startOrGetTranslationServer({
-      startPort,
-      onError: (err) => {
-        logger.error("Translation server error:", err);
-      },
-      onReady: () => {
-        logger.info("Translation server started");
-      },
-      config,
-    });
-  }
+  let server;
+  if (!isDev) {
+    if (!serverPromise) {
+      serverPromise = startOrGetTranslationServer({
+        startPort,
+        onError: (err) => {
+          logger.error("Translation server error:", err);
+        },
+        onReady: () => {
+          logger.info("Translation server started");
+        },
+        config,
+      });
+    }
 
-  // Wait for server with timeout to prevent compilation from hanging
-  const server = await withTimeout(
-    serverPromise,
-    DEFAULT_TIMEOUTS.SERVER_START,
-    "Translation server startup",
-  );
+    // Wait for server with timeout to prevent compilation from hanging
+    server = await withTimeout(
+      serverPromise,
+      DEFAULT_TIMEOUTS.SERVER_START,
+      "Translation server startup",
+    );
+  }
 
   callback(
     null,
