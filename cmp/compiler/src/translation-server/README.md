@@ -46,7 +46,7 @@ translation-server/
 
 ```typescript
 // next.config.ts
-import { withLingo } from "@lingo.dev/_compiler/next";
+import { withLingo } from "@lingo.dev/compiler/next";
 
 export default withLingo(
   { reactStrictMode: true },
@@ -62,7 +62,7 @@ export default withLingo(
 
 ```typescript
 // vite.config.ts
-import { lingoPlugin } from "@lingo.dev/_compiler/vite";
+import { lingoPlugin } from "@lingo.dev/compiler/vite";
 
 export default {
   plugins: [

@@ -2,7 +2,7 @@
  * Server-side translation hook using React Server Module Conventions
  * This file is loaded via "react-server" conditional export in package.json
  *
- * When you import from '@lingo.dev/_compiler/react' in a Server Component,
+ * When you import from '@lingo.dev/compiler/react' in a Server Component,
  * the bundler automatically loads THIS file instead of the client version.
  *
  * ARCHITECTURE:
@@ -10,12 +10,12 @@
  * 1. Locale resolution (framework-specific) - via config.ts
  * 2. Translation fetching (universal) - via server/translations.ts
  *
- * @module @lingo.dev/_compiler/react (server)
+ * @module @lingo.dev/compiler/react (server)
  */
 
 import type { ReactNode } from "react";
 import { use } from "react";
-import { localeResolver } from "@lingo.dev/_compiler/config";
+import { getServerLocale } from "@lingo.dev/compiler/locale/server";
 import { fetchTranslationsOnServer } from "../server-only/translations";
 import {
   renderRichText,
@@ -27,7 +27,7 @@ import type { TranslationHook } from "../types";
 // TODO (AleksandrSl 01/12/2025): Should we add back the cache?
 const getTranslations = async (hashes: string[]) => {
   // 1. Resolve locale (framework-specific)
-  const locale = await localeResolver();
+  const locale = await getServerLocale();
 
   // 2. Fetch translations (universal)
   const translations = await fetchTranslationsOnServer(locale, hashes);

@@ -5,7 +5,7 @@ import type {
   WebpackConfigContext,
 } from "next/dist/server/config-shared";
 
-import { getConfigPath } from "../utils/path-helpers";
+// Removed getLocaleResolverPath - now using virtual modules in unplugin
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
@@ -72,7 +72,7 @@ function buildLingoConfig(
 
   // Prepare Turbopack loader configuration
   const loaderConfig = {
-    loader: "@lingo.dev/_compiler/turbopack-loader",
+    loader: "@lingo.dev/compiler/turbopack-loader",
     options: {
       sourceRoot: lingoConfig.sourceRoot,
       lingoDir: lingoConfig.lingoDir,
@@ -93,34 +93,69 @@ function buildLingoConfig(
   }
 
   const existingTurbopackConfig = getTurbopackConfig(userNextConfig);
-  const mergedRules = mergeTurbopackRules(
-    mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
-      pattern: "*.{tsx,jsx}",
-      config: lingoRuleConfig,
-    }),
-    // TODO (AleksandrSl 02/12/2025): We can also inject default resolvers for locale based on the framework
-    {
-      pattern: "**/dev-config.mjs",
-      config: {
-        loaders: [
-          {
-            loader: "@lingo.dev/_compiler/dev-server-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              dev: lingoConfig.dev,
-              sourceLocale: lingoConfig.sourceLocale,
-            },
+  let mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
+    pattern: "*.{tsx,jsx}",
+    config: lingoRuleConfig,
+  });
+
+  // Add dev-config loader
+  mergedRules = mergeTurbopackRules(mergedRules, {
+    pattern: "**/dev-config.mjs",
+    config: {
+      loaders: [
+        {
+          loader: "@lingo.dev/compiler/dev-server-loader",
+          options: {
+            sourceRoot: lingoConfig.sourceRoot,
+            lingoDir: lingoConfig.lingoDir,
+            dev: lingoConfig.dev,
+            sourceLocale: lingoConfig.sourceLocale,
           },
-        ],
-      },
+        },
+      ],
     },
-  );
+  });
+
+  // Add locale/server loader
+  mergedRules = mergeTurbopackRules(mergedRules, {
+    pattern: "**/locale/server.mjs",
+    config: {
+      loaders: [
+        {
+          loader: "@lingo.dev/compiler/turbopack-locale-server-loader",
+          options: {
+            sourceRoot: lingoConfig.sourceRoot,
+            lingoDir: lingoConfig.lingoDir,
+            sourceLocale: lingoConfig.sourceLocale,
+            cookieConfig: lingoConfig.cookieConfig,
+          },
+        },
+      ],
+    },
+  });
+
+  // Add locale/client loader (includes both getClientLocale and persistLocale)
+  mergedRules = mergeTurbopackRules(mergedRules, {
+    pattern: "**/locale/client.mjs",
+    config: {
+      loaders: [
+        {
+          loader: "@lingo.dev/compiler/turbopack-locale-client-loader",
+          options: {
+            sourceRoot: lingoConfig.sourceRoot,
+            lingoDir: lingoConfig.lingoDir,
+            sourceLocale: lingoConfig.sourceLocale,
+            cookieConfig: lingoConfig.cookieConfig,
+          },
+        },
+      ],
+    },
+  });
 
   const existingResolveAlias = existingTurbopackConfig.resolveAlias;
   const mergedResolveAlias = {
     ...existingResolveAlias,
-    "@lingo.dev/_compiler/config": getConfigPath(lingoConfig),
+    // TODO (AleksandrSl 08/12/2025): Describe what have to be done to support custom resolvers
   };
 
   // Build Turbopack config (handles Next.js 16+ vs <16)

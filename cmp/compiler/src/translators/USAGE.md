@@ -25,7 +25,7 @@ The `translate()` method handles batch translation - you can translate one or ma
 For development and testing without real translations:
 
 ```typescript
-import { PseudoTranslator } from "@lingo.dev/_compiler-beta/translate";
+import { PseudoTranslator } from "@lingo.dev/compiler-beta/translate";
 
 const translator = new PseudoTranslator({});
 
@@ -48,7 +48,7 @@ const batch = await translator.translate("fr", {
 For real AI-powered translations:
 
 ```typescript
-import { LCPTranslator } from "@lingo.dev/_compiler-beta/translate";
+import { LCPTranslator } from "@lingo.dev/compiler-beta/translate";
 
 // Using Lingo.dev Engine
 const translator = new LCPTranslator({
@@ -82,7 +82,7 @@ Wrap any translator with caching:
 import {
   LCPTranslator,
   createCachedTranslator,
-} from "@lingo.dev/_compiler-beta/translate";
+} from "@lingo.dev/compiler-beta/translate";
 
 const translator = new LCPTranslator({
   models: "lingo.dev",
@@ -106,7 +106,7 @@ await cachedTranslator.translate("es", entriesMap); // Fast!
 ### Option 1: Pre-loaded Translations (Recommended)
 
 ```typescript
-import { getServerTranslations } from "@lingo.dev/_compiler-beta/react/server";
+import { getServerTranslations } from "@lingo.dev/compiler-beta/react/server";
 import metadata from "./.lingo/metadata.json";
 import esTranslations from "./.lingo/cache/es.json";
 
@@ -125,8 +125,8 @@ export default async function Page() {
 ### Option 2: Using Translator (Runtime Translation)
 
 ```typescript
-import { getServerTranslations } from "@lingo.dev/_compiler-beta/react/server";
-import { LCPTranslator, createCachedTranslator } from "@lingo.dev/_compiler-beta/translate";
+import { getServerTranslations } from "@lingo.dev/compiler-beta/react/server";
+import { LCPTranslator, createCachedTranslator } from "@lingo.dev/compiler-beta/translate";
 import metadata from "./.lingo/metadata.json";
 
 const translator = createCachedTranslator(
@@ -155,7 +155,7 @@ export default async function Page() {
 ### Option 3: Translation Server (Development)
 
 ```typescript
-import { getServerTranslations } from "@lingo.dev/_compiler-beta/react/server";
+import { getServerTranslations } from "@lingo.dev/compiler-beta/react/server";
 import metadata from "./.lingo/metadata.json";
 
 export default async function Page() {
@@ -177,7 +177,7 @@ Implement the `Translator` interface:
 import type {
   Translator,
   TranslatableEntry,
-} from "@lingo.dev/_compiler-beta/translate";
+} from "@lingo.dev/compiler-beta/translate";
 
 class MyCustomTranslator implements Translator<MyConfig> {
   constructor(readonly config: MyConfig) {}
@@ -264,7 +264,7 @@ MISTRAL_API_KEY=your_key_here
 import {
   LCPTranslator,
   createCachedTranslator,
-} from "@lingo.dev/_compiler-beta/translate";
+} from "@lingo.dev/compiler-beta/translate";
 
 export const translator = createCachedTranslator(
   new LCPTranslator({
@@ -278,7 +278,7 @@ export const translator = createCachedTranslator(
 );
 
 // app/layout.tsx
-import { getServerTranslations } from "@lingo.dev/_compiler-beta/react/server";
+import { getServerTranslations } from "@lingo.dev/compiler-beta/react/server";
 import { translator } from "./translator";
 import metadata from "./.lingo/metadata.json";
 

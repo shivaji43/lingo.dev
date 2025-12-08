@@ -7,8 +7,9 @@ export default defineConfig({
     "src/index.ts",
     "src/react/server/index.ts",
     "src/react/client/index.ts",
-    "src/config.ts",
     "src/dev-config.ts",
+    "src/locale/server.ts",
+    "src/locale/client.ts",
     "src/react/server-only/index.ts",
     "src/react/next/client.tsx",
     "src/react/next/server.tsx",
@@ -19,10 +20,14 @@ export default defineConfig({
     "src/plugin/esbuild.ts",
     "src/plugin/turbopack-loader.ts",
     "src/plugin/dev-server-loader.ts",
+    "src/plugin/turbopack-locale-server-loader.ts",
+    "src/plugin/turbopack-locale-client-loader.ts",
   ],
   external: [
-    /^@lingo.dev\/_compiler\/dev-config/,
-    /^@lingo.dev\/_compiler\/config/,
+    // Make external so plugins can resolve them dynamically
+    /^@lingo.dev\/compiler\/dev-config/,
+    /^@lingo.dev\/compiler\/locale-resolver/,
+    /^@lingo.dev\/compiler\/locale\//,
     "unplugin", // Keep unplugin external so webpack can resolve its internal loaders
   ],
   outDir: "build",

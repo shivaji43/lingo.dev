@@ -4,8 +4,6 @@
  *
  * This resolver ONLY handles locale resolution - it does NOT fetch translations.
  * Translation fetching is handled by the core translation service (server/translations.ts)
- *
- * @module @lingo.dev/_compiler/react/next
  */
 import type { CookieConfig } from "../../types";
 import { cookies } from "next/headers";
@@ -38,8 +36,8 @@ export interface NextLocaleResolverConfig {
  *
  * @example
  * ```typescript
- * import { setLocaleResolver } from '@lingo.dev/_compiler/react';
- * import { createNextCookieLocaleResolver } from '@lingo.dev/_compiler/react/next';
+ * import { setLocaleResolver } from '@lingo.dev/compiler/react';
+ * import { createNextCookieLocaleResolver } from '@lingo.dev/compiler/react/next';
  *
  * // Use default config (cookie name: 'locale', default: 'en')
  * setLocaleResolver(createNextCookieLocaleResolver());

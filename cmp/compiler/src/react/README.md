@@ -20,7 +20,7 @@ Context provider that manages translations and locale switching for your entire 
 
 ```tsx
 // app/layout.tsx
-import { TranslationProvider } from "@lingo.dev/_compiler-beta/react";
+import { TranslationProvider } from "@lingo.dev/compiler-beta/react";
 
 export default function RootLayout({ children }) {
   return (
@@ -53,7 +53,7 @@ A dropdown component for switching between locales.
 // Client Component with Next.js integration
 "use client";
 import { useRouter } from "next/navigation";
-import { LocaleSwitcher } from "@lingo.dev/_compiler-beta/react";
+import { LocaleSwitcher } from "@lingo.dev/compiler-beta/react";
 
 export function Header() {
   const router = useRouter();
@@ -85,7 +85,7 @@ Returns a translation function `t(hash)` for translating text in Client Componen
 
 ```tsx
 "use client";
-import { useTranslation } from "@lingo.dev/_compiler-beta/react";
+import { useTranslation } from "@lingo.dev/compiler-beta/react";
 
 export function Welcome() {
   const t = useTranslation();
@@ -127,7 +127,7 @@ Get the current locale from cookies (client-side).
 **Example:**
 
 ```tsx
-import { getLocaleFromCookies } from "@lingo.dev/_compiler-beta/react";
+import { getLocaleFromCookies } from "@lingo.dev/compiler-beta/react";
 
 const locale = getLocaleFromCookies(); // e.g., 'en'
 ```
@@ -197,7 +197,7 @@ import type {
   LocaleConfig,
   TranslationFunction,
   TranslationContextType,
-} from "@lingo.dev/_compiler-beta/react";
+} from "@lingo.dev/compiler-beta/react";
 ```
 
 ## Testing
@@ -205,7 +205,7 @@ import type {
 When testing components that use translations:
 
 ```tsx
-import { TranslationProvider } from "@lingo.dev/_compiler-beta/react";
+import { TranslationProvider } from "@lingo.dev/compiler-beta/react";
 
 test("my component", () => {
   render(

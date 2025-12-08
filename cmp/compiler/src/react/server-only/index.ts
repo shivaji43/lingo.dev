@@ -5,7 +5,7 @@
  * NOTE: For most cases, use the unified `useTranslation()` hook instead.
  * This module is for advanced use cases where you need explicit control.
  *
- * @module @lingo.dev/_compiler-beta/react/server
+ * @module @lingo.dev/compiler-beta/react/server
  */
 
 import { fetchTranslationsOnServer } from "./translations";
@@ -16,7 +16,7 @@ import {
 import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.
-import { localeResolver } from "@lingo.dev/_compiler/config";
+import { getServerLocale } from "@lingo.dev/compiler/locale/server";
 
 /**
  * Get server-side translations function
@@ -53,7 +53,7 @@ export async function getServerTranslations(options: {
   locale: string;
   translations: Record<string, string>;
 }> {
-  const locale = options.locale || (await localeResolver());
+  const locale = options.locale || (await getServerLocale());
 
   logger.debug(`Async Server. Fetching translations for ${locale}`);
 

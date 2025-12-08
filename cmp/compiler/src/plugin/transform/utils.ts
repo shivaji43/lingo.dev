@@ -9,7 +9,7 @@ type TranslationEntryByType = {
   [T in TranslationEntry as T["type"]]: T;
 };
 
-const root = "@lingo.dev/_compiler";
+const root = "@lingo.dev/compiler";
 // TODO (AleksandrSl 28/11/2025): See jsx-content.ts in the old compiler for future improvements.
 
 /**
@@ -216,7 +216,7 @@ export function isVoidElement(element: t.JSXElement): boolean {
 }
 
 /**
- * Create unified import: import { useTranslation } from "@lingo.dev/_compiler/react"
+ * Create unified import: import { useTranslation } from "@lingo.dev/compiler/react"
  *
  * Via conditional exports, this resolves to:
  * - server.ts in Server Components (React cache + use)

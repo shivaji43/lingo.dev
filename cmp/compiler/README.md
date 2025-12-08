@@ -18,11 +18,11 @@ This package provides plugins for multiple bundlers (Vite, Webpack, Rollup, esbu
 ## Installation
 
 ```bash
-npm install @lingo.dev/_compiler
+npm install @lingo.dev/compiler
 # or
-pnpm add @lingo.dev/_compiler
+pnpm add @lingo.dev/compiler
 # or
-yarn add @lingo.dev/_compiler
+yarn add @lingo.dev/compiler
 ```
 
 ## Quick Start
@@ -32,7 +32,7 @@ yarn add @lingo.dev/_compiler
 ```ts
 // vite.config.ts
 import { defineConfig } from "vite";
-import { lingoCompilerPlugin } from "@lingo.dev/_compiler/vite";
+import { lingoCompilerPlugin } from "@lingo.dev/compiler/vite";
 
 export default defineConfig({
   plugins: [
@@ -48,7 +48,7 @@ export default defineConfig({
 
 ```js
 // webpack.config.js
-import { lingoCompilerPlugin } from "@lingo.dev/_compiler/webpack";
+import { lingoCompilerPlugin } from "@lingo.dev/compiler/webpack";
 
 export default {
   plugins: [
@@ -64,7 +64,7 @@ export default {
 
 ```js
 // rollup.config.js
-import { lingoCompilerPlugin } from "@lingo.dev/_compiler/rollup";
+import { lingoCompilerPlugin } from "@lingo.dev/compiler/rollup";
 
 export default {
   plugins: [
@@ -81,7 +81,7 @@ export default {
 ```js
 // build.js
 import { build } from "esbuild";
-import { lingoCompilerPlugin } from "@lingo.dev/_compiler/esbuild";
+import { lingoCompilerPlugin } from "@lingo.dev/compiler/esbuild";
 
 await build({
   plugins: [
@@ -97,7 +97,7 @@ await build({
 
 ```js
 // next.config.js
-import { lingoCompilerLoader } from "@lingo.dev/_compiler/next";
+import { lingoCompilerLoader } from "@lingo.dev/compiler/next";
 
 export default {
   webpack: (config) => {
@@ -133,7 +133,7 @@ module.exports = {
       "*.{tsx,jsx}": {
         loaders: [
           {
-            loader: "@lingo.dev/_compiler-beta/loader",
+            loader: "@lingo.dev/compiler-beta/loader",
             options: {
               sourceRoot: "./src", // Root directory of source code
               lingoDir: ".lingo", // Directory for metadata
@@ -241,7 +241,7 @@ import {
   saveMetadata,
   generateTranslationHash,
   type LoaderConfig,
-} from "@lingo.dev/_compiler-beta";
+} from "@lingo.dev/compiler-beta";
 
 // Transform a component
 const config: LoaderConfig = {
@@ -310,13 +310,13 @@ This separation allows the core transformation logic to be reused for other bund
 
 ## Supported Bundlers
 
-| Bundler | Status          | Import Path                    |
-| ------- | --------------- | ------------------------------ |
-| Vite    | ✅ Full Support | `@lingo.dev/_compiler/vite`    |
-| Webpack | ✅ Full Support | `@lingo.dev/_compiler/webpack` |
-| Rollup  | ✅ Full Support | `@lingo.dev/_compiler/rollup`  |
-| esbuild | ✅ Full Support | `@lingo.dev/_compiler/esbuild` |
-| Next.js | ✅ Full Support | `@lingo.dev/_compiler/next`    |
+| Bundler | Status          | Import Path                   |
+| ------- | --------------- | ----------------------------- |
+| Vite    | ✅ Full Support | `@lingo.dev/compiler/vite`    |
+| Webpack | ✅ Full Support | `@lingo.dev/compiler/webpack` |
+| Rollup  | ✅ Full Support | `@lingo.dev/compiler/rollup`  |
+| esbuild | ✅ Full Support | `@lingo.dev/compiler/esbuild` |
+| Next.js | ✅ Full Support | `@lingo.dev/compiler/next`    |
 
 All bundler plugins share the same configuration API and are powered by [unplugin](https://github.com/unjs/unplugin).
 

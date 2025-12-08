@@ -3,7 +3,7 @@ import {
   getLocaleFromCookies,
   LocaleSwitcher,
   TranslationProvider,
-} from "@lingo.dev/_compiler/react";
+} from "@lingo.dev/compiler/react";
 import "./app.css";
 
 // TODO (AleksandrSl 29/11/2025): Fix the problem when TranslationProvider cannot be used in the root component.

@@ -5,14 +5,14 @@
  * This is the UNIVERSAL pattern that works across all frameworks:
  * Given a locale, fetch the translation dictionary for that locale.
  *
- * @module @lingo.dev/_compiler/react/server/translations
+ * @module @lingo.dev/compiler/react/server/translations
  */
 
 import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
 import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
-import { serverUrl, cacheDir } from "@lingo.dev/_compiler/dev-config";
+import { serverUrl, cacheDir } from "@lingo.dev/compiler/dev-config";
 
 /**
  * Configuration for translation fetching

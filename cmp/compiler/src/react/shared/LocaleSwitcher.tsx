@@ -61,7 +61,7 @@ export interface LocaleSwitcherProps {
  *
  * @example
  * ```tsx
- * import { LocaleSwitcher } from '@lingo.dev/_compiler/react';
+ * import { LocaleSwitcher } from '@lingo.dev/compiler/react';
  *
  * export function Header() {
  *   return (

@@ -4,7 +4,7 @@
  * Usage:
  * ```js
  * // webpack.config.js
- * import { lingoCompilerPlugin } from '@lingo.dev/_compiler/webpack';
+ * import { lingoCompilerPlugin } from '@lingo.dev/compiler/webpack';
  *
  * export default {
  *   plugins: [

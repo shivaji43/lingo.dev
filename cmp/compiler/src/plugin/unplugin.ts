@@ -24,6 +24,12 @@ import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { getCacheDir } from "../utils/path-helpers";
 import { useI18nRegex } from "./transform/use-i18n";
+import {
+  generateClientLocaleCode,
+  generateServerLocaleCode,
+} from "./locale-code-generator";
+import * as path from "path";
+import * as fs from "fs";
 
 export type LingoPluginOptions = PartialLingoConfig;
 
@@ -58,10 +64,38 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
     },
 
     resolveId(id) {
-      if (id === "@lingo.dev/_compiler/dev-config") {
+      if (id === "@lingo.dev/compiler/dev-config") {
         // Return a virtual module ID (prefix with \0 to mark it as virtual)
         return "\0virtual:lingo-dev-config";
       }
+
+      // Check for custom user implementation files first
+      // Locale modules resolve to virtual modules for dynamic generation
+      // The stub files are only used for Turbopack (via loaders)
+      if (id === "@lingo.dev/compiler/locale/server") {
+        const customPath = path.join(
+          config.sourceRoot,
+          config.lingoDir,
+          "locale-resolver.server.ts",
+        );
+        if (fs.existsSync(customPath)) {
+          return customPath;
+        }
+        return "\0virtual:locale-server";
+      }
+
+      if (id === "@lingo.dev/compiler/locale/client") {
+        const customPath = path.join(
+          config.sourceRoot,
+          config.lingoDir,
+          "locale-resolver.client.ts",
+        );
+        if (fs.existsSync(customPath)) {
+          return customPath;
+        }
+        return "\0virtual:locale-client";
+      }
+
       return null;
     },
 
@@ -74,6 +108,32 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
         return `export const serverUrl = ${JSON.stringify(serverUrl)};
 export const cacheDir = ${JSON.stringify(cacheDir)};`;
       }
+
+      // Server locale resolver - default implementation
+      if (id === "\0virtual:locale-server") {
+        // For Next.js, generate server-side locale resolver using cookies
+        const implementation = generateServerLocaleCode(config);
+        return `
+export async function getServerLocale() {${implementation}
+}
+`;
+      }
+
+      // Client locale resolver - default implementation
+      // Includes both getClientLocale() and persistLocale()
+      if (id === "\0virtual:locale-client") {
+        const { getClientLocale, persistLocale } =
+          generateClientLocaleCode(config);
+        return `
+export function getClientLocale() {
+  ${getClientLocale}
+}
+
+export function persistLocale(locale) {
+  ${persistLocale}
+}`;
+      }
+
       return null;
     },
 

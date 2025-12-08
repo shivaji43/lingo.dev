@@ -6,7 +6,7 @@
  * - "translate": Generate all translations, fail if translation fails
  * - "cache-only": Validate cache completeness, fail if incomplete
  */
-
+// TODO (AleksandrSl 08/12/2025): Add ICU validation for messages? The problem is that we don't know which will be rendered as a simple text
 import fs from "fs/promises";
 import path from "path";
 import type { LingoConfig, MetadataSchema } from "../types";
@@ -19,16 +19,7 @@ import {
 import { loadMetadata } from "../metadata/manager";
 
 export interface BuildTranslationOptions {
-  /**
-   * Lingo configuration
-   */
   config: LingoConfig;
-
-  /**
-   * Build mode (overrides config.buildMode if provided)
-   * Can be set via LINGO_BUILD_MODE environment variable
-   */
-  buildMode?: "translate" | "cache-only";
 
   /**
    * Output directory for static translation files
@@ -74,12 +65,10 @@ export async function processBuildTranslations(
   // Determine build mode (env var > options > config)
   const buildMode =
     (process.env.LINGO_BUILD_MODE as "translate" | "cache-only") ||
-    options.buildMode ||
     config.buildMode;
 
   logger.info(`🌍 Build mode: ${buildMode}`);
 
-  // Load metadata
   const metadata = await loadMetadata(config);
 
   if (!metadata || Object.keys(metadata.entries).length === 0) {
@@ -99,7 +88,6 @@ export async function processBuildTranslations(
     await validateCache(config, metadata);
     logger.info("✅ Cache validation passed");
 
-    // Copy cache to public directory if requested
     if (publicOutputPath) {
       await copyStaticFiles(config, publicOutputPath);
     }
@@ -210,7 +198,6 @@ async function validateCache(
       const cacheContent = await fs.readFile(cacheFilePath, "utf-8");
       const cache = JSON.parse(cacheContent) as Record<string, string>;
 
-      // Check if all hashes exist in cache
       const missingHashes = allHashes.filter((hash) => !cache[hash]);
 
       if (missingHashes.length > 0) {
@@ -242,9 +229,6 @@ async function validateCache(
   }
 }
 
-/**
- * Build statistics from cache files
- */
 function buildCacheStats(
   config: LingoConfig,
   metadata: MetadataSchema,
@@ -263,9 +247,6 @@ function buildCacheStats(
   return stats;
 }
 
-/**
- * Copy cached translation files to public directory
- */
 async function copyStaticFiles(
   config: LingoConfig,
   publicOutputPath: string,
@@ -288,9 +269,6 @@ async function copyStaticFiles(
   }
 }
 
-/**
- * Format cache validation error message
- */
 function formatCacheValidationError(
   missingLocales: string[],
   incompleteLocales: Array<{ locale: string; missing: number; total: number }>,
@@ -322,9 +300,6 @@ function formatCacheValidationError(
   return msg;
 }
 
-/**
- * Format translation error message
- */
 function formatTranslationErrors(
   errors: Array<{ locale: string; error: string }>,
 ): string {

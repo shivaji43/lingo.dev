@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { reactRouter } from "@react-router/dev/vite";
-import { lingoCompilerPlugin } from "@lingo.dev/_compiler/vite";
+import { lingoCompilerPlugin } from "@lingo.dev/compiler/vite";
 import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({

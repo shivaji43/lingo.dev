@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { withLingo } from "@lingo.dev/_compiler/next";
+import { withLingo } from "@lingo.dev/compiler/next";
 
 const nextConfig: NextConfig = {};
 

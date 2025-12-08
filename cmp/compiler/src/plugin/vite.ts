@@ -5,7 +5,7 @@
  * ```ts
  * // vite.config.ts
  * import { defineConfig } from 'vite';
- * import { lingoCompilerPlugin } from '@lingo.dev/_compiler/vite';
+ * import { lingoCompilerPlugin } from '@lingo.dev/compiler/vite';
  *
  * export default defineConfig({
  *   plugins: [

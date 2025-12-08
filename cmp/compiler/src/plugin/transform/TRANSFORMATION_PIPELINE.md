@@ -110,7 +110,7 @@ export function Welcome() {
 }
 
 // AFTER (Server Component)
-import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+import { getServerTranslations } from "@lingo.dev/compiler/react/server";
 import __lingoMetadata from "./.lingo/metadata.json";
 
 export async function Welcome() {
@@ -327,7 +327,7 @@ export function Greeting({ name }) {
 }
 
 // 4. TRANSFORMED OUTPUT
-import { getServerTranslations } from "@lingo.dev/_compiler/react/server";
+import { getServerTranslations } from "@lingo.dev/compiler/react/server";
 import __lingoMetadata from "./.lingo/metadata.json";
 
 export async function Greeting({ name }) {

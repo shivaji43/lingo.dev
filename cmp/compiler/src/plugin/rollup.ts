@@ -4,7 +4,7 @@
  * Usage:
  * ```js
  * // rollup.config.js
- * import { lingoCompilerPlugin } from '@lingo.dev/_compiler/rollup';
+ * import { lingoCompilerPlugin } from '@lingo.dev/compiler/rollup';
  *
  * export default {
  *   plugins: [

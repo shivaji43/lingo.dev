@@ -10,7 +10,7 @@
     "test": "echo 'not implemented'"
   },
   "dependencies": {
-    "@lingo.dev/_compiler": "workspace:*",
+    "@lingo.dev/compiler": "workspace:*",
     "@react-router/node": "^7.9.6",
     "@react-router/serve": "^7.9.6",
     "isbot": "^5.1.32",

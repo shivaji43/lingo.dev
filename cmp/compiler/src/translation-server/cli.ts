@@ -5,7 +5,7 @@
  * Requirements: Node.js 18.3.0 or higher (for parseArgs support)
  *
  * Usage:
- *   npx @lingo.dev/_compiler/translation-server [options]
+ *   npx @lingo.dev/compiler/translation-server [options]
  *
  * Options:
  *   --port <number>              Port to start server on (default: 60000)
@@ -22,19 +22,19 @@
  *
  * Examples:
  *   # Start with defaults
- *   npx @lingo.dev/_compiler/translation-server
+ *   npx @lingo.dev/compiler/translation-server
  *
  *   # Custom port and locales
- *   npx @lingo.dev/_compiler/translation-server --port 3456 --target-locales "es,fr,de,ja"
+ *   npx @lingo.dev/compiler/translation-server --port 3456 --target-locales "es,fr,de,ja"
  *
  *   # Use Lingo.dev Engine
- *   LINGODOTDEV_API_KEY=your-key npx @lingo.dev/_compiler/translation-server --models lingo.dev
+ *   LINGODOTDEV_API_KEY=your-key npx @lingo.dev/compiler/translation-server --models lingo.dev
  *
  *   # Use custom LLM models
- *   npx @lingo.dev/_compiler/translation-server --models "es:groq:llama3-70b,fr:google:gemini-pro"
+ *   npx @lingo.dev/compiler/translation-server --models "es:groq:llama3-70b,fr:google:gemini-pro"
  *
  *   # Load from config file
- *   npx @lingo.dev/_compiler/translation-server --config ./lingo.config.json
+ *   npx @lingo.dev/compiler/translation-server --config ./lingo.config.json
  */
 
 import { parseArgs } from "node:util";
@@ -327,7 +327,7 @@ function showHelp(): void {
 Translation Server CLI
 
 Usage:
-  npx @lingo.dev/_compiler/translation-server [options]
+  npx @lingo.dev/compiler/translation-server [options]
 
 Options:
   --port <number>              Port to start server on (default: 60000)
@@ -344,19 +344,19 @@ Options:
 
 Examples:
   # Start with defaults
-  npx @lingo.dev/_compiler/translation-server
+  npx @lingo.dev/compiler/translation-server
 
   # Custom port and locales
-  npx @lingo.dev/_compiler/translation-server --port 3456 --target-locales "es,fr,de,ja"
+  npx @lingo.dev/compiler/translation-server --port 3456 --target-locales "es,fr,de,ja"
 
   # Use Lingo.dev Engine
-  LINGODOTDEV_API_KEY=your-key npx @lingo.dev/_compiler/translation-server --models lingo.dev
+  LINGODOTDEV_API_KEY=your-key npx @lingo.dev/compiler/translation-server --models lingo.dev
 
   # Use custom LLM models
-  npx @lingo.dev/_compiler/translation-server --models "es:groq:llama3-70b,fr:google:gemini-pro"
+  npx @lingo.dev/compiler/translation-server --models "es:groq:llama3-70b,fr:google:gemini-pro"
 
   # Load from config file
-  npx @lingo.dev/_compiler/translation-server --config ./lingo.config.json
+  npx @lingo.dev/compiler/translation-server --config ./lingo.config.json
 
 Config File Format (JSON):
   {

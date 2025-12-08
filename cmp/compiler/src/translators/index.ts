@@ -1,7 +1,7 @@
 /**
  * Translation utilities
  *
- * @module @lingo.dev/_compiler-beta/translate
+ * @module @lingo.dev/compiler-beta/translate
  */
 
 // Core API

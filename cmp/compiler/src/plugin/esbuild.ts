@@ -5,7 +5,7 @@
  * ```js
  * // build.js
  * import { build } from 'esbuild';
- * import { lingoCompilerPlugin } from '@lingo.dev/_compiler/esbuild';
+ * import { lingoCompilerPlugin } from '@lingo.dev/compiler/esbuild';
  *
  * await build({
  *   plugins: [

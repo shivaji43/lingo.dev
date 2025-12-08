@@ -36,7 +36,7 @@ The required dependencies are already included in compiler-beta:
 ### Basic Usage with Lingo.dev Engine (Recommended)
 
 ```typescript
-import { LCPTranslator } from "@lingo.dev/_compiler-beta/translate";
+import { LCPTranslator } from "@lingo.dev/compiler-beta/translate";
 
 const translator = new LCPTranslator({
   models: "lingo.dev",
@@ -96,7 +96,7 @@ const translator = new LCPTranslator({
 import {
   LCPTranslator,
   createCachedTranslator,
-} from "@lingo.dev/_compiler-beta/translate";
+} from "@lingo.dev/compiler-beta/translate";
 
 const translator = new LCPTranslator({
   models: "lingo.dev",

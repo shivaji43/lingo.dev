@@ -14,7 +14,7 @@ export default async function devServerLoader(
   if (typeof this.async !== "function") {
     throw new Error("This module must be run as a loader");
   }
-  logger.debug("devServerLoader called", this.resourcePath);
+  logger.debug("Running devServerLoader");
   const callback = this.async();
   const isDev = process.env.NODE_ENV === "development";
 
@@ -46,7 +46,6 @@ export default async function devServerLoader(
     source
       // TODO (AleksandrSl 04/12/2025): Should we just error instead of the default?
       .replace("__SERVER_URL__", server?.url || `http://127.0.0.1:${startPort}`)
-      // TODO (AleksandrSl 04/12/2025): Make cacheDir work
       .replace("__CACHE_DIR__", getCacheDir(config)),
   );
 }

@@ -22,6 +22,12 @@ export interface CookieConfig {
 }
 
 /**
+ * Locale persistence configuration
+ * Currently only supports cookie-based persistence
+ */
+export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
+
+/**
  * Field that we require users to fill in in the config. The rest could be taken from defaults.
  */
 export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
@@ -158,6 +164,14 @@ export type LingoConfig = {
    * Used by both client-side LocaleSwitcher and server-side locale resolver
    */
   cookieConfig: CookieConfig;
+
+  /**
+   * Locale persistence configuration
+   * Defines how locale changes should be persisted
+   *
+   * @default { type: 'cookie', cookieName: 'locale' }
+   */
+  localePersistence: LocalePersistenceConfig;
 
   /**
    * Build mode for CI/production

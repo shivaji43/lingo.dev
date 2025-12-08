@@ -14,7 +14,7 @@ export default {
       "*.{tsx,jsx}": {
         loaders: [
           {
-            loader: "@lingo.dev/_compiler-beta/loader",
+            loader: "@lingo.dev/compiler-beta/loader",
             options: {
               sourceRoot: "./app",
               lingoDir: ".lingo",
@@ -46,7 +46,7 @@ When `translator: "pseudo"` is set, the compiler automatically:
 For manual setup without config-based initialization:
 
 ```typescript
-import { pseudoTranslate } from "@lingo.dev/_compiler-beta/translate";
+import { pseudoTranslate } from "@lingo.dev/compiler-beta/translate";
 
 // Use as translation function
 const t = await getServerTranslations({
@@ -64,7 +64,7 @@ Wrap any translation function with caching to avoid re-translating:
 import {
   createCachedTranslator,
   pseudoTranslate,
-} from "@lingo.dev/_compiler-beta/translate";
+} from "@lingo.dev/compiler-beta/translate";
 
 // Create cached version
 const cachedTranslate = createCachedTranslator(pseudoTranslate, {
@@ -85,7 +85,7 @@ const t = await getServerTranslations({
 Direct cache management for server components:
 
 ```typescript
-import { ServerTranslationCache } from "@lingo.dev/_compiler-beta/translate";
+import { ServerTranslationCache } from "@lingo.dev/compiler-beta/translate";
 
 const cache = new ServerTranslationCache({
   cacheDir: ".lingo",
@@ -121,8 +121,8 @@ The compiler transforms it to:
 
 ```typescript
 // Transformed (automatic, no manual changes needed)
-import { getServerTranslations } from '@lingo.dev/_compiler-beta/react/server';
-import { createCachedTranslator, pseudoTranslate } from '@lingo.dev/_compiler-beta/translate';
+import { getServerTranslations } from '@lingo.dev/compiler-beta/react/server';
+import { createCachedTranslator, pseudoTranslate } from '@lingo.dev/compiler-beta/translate';
 import __lingoMetadata from './.lingo/metadata.json';
 
 const __lingoTranslate = createCachedTranslator(pseudoTranslate, {
@@ -147,8 +147,8 @@ For cases where you need manual control:
 
 ```typescript
 // app/layout.tsx
-import { getServerTranslations } from '@lingo.dev/_compiler-beta/react/server';
-import { createCachedTranslator, pseudoTranslate } from '@lingo.dev/_compiler-beta/translate';
+import { getServerTranslations } from '@lingo.dev/compiler-beta/react/server';
+import { createCachedTranslator, pseudoTranslate } from '@lingo.dev/compiler-beta/translate';
 import __lingoMetadata from './.lingo/metadata.json';
 
 // Create cached translator

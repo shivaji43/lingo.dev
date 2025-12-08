@@ -16,7 +16,11 @@ import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "./utils";
 import type { CookieConfig } from "../../types";
 import { defaultCookieConfig } from "../../utils/cookies";
-import { serverUrl } from "@lingo.dev/_compiler/dev-config";
+import { serverUrl } from "@lingo.dev/compiler/dev-config";
+import {
+  getClientLocale,
+  persistLocale,
+} from "@lingo.dev/compiler/locale/client";
 
 /**
  * Translation context type
@@ -134,7 +138,7 @@ const IS_DEV = process.env.NODE_ENV === "development";
  * @example
  * ```tsx
  * // In your root layout
- * import { TranslationProvider } from '@lingo.dev/_compiler-beta/react';
+ * import { TranslationProvider } from '@lingo.dev/compiler-beta/react';
  *
  * export default function RootLayout({ children }) {
  *   return (
@@ -163,8 +167,15 @@ function TranslationProvider__Prod({
   children,
 }: TranslationProviderProps) {
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
-  // TODO (AleksandrSl 01/12/2025): Correctly provide default locale.
-  const [locale, setLocaleState] = useState(initialLocale ?? "en");
+  // Use client locale detection if no initialLocale provided
+  const [locale, setLocaleState] = useState(() => {
+    if (initialLocale) return initialLocale;
+    // Only detect on client-side (not during SSR)
+    if (typeof window !== "undefined") {
+      return getClientLocale();
+    }
+    return sourceLocale;
+  });
   const [translations, setTranslations] =
     useState<Record<string, string>>(initialTranslations);
   const [isLoading, setIsLoading] = useState(false);
@@ -227,7 +238,7 @@ function TranslationProvider__Prod({
   const setLocale = useCallback(
     async (newLocale: string) => {
       // 1. Persist to cookie so server can read it on next render
-      setLocaleInCookies(newLocale, cookieConfig);
+      persistLocale(newLocale);
 
       // 2. Update local state for immediate UI feedback
       setLocaleState(newLocale);
@@ -271,7 +282,13 @@ function TranslationProvider__Dev({
   children,
 }: TranslationProviderProps) {
   const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
-  const [locale, setLocaleState] = useState(initialLocale ?? "en");
+  // Use client locale detection if no initialLocale provided
+  const [locale, setLocaleState] = useState(() => {
+    if (initialLocale) {
+      return initialLocale;
+    }
+    return getClientLocale();
+  });
   const [translations, setTranslations] =
     useState<Record<string, string>>(initialTranslations);
   const [isLoading, setIsLoading] = useState(false);
@@ -416,7 +433,7 @@ function TranslationProvider__Dev({
   const setLocale = useCallback(
     async (newLocale: string) => {
       // 1. Persist to cookie (unless disabled)
-      setLocaleInCookies(newLocale, cookieConfig);
+      persistLocale(newLocale);
 
       // 2. Update state
       setLocaleState(newLocale);
@@ -522,37 +539,4 @@ export function useTranslationContext(): TranslationContextType {
   }
 
   return context;
-}
-
-/**
- * Set locale in cookies (client-side)
- */
-function setLocaleInCookies(
-  locale: string,
-  cookieConfig: { name: string; maxAge: number },
-): void {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  document.cookie = `${cookieConfig.name}=${locale}; path=/; max-age=${cookieConfig.maxAge}; SameSite=Lax`;
-}
-
-/**
- * Get current locale from cookies (client-side)
- *
- * @param cookieName - Name of the cookie
- * @param defaultLocale - Default locale if cookie not found
- * @returns Current locale from cookie or default
- */
-export function getLocaleFromCookies(
-  cookieName: string = "locale",
-  defaultLocale: string = "en",
-): string {
-  if (typeof document === "undefined") {
-    return defaultLocale;
-  }
-
-  const match = document.cookie.match(new RegExp(`(^| )${cookieName}=([^;]+)`));
-  return match ? match[2] : defaultLocale;
 }

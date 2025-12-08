@@ -3,8 +3,6 @@
  *
  * This module provides a standalone HTTP server for serving translations
  * during development and build time.
- *
- * @module @lingo.dev/_compiler-beta/server
  */
 
 export {

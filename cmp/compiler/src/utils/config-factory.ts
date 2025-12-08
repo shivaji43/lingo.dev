@@ -22,6 +22,10 @@ export const DEFAULT_CONFIG = {
     name: "locale",
     maxAge: 31536000,
   },
+  localePersistence: {
+    type: "cookie" as const,
+    cookieName: "locale",
+  },
   models: "lingo.dev",
   pluralization: {
     enabled: true,
@@ -48,6 +52,10 @@ export function createLingoConfig(options: PartialLingoConfig): LingoConfig {
     pluralization: {
       ...DEFAULT_CONFIG.pluralization,
       ...options.pluralization,
+    },
+    localePersistence: {
+      ...DEFAULT_CONFIG.localePersistence,
+      ...options.localePersistence,
     },
   };
 }
