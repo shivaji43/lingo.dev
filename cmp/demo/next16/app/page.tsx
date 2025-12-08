@@ -31,6 +31,7 @@ export default function Home() {
             { code: "de", label: "Deutsch" },
             { code: "ru", label: "Русский" },
           ]}
+          className="locale-switcher"
         />
       </header>
       <div className="flex w-full grow flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
@@ -63,15 +64,17 @@ export default function Home() {
           {"</>"}
         </div>
         <div>
-          What happens if I use a property {something.cool} and{" "}
-          {something.translatedCool}
-        </div>
-        <div>
-          Text external to the component is not translated: {externalText}
-        </div>
-        <div>
-          Content that has text and other tags inside will br translated as a
-          single entity: {translatableMixedContextFragment}
+          <div>
+            What happens if I use a property {something.cool} and{" "}
+            {something.translatedCool}
+          </div>
+          <div>
+            Text external to the component is not translated: {externalText}
+          </div>
+          <div>
+            Content that has text and other tags inside will br translated as a
+            single entity: {translatableMixedContextFragment}
+          </div>
         </div>
       </div>
     </main>

@@ -98,7 +98,6 @@ export function LocaleSwitcher({
       disabled={loading}
       className={className}
       style={{
-        opacity: loading ? 0.5 : 1,
         cursor: loading ? "wait" : "pointer",
         ...style,
       }}
