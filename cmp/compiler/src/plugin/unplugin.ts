@@ -195,6 +195,7 @@ export function persistLocale(locale) {
     },
 
     async buildEnd() {
+      logger.debug("Build end");
       // Process build-time translations (only in production)
       if (!isDev) {
         try {
@@ -210,12 +211,14 @@ export function persistLocale(locale) {
           logger.error("Build-time translation processing failed:", error);
           throw error;
         }
+
+        // Stop translation server after production build
+        if (globalServer) {
+          await globalServer.stop();
+        }
       }
 
-      // Stop translation server
-      if (globalServer) {
-        await globalServer.stop();
-      }
+      // In dev mode, keep the server running (Webpack calls buildEnd on every compilation)
     },
   };
 });
