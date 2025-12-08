@@ -233,7 +233,7 @@ class LingoDevWidget extends HTMLElement {
         border-radius: 8px;
         padding: 8px 12px;
         background: rgba(0, 0, 0, 0.8);
-        box-shadow: 0 0 0 1px #373737a, inset 0 0 0 1px rgba(0, 0, 0, 0.24), 0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+        box-shadow: 0 0 0 1px #373737, inset 0 0 0 1px rgba(0, 0, 0, 0.24), 0px 16px 32px -8px rgba(0, 0, 0, 0.24);
         backdrop-filter: blur(48px);
       }
 
