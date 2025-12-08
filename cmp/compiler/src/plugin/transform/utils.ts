@@ -259,8 +259,10 @@ export function constructServerImport(): t.ImportDeclaration {
  */
 export function constructServerTranslationHookCall({
   hashes,
+  needsLocale = false,
 }: {
   hashes: string[];
+  needsLocale?: boolean;
 }): VariableDeclaration {
   const optionsProperties = [];
 
@@ -269,16 +271,29 @@ export function constructServerTranslationHookCall({
   );
   optionsProperties.push(t.objectProperty(t.identifier("hashes"), hashArray));
 
+  const destructureProperties = [
+    t.objectProperty(
+      t.identifier("t"),
+      t.identifier("t"),
+      false,
+      true, // shorthand
+    ),
+  ];
+
+  if (needsLocale) {
+    destructureProperties.push(
+      t.objectProperty(
+        t.identifier("locale"),
+        t.identifier("locale"),
+        false,
+        true, // shorthand
+      ),
+    );
+  }
+
   return t.variableDeclaration("const", [
     t.variableDeclarator(
-      t.objectPattern([
-        t.objectProperty(
-          t.identifier("t"),
-          t.identifier("t"),
-          false,
-          true, // shorthand
-        ),
-      ]),
+      t.objectPattern(destructureProperties),
       t.awaitExpression(
         t.callExpression(t.identifier("getServerTranslations"), [
           t.objectExpression(optionsProperties),
@@ -296,38 +311,35 @@ export function constructServerTranslationHookCall({
  * - In Client Components: loads index.ts (uses Context)
  *
  * This is the new default for non-async components!
+ *
+ * @param componentPath
+ * @param hashes
+ * @param needsLocale If true, destructures locale from hook: const { t, locale } = ...
  */
 export function injectUnifiedHook(
   componentPath: NodePath<
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
   hashes: string[],
+  needsLocale: boolean = false,
 ): void {
   const body = componentPath.get("body");
 
+  let blockBody: NodePath<t.BlockStatement> | undefined;
   // Handle arrow functions with expression bodies: () => <jsx>
   // Convert to block statement: () => { const t = ...; return <jsx>; }
   if (!body.isBlockStatement()) {
     if (componentPath.isArrowFunctionExpression() && body.isExpression()) {
       const returnStatement = t.returnStatement(body.node as t.Expression);
       componentPath.node.body = t.blockStatement([returnStatement]);
-      // TODO (AleksandrSl 30/11/2025): Why do we need this? why not just componentPath.node.body
       // Re-get the body after conversion
-      const newBody = componentPath.get("body") as NodePath<t.BlockStatement>;
-
-      const hashArray = t.arrayExpression(
-        hashes.map((hash) => t.stringLiteral(hash)),
-      );
-
-      const hookCall = t.variableDeclaration("const", [
-        t.variableDeclarator(
-          t.identifier("t"),
-          t.callExpression(t.identifier("useTranslation"), [hashArray]),
-        ),
-      ]);
-
-      newBody.node.body.unshift(hookCall);
+      blockBody = componentPath.get("body") as NodePath<t.BlockStatement>;
     }
+  } else {
+    blockBody = body;
+  }
+
+  if (!blockBody) {
     return;
   }
 
@@ -335,25 +347,44 @@ export function injectUnifiedHook(
     hashes.map((hash) => t.stringLiteral(hash)),
   );
 
+  const pattern = t.objectPattern([
+    t.objectProperty(t.identifier("t"), t.identifier("t"), false, true),
+  ]);
+  if (needsLocale) {
+    pattern.properties.push(
+      t.objectProperty(
+        t.identifier("locale"),
+        t.identifier("locale"),
+        false,
+        true,
+      ),
+    );
+  }
+
   const hookCall = t.variableDeclaration("const", [
     t.variableDeclarator(
-      t.identifier("t"),
+      pattern,
       t.callExpression(t.identifier("useTranslation"), [hashArray]),
     ),
   ]);
 
-  body.node.body.unshift(hookCall);
+  blockBody.node.body.unshift(hookCall);
 }
 
 /**
  * Inject `const { t } = await getServerTranslations([...hashes])` at component start (Server Components)
  * Makes the component async if needed
+ *
+ * @param componentPath
+ * @param hashes
+ * @param needsLocale If true, destructures locale from hook: const { t, locale } = ...
  */
 export function injectServerHook(
   componentPath: NodePath<
     t.FunctionDeclaration | t.FunctionExpression | t.ArrowFunctionExpression
   >,
   hashes: string[],
+  needsLocale: boolean = false,
 ): void {
   const body = componentPath.get("body");
 
@@ -370,6 +401,7 @@ export function injectServerHook(
       // Create: const { t } = await getServerTranslations({ ... })
       const serverCall = constructServerTranslationHookCall({
         hashes,
+        needsLocale,
       });
 
       newBody.node.body.unshift(serverCall);
@@ -384,6 +416,7 @@ export function injectServerHook(
   // Create: const { t } = await getServerTranslations({ ... })
   const serverCall = constructServerTranslationHookCall({
     hashes,
+    needsLocale,
   });
 
   body.node.body.unshift(serverCall);

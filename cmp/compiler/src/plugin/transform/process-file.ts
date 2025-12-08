@@ -48,6 +48,8 @@ export interface VisitorsInternalState {
   needsUnifiedImport: boolean;
   /** Track if we need the async API import */
   needsAsyncImport: boolean;
+  /** Track which components need locale from hook (for <html> lang attribute) */
+  componentsNeedingLocale: Set<string>;
 }
 
 function updateWithMetadataState(
@@ -431,6 +433,66 @@ function transformMixedJSXElement(
 }
 
 /**
+ * Inject dynamic locale attribute into <html> elements
+ * Transforms: <html> → <html lang={locale}>
+ *
+ * Only injects if:
+ * 1. Element is <html>
+ * 2. No existing lang/language attribute
+ * 3. We're inside a React component (has locale context)
+ */
+function injectHtmlLangAttribute(
+  node: t.JSXElement,
+  state: VisitorsInternalState,
+): void {
+  const openingElement = node.openingElement;
+
+  if (
+    openingElement.name.type !== "JSXIdentifier" ||
+    openingElement.name.name !== "html"
+  ) {
+    return;
+  }
+
+  // Check if lang attribute already exists
+  const hasLangAttr = openingElement.attributes.some((attr) => {
+    return (
+      attr.type === "JSXAttribute" &&
+      attr.name.type === "JSXIdentifier" &&
+      (attr.name.name === "lang" || attr.name.name === "language")
+    );
+  });
+
+  if (hasLangAttr) {
+    // Already has lang attribute, don't inject
+    return;
+  }
+
+  // Check if we're inside a component (has access to locale context)
+  const component = state.componentsStack.at(-1);
+  if (!component) {
+    // Not inside a component, can't inject locale
+    return;
+  }
+
+  // Inject lang={locale} attribute
+  // This creates: <html lang={locale}>
+  const langAttr = t.jsxAttribute(
+    t.jsxIdentifier("lang"),
+    t.jsxExpressionContainer(t.identifier("locale")),
+  );
+
+  openingElement.attributes.push(langAttr);
+
+  logger.debug(
+    `Injected locale attribute into <html> element in component: ${component.name}`,
+  );
+
+  // Mark that this component needs locale destructured from the hook
+  state.componentsNeedingLocale.add(component.name);
+}
+
+/**
  * Transform a JSX text node into a translation call
  */
 function transformJSXText(
@@ -475,19 +537,19 @@ export function injectTranslationHook(
   component: ComponentEntry,
   state: VisitorsInternalState,
 ): void {
+  const needsLocale = state.componentsNeedingLocale.has(component.name);
   const hashes = state.componentHashes.get(component.name);
-  if (!hashes || hashes.length === 0) {
+  if ((!hashes || hashes.length === 0) && !needsLocale) {
     return; // No translations needed
   }
 
-  // Determine which hook to use based on async status
   if (component.isAsync) {
     // Async component uses getServerTranslations
-    injectServerHook(path, hashes);
+    injectServerHook(path, hashes ?? [], needsLocale);
     state.needsAsyncImport = true;
   } else {
     // Non-async component uses unified hook (useTranslation)
-    injectUnifiedHook(path, hashes);
+    injectUnifiedHook(path, hashes ?? [], needsLocale);
     state.needsUnifiedImport = true;
   }
 }
@@ -580,6 +642,9 @@ const componentVisitors = {
   // Transform JSX elements with mixed content (text + expressions or nested elements)
   JSXElement(path: NodePath<t.JSXElement>) {
     translateAttributes(path.node, this.visitorState);
+
+    // Inject locale attribute into <html> elements for Next.js
+    injectHtmlLangAttribute(path.node, this.visitorState);
 
     if (shouldSkipTranslationForElement(path.node)) {
       path.skip();
@@ -690,6 +755,7 @@ export function processFile(
     componentHashes: new Map<string, string[]>(),
     needsUnifiedImport: false,
     needsAsyncImport: false,
+    componentsNeedingLocale: new Set<string>(),
   };
 
   traverse(ast, programVisitor, undefined, { visitorState: state });

@@ -1329,7 +1329,7 @@ export default function ServerPage() {
       expect(result.code).not.toContain("import { getServerTranslations }");
 
       // Should use useTranslation hook (not await getServerTranslations!)
-      expect(result.code).toContain("const t = useTranslation(");
+      expect(result.code).toContain("useTranslation(");
       expect(result.code).not.toContain("await getServerTranslations");
 
       // Function should NOT be made async
@@ -1367,7 +1367,7 @@ export default function ClientPage() {
 
       // Should use unified hook (same as server!)
       expect(result.code).toContain("import { useTranslation } from");
-      expect(result.code).toContain("const t = useTranslation(");
+      expect(result.code).toContain("useTranslation(");
 
       // Should NOT use async API
       expect(result.code).not.toContain("getServerTranslations");
@@ -1445,9 +1445,7 @@ export function RegularCard() {
       );
 
       // RegularCard uses unified hook
-      expect(result.code).toMatch(
-        /function RegularCard.*const t = useTranslation/s,
-      );
+      expect(result.code).toMatch(/function RegularCard.*useTranslation/s);
 
       expect(result.code).toMatchSnapshot();
     });

@@ -53,19 +53,22 @@ export const useTranslation: TranslationHook = (hashes: string[]) => {
     registerHashes(hashes);
   }, [hashes, registerHashes, locale, sourceLocale]);
 
-  return useCallback(
-    (hash: string, source: string, params?: RichTextParams): ReactNode => {
-      logger.debug(
-        `Client. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
-      );
-      const text = translations[hash] || source;
+  return {
+    t: useCallback(
+      (hash: string, source: string, params?: RichTextParams): ReactNode => {
+        logger.debug(
+          `Client. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
+        );
+        const text = translations[hash] || source;
 
-      if (!params) {
-        return text;
-      }
+        if (!params) {
+          return text;
+        }
 
-      return renderRichText(text, params);
-    },
-    [translations, locale, sourceLocale],
-  );
+        return renderRichText(text, params);
+      },
+      [translations, locale, sourceLocale],
+    ),
+    locale,
+  };
 };

@@ -76,18 +76,21 @@ export const useTranslation: TranslationHook = (hashes: string[]) => {
     `Server. The translations for locale ${locale} are: ${JSON.stringify(translations)}`,
   );
 
-  return (
-    hash: string,
-    source: string,
-    params?: RichTextParams,
-  ): string | ReactNode => {
-    const text = translations[hash] || source;
+  return {
+    t: (
+      hash: string,
+      source: string,
+      params?: RichTextParams,
+    ): string | ReactNode => {
+      const text = translations[hash] || source;
 
-    if (!params) {
-      return text;
-    }
+      if (!params) {
+        return text;
+      }
 
-    return renderRichText(text, params);
+      return renderRichText(text, params);
+    },
+    locale,
   };
 };
 

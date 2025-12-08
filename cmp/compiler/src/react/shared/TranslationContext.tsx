@@ -186,6 +186,16 @@ function TranslationProvider__Prod({
   );
 
   /**
+   * Update HTML lang attribute when locale changes
+   * This ensures screen readers and SEO understand the page language
+   */
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
+  }, [locale]);
+
+  /**
    * Load translations from public/translations/{locale}.json
    * Lazy loads on-demand for SPAs
    */
@@ -315,6 +325,16 @@ function TranslationProvider__Dev({
 
   useEffect(() => {
     localeRef.current = locale;
+  }, [locale]);
+
+  /**
+   * Update HTML lang attribute when locale changes
+   * This ensures screen readers and SEO understand the page language
+   */
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = locale;
+    }
   }, [locale]);
 
   /**
