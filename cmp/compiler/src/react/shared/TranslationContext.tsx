@@ -20,6 +20,8 @@ import {
   persistLocale,
 } from "@lingo.dev/compiler/locale/client";
 
+const noop = () => {};
+
 /**
  * Translation context type
  */
@@ -239,8 +241,12 @@ function TranslationProvider__Prod({
   }, []); // Only run on mount
 
   useEffect(() => {
-    setTranslations(initialTranslations);
-  }, [initialTranslations]);
+    // TODO (AleksandrSl 08/12/2025): More elegant solution required.
+    //  This is used to update the client part when next app changes locale
+    if (router) {
+      setTranslations(initialTranslations);
+    }
+  }, [initialTranslations, router]);
 
   /**
    * Change locale
@@ -273,7 +279,7 @@ function TranslationProvider__Prod({
         locale,
         setLocale,
         translations,
-        registerHashes: () => {}, // No-op in production
+        registerHashes: noop,
         isLoading,
         sourceLocale,
       }}
