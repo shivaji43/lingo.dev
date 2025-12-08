@@ -517,6 +517,8 @@ function TranslationProvider__Dev({
         pendingCount: pendingHashesRef.current.size,
         position: devWidget?.position || "bottom-left",
       } satisfies LingoDevState;
+      // Set WebSocket URL for widget to connect to translation server
+      window.__LINGO_DEV_WS_URL__ = serverUrl;
       // Trigger widget update
       window.__LINGO_DEV_UPDATE__?.();
     }

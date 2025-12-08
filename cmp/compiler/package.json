@@ -149,6 +149,7 @@
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^18.3.26",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "next": "^16.0.3",
     "tsdown": "^0.16.5",
     "tsx": "^4.19.2",
@@ -176,7 +177,8 @@
     "lingo.dev": "^0.117.0",
     "lodash": "^4.17.21",
     "ollama-ai-provider": "^1.2.0",
-    "proper-lockfile": "^4.1.2"
+    "proper-lockfile": "^4.1.2",
+    "ws": "^8.18.3"
   },
   "peerDependencies": {
     "next": "^15.0.0 || ^16.0.4",

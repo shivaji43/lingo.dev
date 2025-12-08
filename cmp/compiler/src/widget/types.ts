@@ -8,17 +8,26 @@ export type WidgetPosition =
   | "top-left"
   | "top-right";
 
+export interface ServerTranslationProgress {
+  locale: string;
+  total: number;
+  completed: number;
+  status: "in-progress" | "complete" | "error";
+}
+
 export interface LingoDevState {
   isLoading: boolean;
   locale: string;
   sourceLocale: string;
   pendingCount: number;
   position: WidgetPosition;
+  serverProgress?: ServerTranslationProgress;
 }
 
 declare global {
   interface Window {
     __LINGO_DEV_STATE__?: LingoDevState;
     __LINGO_DEV_UPDATE__?: () => void;
+    __LINGO_DEV_WS_URL__?: string;
   }
 }

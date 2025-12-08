@@ -14,6 +14,7 @@
 import http from "http";
 import type { Socket } from "net";
 import { URL } from "url";
+import { WebSocketServer, WebSocket } from "ws";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
 import { getLogger } from "./logger";
 import {
@@ -22,6 +23,8 @@ import {
   TranslationService,
 } from "../translators";
 import { createEmptyMetadata, loadMetadata } from "../metadata/manager";
+import type { TranslationServerEvent } from "./ws-events";
+import { createEvent } from "./ws-events";
 
 export interface TranslationServerOptions {
   /**
@@ -57,6 +60,8 @@ export class TranslationServer {
   private translationService: TranslationService | null = null;
   private metadata: MetadataSchema | null = null;
   private connections: Set<Socket> = new Set();
+  private wss: WebSocketServer | null = null;
+  private wsClients: Set<WebSocket> = new Set();
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
@@ -142,10 +147,75 @@ export class TranslationServer {
       this.server.listen(port, "127.0.0.1", () => {
         this.url = `http://127.0.0.1:${port}`;
         this.logger.info(`Translation server listening on ${this.url}`);
+
+        // Initialize WebSocket server on the same port
+        this.initializeWebSocket();
+
         this.onReadyCallback?.(port);
         resolve(port);
       });
     });
+  }
+
+  /**
+   * Initialize WebSocket server for real-time dev widget updates
+   */
+  private initializeWebSocket(): void {
+    if (!this.server) {
+      throw new Error("HTTP server must be started before WebSocket");
+    }
+
+    this.wss = new WebSocketServer({ server: this.server });
+
+    this.wss.on("connection", (ws: WebSocket) => {
+      this.wsClients.add(ws);
+      this.logger.debug(
+        `WebSocket client connected. Total clients: ${this.wsClients.size}`,
+      );
+
+      // Send initial connected event
+      this.sendToClient(ws, createEvent("connected"));
+
+      ws.on("close", () => {
+        this.wsClients.delete(ws);
+        this.logger.debug(
+          `WebSocket client disconnected. Total clients: ${this.wsClients.size}`,
+        );
+      });
+
+      ws.on("error", (error) => {
+        this.logger.error(`WebSocket client error:`, error);
+        this.wsClients.delete(ws);
+      });
+    });
+
+    this.wss.on("error", (error) => {
+      this.logger.error(`WebSocket server error:`, error);
+      this.onErrorCallback?.(error);
+    });
+
+    this.logger.info(`WebSocket server initialized`);
+  }
+
+  /**
+   * Send event to a specific WebSocket client
+   */
+  private sendToClient(ws: WebSocket, event: TranslationServerEvent): void {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(event));
+    }
+  }
+
+  /**
+   * Broadcast event to all connected WebSocket clients
+   */
+  private broadcast(event: TranslationServerEvent): void {
+    const message = JSON.stringify(event);
+    for (const client of this.wsClients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    }
   }
 
   /**
@@ -157,7 +227,19 @@ export class TranslationServer {
       return;
     }
 
-    // Destroy all active connections to prevent hanging
+    // Close all WebSocket connections
+    for (const client of this.wsClients) {
+      client.close();
+    }
+    this.wsClients.clear();
+
+    // Close WebSocket server
+    if (this.wss) {
+      this.wss.close();
+      this.wss = null;
+    }
+
+    // Destroy all active HTTP connections to prevent hanging
     for (const socket of this.connections) {
       socket.destroy();
     }
@@ -293,11 +375,35 @@ export class TranslationServer {
       `Translating all ${allHashes.length} entries to ${locale}`,
     );
 
-    return await this.translationService.translate(
+    // Broadcast batch start event
+    const startTime = Date.now();
+    this.broadcast(
+      createEvent("batch:start", {
+        locale,
+        total: allHashes.length,
+        hashes: allHashes,
+      }),
+    );
+
+    const result = await this.translationService.translate(
       locale,
       this.metadata,
       allHashes,
     );
+
+    // Broadcast batch complete event
+    const duration = Date.now() - startTime;
+    this.broadcast(
+      createEvent("batch:complete", {
+        locale,
+        total: allHashes.length,
+        successful: Object.keys(result.translations).length,
+        failed: result.errors.length,
+        duration,
+      }),
+    );
+
+    return result;
   }
 
   /**

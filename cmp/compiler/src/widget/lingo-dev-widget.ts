@@ -18,6 +18,9 @@ import type { LingoDevState, WidgetPosition } from "./types";
 class LingoDevWidget extends HTMLElement {
   private shadow: ShadowRoot;
   private state: LingoDevState | null = null;
+  private ws: WebSocket | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
 
   constructor() {
     super();
@@ -36,12 +39,136 @@ class LingoDevWidget extends HTMLElement {
       this.state = window.__LINGO_DEV_STATE__;
       this.render();
     }
+
+    // Connect to WebSocket for real-time server updates
+    this.connectWebSocket();
   }
 
   disconnectedCallback() {
     // Cleanup
     if (window.__LINGO_DEV_UPDATE__) {
       delete window.__LINGO_DEV_UPDATE__;
+    }
+
+    // Close WebSocket connection
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  private connectWebSocket() {
+    const wsUrl = window.__LINGO_DEV_WS_URL__;
+    if (!wsUrl) {
+      console.warn(
+        "[Lingo.dev] WebSocket URL not available, real-time updates disabled",
+      );
+      return;
+    }
+
+    try {
+      // Convert HTTP URL to WS URL
+      const url = new URL(wsUrl);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+
+      this.ws = new WebSocket(url.toString());
+
+      this.ws.onopen = () => {
+        console.log("[Lingo.dev] WebSocket connected");
+        this.reconnectAttempts = 0; // Reset on successful connection
+      };
+
+      this.ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          this.handleServerEvent(data);
+        } catch (error) {
+          console.error(
+            "[Lingo.dev] Failed to parse WebSocket message:",
+            error,
+          );
+        }
+      };
+
+      this.ws.onerror = (error) => {
+        console.error("[Lingo.dev] WebSocket error:", error);
+      };
+
+      this.ws.onclose = () => {
+        console.log("[Lingo.dev] WebSocket disconnected");
+        this.ws = null;
+
+        // Attempt to reconnect with exponential backoff
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          const delay = Math.min(
+            1000 * Math.pow(2, this.reconnectAttempts),
+            10000,
+          );
+          this.reconnectAttempts++;
+          console.log(
+            `[Lingo.dev] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+          );
+          setTimeout(() => this.connectWebSocket(), delay);
+        }
+      };
+    } catch (error) {
+      console.error(
+        "[Lingo.dev] Failed to create WebSocket connection:",
+        error,
+      );
+    }
+  }
+
+  private handleServerEvent(event: any) {
+    switch (event.type) {
+      case "connected":
+        console.log(
+          `[Lingo.dev] Connected to translation server: ${event.serverUrl}`,
+        );
+        break;
+
+      case "batch:start":
+        // Update state to show server translation is in progress
+        if (this.state) {
+          this.state.serverProgress = {
+            locale: event.locale,
+            total: event.total,
+            completed: 0,
+            status: "in-progress",
+          };
+          this.render();
+        }
+        break;
+
+      case "batch:progress":
+        // Update progress
+        if (this.state && this.state.serverProgress) {
+          this.state.serverProgress.completed = event.completed;
+          this.render();
+        }
+        break;
+
+      case "batch:complete":
+        // Clear server progress after a delay
+        if (this.state && this.state.serverProgress) {
+          this.state.serverProgress.status = "complete";
+          this.render();
+
+          setTimeout(() => {
+            if (this.state) {
+              this.state.serverProgress = undefined;
+              this.render();
+            }
+          }, 2000);
+        }
+        break;
+
+      case "batch:error":
+        if (this.state && this.state.serverProgress) {
+          this.state.serverProgress.status = "error";
+          this.render();
+        }
+        break;
     }
   }
 
@@ -52,14 +179,19 @@ class LingoDevWidget extends HTMLElement {
       return;
     }
 
-    const { isLoading, locale, pendingCount, position } = this.state;
+    const { isLoading, locale, pendingCount, position, serverProgress } =
+      this.state;
+
+    // Show loader if either client or server translations are in progress
+    const showLoader =
+      isLoading || (serverProgress && serverProgress.status === "in-progress");
 
     this.shadow.innerHTML = `
       <style>
         ${this.getStyles(position)}
       </style>
       <div class="container">
-        ${isLoading ? this.renderLoader() : this.renderLogo()}
+        ${showLoader ? this.renderLoader() : this.renderLogo()}
         <svg height="26" viewBox="0 0 650 171" fill="none" xmlns="http://www.w3.org/2000/svg">
 <path d="M391.372 137.084H373.458V119.326H391.372V137.084Z" fill="white"/>
 <path d="M420.766 133.46C415.204 130 410.808 125.121 407.566 118.842C404.329 112.562 402.685 105.422 402.685 97.4631C402.685 89.5033 404.306 82.4043 407.566 76.1645C410.808 69.925 415.227 65.0853 420.766 61.6257C426.327 58.1659 432.506 56.446 439.326 56.446C449.283 56.446 457.245 60.2258 463.222 67.7652H464.001V27.0283H479.56V137.08H466.204L464.624 127.02H463.845C457.764 134.78 449.583 138.66 439.326 138.66C432.506 138.66 426.327 136.94 420.766 133.48V133.46ZM452.606 120.881C456.102 118.681 458.883 115.542 460.943 111.442C462.985 107.362 464.001 102.683 464.001 97.4429C464.001 92.2033 462.985 87.5637 460.943 83.5241C458.906 79.4843 456.126 76.3645 452.606 74.1647C449.087 71.9649 445.285 70.865 441.206 70.865C437.127 70.865 433.187 71.9649 429.726 74.1647C426.264 76.3645 423.506 79.4843 421.464 83.5241C419.427 87.5637 418.406 92.2033 418.406 97.4429C418.406 102.683 419.427 107.482 421.464 111.522C423.506 115.562 426.264 118.681 429.726 120.881C433.187 123.081 437.006 124.181 441.206 124.181C445.406 124.181 449.087 123.081 452.606 120.881Z" fill="white"/>
