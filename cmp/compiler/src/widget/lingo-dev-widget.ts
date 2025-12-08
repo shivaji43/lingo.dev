@@ -86,7 +86,7 @@ class LingoDevWidget extends HTMLElement {
     return `
       :host {
         position: fixed;
-        z-index: 9999;
+        z-index: 99999;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
         font-size: 12px;
         pointer-events: auto;
