@@ -11,8 +11,16 @@ import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import { lingoUnplugin } from "./unplugin";
 import { useI18nRegex } from "./transform/use-i18n";
+import {
+  generateBuildMetadataFilename,
+  getMetadataPath,
+} from "../utils/path-helpers";
+import * as fs from "fs/promises";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
+
+// Track build metadata filename per config (use WeakMap for memory safety)
+const buildMetadataFilenames = new WeakMap<PartialLingoConfig, string>();
 
 /**
  * Check if Next.js supports stable turbopack config (Next.js 16+)
@@ -70,6 +78,10 @@ function buildLingoConfig(
 ): NextConfig {
   const lingoConfig = createLingoConfig(lingoOptions);
 
+  // Generate timestamped metadata filename for build mode
+  const buildMetadataFilename = generateBuildMetadataFilename();
+  buildMetadataFilenames.set(lingoOptions, buildMetadataFilename);
+
   // Prepare Turbopack loader configuration
   const loaderConfig = {
     loader: "@lingo.dev/compiler/turbopack-loader",
@@ -78,6 +90,7 @@ function buildLingoConfig(
       lingoDir: lingoConfig.lingoDir,
       sourceLocale: lingoConfig.sourceLocale,
       useDirective: lingoConfig.useDirective,
+      buildMetadataFilename,
     },
   };
 
@@ -201,6 +214,9 @@ function buildLingoConfig(
     }
 
     logger.info("Running post-build translation generation...");
+    logger.info(
+      `Build mode: Using temporary metadata file: ${buildMetadataFilename}`,
+    );
 
     try {
       const { processBuildTranslations } = await import("./build-translator");
@@ -208,7 +224,22 @@ function buildLingoConfig(
       await processBuildTranslations({
         config: lingoConfig,
         publicOutputPath: distDir,
+        metadataFilename: buildMetadataFilename,
       });
+
+      // Cleanup: Remove temporary build metadata file
+      const metadataPath = getMetadataPath(lingoConfig, buildMetadataFilename);
+      try {
+        await fs.unlink(metadataPath);
+        logger.info(
+          `🧹 Cleaned up temporary metadata file: ${buildMetadataFilename}`,
+        );
+      } catch (error: any) {
+        // Ignore if file doesn't exist
+        if (error.code !== "ENOENT") {
+          logger.warn(`Failed to cleanup metadata file: ${error.message}`);
+        }
+      }
     } catch (error) {
       logger.error("Translation generation failed:", error);
       throw error;

@@ -27,8 +27,11 @@ export function createEmptyMetadata(): MetadataSchema {
 /**
  * Get the path to the metadata file
  */
-export function getMetadataPath(config: MetadataConfig): string {
-  return getMetadataPathUtil(config);
+export function getMetadataPath(
+  config: MetadataConfig,
+  filename?: string,
+): string {
+  return getMetadataPathUtil(config, filename);
 }
 
 /**
@@ -38,8 +41,9 @@ export function getMetadataPath(config: MetadataConfig): string {
  */
 export async function loadMetadata(
   config: MetadataConfig,
+  filename?: string,
 ): Promise<MetadataSchema> {
-  const metadataPath = getMetadataPath(config);
+  const metadataPath = getMetadataPath(config, filename);
 
   try {
     const content = await withTimeout(
@@ -64,8 +68,9 @@ export async function loadMetadata(
 export async function saveMetadata(
   config: MetadataConfig,
   metadata: MetadataSchema,
+  filename?: string,
 ): Promise<void> {
-  const metadataPath = getMetadataPath(config);
+  const metadataPath = getMetadataPath(config, filename);
   await withTimeout(
     fs.mkdir(path.dirname(metadataPath), { recursive: true }),
     DEFAULT_TIMEOUTS.FILE_IO,
@@ -90,13 +95,15 @@ export async function saveMetadata(
  *
  * @param config - Metadata configuration
  * @param entries - Translation entries to add/update
+ * @param filename - Optional custom metadata filename
  * @returns The updated metadata schema
  */
 export async function saveMetadataWithEntries(
   config: MetadataConfig,
   entries: TranslationEntry[],
+  filename?: string,
 ): Promise<MetadataSchema> {
-  const metadataPath = getMetadataPath(config);
+  const metadataPath = getMetadataPath(config, filename);
   const lockDir = path.dirname(metadataPath);
 
   // Ensure directory exists before locking
@@ -125,13 +132,13 @@ export async function saveMetadataWithEntries(
 
   try {
     // Re-load metadata inside lock to get latest state
-    const currentMetadata = await loadMetadata(config);
+    const currentMetadata = await loadMetadata(config, filename);
 
     // Apply updates
     const updatedMetadata = upsertEntries(currentMetadata, entries);
 
     // Save
-    await saveMetadata(config, updatedMetadata);
+    await saveMetadata(config, updatedMetadata, filename);
 
     return updatedMetadata;
   } finally {

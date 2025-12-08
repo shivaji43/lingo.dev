@@ -23,7 +23,8 @@ export default async function lingoCompilerTurbopackLoader(
   const isDev = process.env.NODE_ENV === "development";
 
   try {
-    const config: LingoConfig = this.getOptions();
+    const config: LingoConfig & { buildMetadataFilename: string } =
+      this.getOptions();
 
     // TODO (AleksandrSl 07/12/2025): Remove too I think
     // Check if this file should be transformed
@@ -44,11 +45,13 @@ export default async function lingoCompilerTurbopackLoader(
     }
 
     // Load current metadata
-    const metadata = await loadMetadata(config);
+    // In build mode, use timestamped metadata file; in dev mode, use default
+    const metadataFilename = isDev ? undefined : config.buildMetadataFilename;
+    const metadata = await loadMetadata(config, metadataFilename);
     // Update metadata with new entries
     if (result.newEntries && result.newEntries.length > 0) {
       const updatedMetadata = upsertEntries(metadata, result.newEntries);
-      await saveMetadata(config, updatedMetadata);
+      await saveMetadata(config, updatedMetadata, metadataFilename);
 
       // Log new translations discovered (in dev mode)
       // Note: In production, translations are generated after build via runAfterProductionCompile

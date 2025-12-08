@@ -26,6 +26,12 @@ export interface BuildTranslationOptions {
    * If not provided, files won't be generated
    */
   publicOutputPath?: string;
+
+  /**
+   * Custom metadata filename for build mode
+   * If not provided, uses default metadata.json
+   */
+  metadataFilename?: string;
 }
 
 export interface BuildTranslationResult {
@@ -60,7 +66,7 @@ export interface BuildTranslationResult {
 export async function processBuildTranslations(
   options: BuildTranslationOptions,
 ): Promise<BuildTranslationResult> {
-  const { config, publicOutputPath } = options;
+  const { config, publicOutputPath, metadataFilename } = options;
 
   // Determine build mode (env var > options > config)
   const buildMode =
@@ -69,7 +75,7 @@ export async function processBuildTranslations(
 
   logger.info(`🌍 Build mode: ${buildMode}`);
 
-  const metadata = await loadMetadata(config);
+  const metadata = await loadMetadata(config, metadataFilename);
 
   if (!metadata || Object.keys(metadata.entries).length === 0) {
     logger.info("No translations to process (metadata is empty)");

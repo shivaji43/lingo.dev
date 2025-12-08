@@ -32,17 +32,39 @@ export function resolveAbsolutePath(
  * Get the absolute path to the metadata.json file
  *
  * @param config - Config with sourceRoot and lingoDir
- * @returns Absolute path to metadata.json
+ * @param filename - Optional custom filename (defaults to "metadata.json")
+ * @returns Absolute path to metadata file
  *
  * @example
  * ```typescript
  * getMetadataPath({ sourceRoot: "src", lingoDir: ".lingo" })
  * // -> "/full/path/to/src/.lingo/metadata.json"
+ *
+ * getMetadataPath({ sourceRoot: "src", lingoDir: ".lingo" }, "metadata.build-123456.json")
+ * // -> "/full/path/to/src/.lingo/metadata.build-123456.json"
  * ```
  */
-export function getMetadataPath(config: PathConfig): string {
+export function getMetadataPath(
+  config: PathConfig,
+  filename: string = "metadata.json",
+): string {
   const rootPath = resolveAbsolutePath(config.sourceRoot);
-  return path.join(rootPath, config.lingoDir, "metadata.json");
+  return path.join(rootPath, config.lingoDir, filename);
+}
+
+/**
+ * Generate a unique build metadata filename with timestamp
+ *
+ * @returns Filename like "metadata.build-1701234567890.json"
+ *
+ * @example
+ * ```typescript
+ * generateBuildMetadataFilename()
+ * // -> "metadata.build-1701234567890.json"
+ * ```
+ */
+export function generateBuildMetadataFilename(): string {
+  return `metadata.build-${Date.now()}.json`;
 }
 
 /**

@@ -22,7 +22,11 @@ import {
 import { saveMetadataWithEntries } from "../metadata/manager";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
-import { getCacheDir } from "../utils/path-helpers";
+import {
+  generateBuildMetadataFilename,
+  getCacheDir,
+  getMetadataPath,
+} from "../utils/path-helpers";
 import { useI18nRegex } from "./transform/use-i18n";
 import {
   generateClientLocaleCode,
@@ -34,6 +38,7 @@ import * as fs from "fs";
 export type LingoPluginOptions = PartialLingoConfig;
 
 let globalServer: TranslationServer;
+let buildMetadataFilename: string | undefined;
 
 /**
  * Universal plugin for Lingo.dev compiler
@@ -51,6 +56,16 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
 
     // Start translation server on build start (dev mode only)
     async buildStart() {
+      // Generate timestamped metadata filename for build mode
+      if (!isDev) {
+        buildMetadataFilename = generateBuildMetadataFilename();
+        logger.info(
+          `Build mode: Using temporary metadata file: ${buildMetadataFilename}`,
+        );
+      } else {
+        buildMetadataFilename = undefined;
+      }
+
       // Only start translation server in development mode
       if (isDev && !globalServer) {
         globalServer = await startTranslationServer({
@@ -172,7 +187,12 @@ export function persistLocale(locale) {
 
             // TODO (AleksandrSl 30/11/2025): Could make async in the future, so we don't pause the main transform, translation server should be able to know if the metadata is finished writing then.
             // Thread-safe atomic update
-            await saveMetadataWithEntries(config, result.newEntries);
+            // In build mode, use timestamped metadata file; in dev mode, use default
+            await saveMetadataWithEntries(
+              config,
+              result.newEntries,
+              buildMetadataFilename,
+            );
 
             // Log new translations discovered (in dev mode)
             if (isDev) {
@@ -206,7 +226,27 @@ export function persistLocale(locale) {
           await processBuildTranslations({
             config,
             publicOutputPath: "public/translations",
+            metadataFilename: buildMetadataFilename,
           });
+
+          // Cleanup: Remove temporary build metadata file
+          if (buildMetadataFilename) {
+            const metadataPath = getMetadataPath(config, buildMetadataFilename);
+            try {
+              await fs.promises.unlink(metadataPath);
+              logger.info(
+                `🧹 Cleaned up temporary metadata file: ${buildMetadataFilename}`,
+              );
+            } catch (error: any) {
+              // Ignore if file doesn't exist
+              if (error.code !== "ENOENT") {
+                logger.warn(
+                  `Failed to cleanup metadata file: ${error.message}`,
+                );
+              }
+            }
+            buildMetadataFilename = undefined;
+          }
         } catch (error) {
           logger.error("Build-time translation processing failed:", error);
           throw error;
