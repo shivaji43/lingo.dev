@@ -77,6 +77,7 @@ export function transformComponent({
       transformed: translationEntries.length > 0,
     };
   } catch (error) {
+    // TODO (AleksandrSl 08/12/2025): Should also log the message
     logger.error(`Failed to transform ${filePath}:`, error);
     // Return original code on error
     return {

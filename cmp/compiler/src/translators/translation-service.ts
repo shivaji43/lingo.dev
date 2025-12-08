@@ -192,32 +192,62 @@ export class TranslationService {
       );
     }
 
-    // Step 6: Prepare entries for translation
+    // Step 6: Separate overridden entries from entries that need translation
+    const overriddenTranslations: Record<string, string> = {};
+    const hashesNeedingTranslation: string[] = [];
+
     this.logger.debug(
-      `[TRACE] Preparing ${uncachedHashes.length} entries for translation`,
+      `[TRACE] Checking for overrides in ${uncachedHashes.length} entries`,
+    );
+
+    for (const hash of uncachedHashes) {
+      const entry = filteredMetadata.entries[hash];
+      if (!entry) continue;
+
+      // Check if this entry has an override for the current locale
+      if (entry.overrides && entry.overrides[locale]) {
+        overriddenTranslations[hash] = entry.overrides[locale];
+        this.logger.debug(
+          `[TRACE] Using override for ${hash} in locale ${locale}: "${entry.overrides[locale]}"`,
+        );
+      } else {
+        hashesNeedingTranslation.push(hash);
+      }
+    }
+
+    const overrideCount = Object.keys(overriddenTranslations).length;
+    if (overrideCount > 0) {
+      this.logger.info(
+        `Found ${overrideCount} override(s) for locale ${locale}, skipping AI translation for these entries`,
+      );
+    }
+
+    // Step 7: Prepare entries for translation (excluding overridden ones)
+    this.logger.debug(
+      `[TRACE] Preparing ${hashesNeedingTranslation.length} entries for translation (after overrides)`,
     );
     const entriesToTranslate = this.prepareEntries(
       filteredMetadata,
-      uncachedHashes,
+      hashesNeedingTranslation,
     );
     this.logger.debug(
       `[TRACE] Prepared ${Object.keys(entriesToTranslate).length} entries`,
     );
 
-    // Step 7: Translate or return source text
-    let newTranslations: Record<string, string> = {};
+    // Step 8: Translate or return source text
+    let newTranslations: Record<string, string> = { ...overriddenTranslations };
     const errors: TranslationError[] = [];
 
     if (locale === this.config.sourceLocale) {
       // For source locale, just return the (possibly pluralized) sourceText
       this.logger.debug(
-        `[TRACE] Source locale detected, returning sourceText for ${uncachedHashes.length} entries`,
+        `[TRACE] Source locale detected, returning sourceText for ${hashesNeedingTranslation.length} entries`,
       );
       for (const [hash, entry] of Object.entries(entriesToTranslate)) {
         newTranslations[hash] = entry.text;
       }
-    } else {
-      // For other locales, translate
+    } else if (Object.keys(entriesToTranslate).length > 0) {
+      // For other locales, translate only entries without overrides
       try {
         this.logger.debug(
           `[TRACE] Calling translator.translate() for ${locale} with ${Object.keys(entriesToTranslate).length} entries`,
@@ -225,18 +255,21 @@ export class TranslationService {
         this.logger.debug(`[TRACE] About to await translator.translate()...`);
         const translateStartTime = performance.now();
         this.logger.debug(`[TRACE] Executing translator.translate() NOW`);
-        newTranslations = await this.translator.translate(
+        const translatedTexts = await this.translator.translate(
           locale,
           entriesToTranslate,
         );
         this.logger.debug(`[TRACE] translator.translate() returned`);
+
+        // Merge translated texts with overridden translations
+        newTranslations = { ...overriddenTranslations, ...translatedTexts };
 
         const translateEndTime = performance.now();
         this.logger.debug(
           `[TRACE] translator.translate() completed in ${(translateEndTime - translateStartTime).toFixed(2)}ms`,
         );
         this.logger.debug(
-          `[TRACE] Received ${Object.keys(newTranslations).length} translations`,
+          `[TRACE] Received ${Object.keys(translatedTexts).length} translations (+ ${overrideCount} overrides)`,
         );
       } catch (error) {
         // Complete failure - log and return what we have from cache

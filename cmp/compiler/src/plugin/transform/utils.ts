@@ -116,6 +116,7 @@ export function createTranslationEntry<T extends keyof TranslationEntryByType>(
   filePath: string,
   line?: number,
   column?: number,
+  overrides?: Record<string, string>,
 ): TranslationEntryByType[T] {
   const fullContext = { ...context, filePath };
   const hash = generateTranslationHash(text, fullContext);
@@ -130,6 +131,9 @@ export function createTranslationEntry<T extends keyof TranslationEntryByType>(
       line,
       column,
     },
+    overrides:
+      overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
+    // TODO (AleksandrSl 08/12/2025): Figure out why it doesn't work without the cast
   } as TranslationEntryByType[T];
 }
 

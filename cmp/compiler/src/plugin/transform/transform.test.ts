@@ -2393,4 +2393,463 @@ export default function Help() {
       expect(result.code).toMatchSnapshot();
     });
   });
+
+  describe("translation overrides (data-lingo-override)", () => {
+    it("should parse override attribute with object expression", () => {
+      const code = `
+export function Button() {
+  return <button data-lingo-override={{ de: "Klicken Sie hier", fr: "Cliquez ici" }}>Click here</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Click here");
+      expect(entry.overrides).toEqual({
+        de: "Klicken Sie hier",
+        fr: "Cliquez ici",
+      });
+
+      // Override attribute should be removed from output
+      expect(result.code).not.toContain("data-lingo-override");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle partial overrides (only some locales)", () => {
+      const code = `
+export function Message() {
+  return <p data-lingo-override={{ de: "Spezialtext" }}>Special text</p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Message.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toBe("Special text");
+      expect(entry.overrides).toEqual({ de: "Spezialtext" });
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle overrides with locale region codes", () => {
+      const code = `
+export function Welcome() {
+  return <h1 data-lingo-override={{ "en-US": "Welcome USA", "en-GB": "Welcome UK" }}>Welcome</h1>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Welcome.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toEqual({
+        "en-US": "Welcome USA",
+        "en-GB": "Welcome UK",
+      });
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle overrides in mixed content (rich text)", () => {
+      const code = `
+export function Message() {
+  const name = "Alice";
+  return (
+    <div data-lingo-override={{
+      de: "Willkommen {name}, Sie haben <strong0>{count}</strong0> Nachrichten",
+      fr: "Bienvenue {name}, vous avez <strong0>{count}</strong0> messages"
+    }}>
+      Welcome {name}, you have <strong>{count}</strong> messages
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Message.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.sourceText).toContain("Welcome {name}");
+      expect(entry.overrides).toBeDefined();
+      expect(entry.overrides?.de).toContain("Willkommen {name}");
+      expect(entry.overrides?.fr).toContain("Bienvenue {name}");
+
+      expect(result.code).not.toContain("data-lingo-override");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle multiple elements with different overrides", () => {
+      const code = `
+export function Page() {
+  return (
+    <div>
+      <h1 data-lingo-override={{ de: "Titel", fr: "Titre" }}>Title</h1>
+      <p data-lingo-override={{ de: "Beschreibung", es: "Descripción" }}>Description</p>
+      <button data-lingo-override={{ de: "Klicken" }}>Click</button>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Page.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+
+      // Check each entry has correct overrides
+      const titleEntry = result.newEntries.find(
+        (e) => e.sourceText === "Title",
+      );
+      expect(titleEntry?.overrides).toEqual({ de: "Titel", fr: "Titre" });
+
+      const descEntry = result.newEntries.find(
+        (e) => e.sourceText === "Description",
+      );
+      expect(descEntry?.overrides).toEqual({
+        de: "Beschreibung",
+        es: "Descripción",
+      });
+
+      const buttonEntry = result.newEntries.find(
+        (e) => e.sourceText === "Click",
+      );
+      expect(buttonEntry?.overrides).toEqual({ de: "Klicken" });
+
+      expect(result.code).not.toContain("data-lingo-override");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle override alongside other attributes", () => {
+      const code = `
+export function Button() {
+  return (
+    <button
+      className="primary"
+      onClick={handleClick}
+      data-lingo-override={{ de: "Absenden" }}
+      disabled={false}
+    >
+      Submit
+    </button>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toEqual({ de: "Absenden" });
+
+      // Other attributes should remain
+      expect(result.code).toContain('className="primary"');
+      expect(result.code).toContain("onClick={handleClick}");
+      expect(result.code).toContain("disabled={false}");
+      expect(result.code).not.toContain("data-lingo-override");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle brand names and technical terms", () => {
+      const code = `
+export function Header() {
+  return (
+    <div>
+      <h1 data-lingo-override={{ de: "Lingo.dev", fr: "Lingo.dev", es: "Lingo.dev" }}>
+        Lingo.dev
+      </h1>
+      <p data-lingo-override={{ de: "Der JWT-Token ist ungültig", fr: "Le jeton JWT est invalide" }}>
+        JWT token is invalid
+      </p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Header.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      // Brand name should have overrides
+      const brandEntry = result.newEntries.find(
+        (e) => e.sourceText === "Lingo.dev",
+      );
+      expect(brandEntry?.overrides).toEqual({
+        de: "Lingo.dev",
+        fr: "Lingo.dev",
+        es: "Lingo.dev",
+      });
+
+      // Technical term should have overrides
+      const techEntry = result.newEntries.find(
+        (e) => e.sourceText === "JWT token is invalid",
+      );
+      expect(techEntry?.overrides?.de).toBe("Der JWT-Token ist ungültig");
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not add overrides field when override is invalid", () => {
+      const code = `
+export function Button() {
+  return <button data-lingo-override={null}>Click</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toBeUndefined();
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not add overrides field when override is empty object", () => {
+      const code = `
+export function Button() {
+  return <button data-lingo-override={{}}>Click</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toBeUndefined();
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle overrides in server components with async", () => {
+      const nextConfig = createMockConfig();
+
+      const code = `
+export default async function ServerPage() {
+  const data = await fetchData();
+  return (
+    <div>
+      <h1 data-lingo-override={{ de: "Willkommen", fr: "Bienvenue" }}>Welcome</h1>
+      <p>Data: {data}</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+
+      const welcomeEntry = result.newEntries.find(
+        (e) => e.sourceText === "Welcome",
+      );
+      expect(welcomeEntry?.overrides).toEqual({
+        de: "Willkommen",
+        fr: "Bienvenue",
+      });
+
+      // Should use async API
+      expect(result.code).toContain("getServerTranslations");
+      expect(result.code).not.toContain("data-lingo-override");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle overrides in non-async server components with unified hook", () => {
+      const nextConfig = createMockConfig();
+
+      const code = `
+export default function ServerPage() {
+  return (
+    <div>
+      <h1 data-lingo-override={{ de: "Willkommen" }}>Welcome</h1>
+      <p data-lingo-override={{ fr: "Description" }}>Description</p>
+    </div>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/app/page.tsx",
+        config: nextConfig,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+
+      result.newEntries.forEach((entry) => {
+        expect(entry.overrides).toBeDefined();
+      });
+
+      // Should use unified hook
+      expect(result.code).toContain("useTranslation");
+      expect(result.code).not.toContain("data-lingo-override");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should validate locale codes and reject invalid ones", () => {
+      const code = `
+export function Button() {
+  return <button data-lingo-override={{ german: "Klicken", "en_US": "Click" }}>Click</button>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Button.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      // Invalid locale codes should be rejected
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toBeUndefined();
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle template literals in override values", () => {
+      const code = `
+export function Message() {
+  return <p data-lingo-override={{ de: \`Nachricht\`, fr: \`Message\` }}>Message</p>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Message.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides).toEqual({
+        de: "Nachricht",
+        fr: "Message",
+      });
+
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not apply overrides to elements without translatable content", () => {
+      const code = `
+export function Empty() {
+  return <div data-lingo-override={{ de: "Text" }}></div>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Empty.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(false);
+      expect(result.newEntries).toHaveLength(0);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should handle overrides with special characters", () => {
+      const code = `
+export function Legal() {
+  return (
+    <p data-lingo-override={{ de: "Gemäß §15 DSGVO...", fr: "Conformément à l'article 15..." }}>
+      In accordance with GDPR Article 15...
+    </p>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Legal.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(1);
+
+      const entry = result.newEntries[0];
+      expect(entry.overrides?.de).toBe("Gemäß §15 DSGVO...");
+      expect(entry.overrides?.fr).toBe("Conformément à l'article 15...");
+
+      expect(result.code).toMatchSnapshot();
+    });
+  });
 });

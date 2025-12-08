@@ -266,6 +266,13 @@ export type BaseTranslationEntry<Type, Context> = {
     column?: number;
   };
   hash: string;
+  /**
+   * Manual translation overrides for specific locales.
+   * When present, these translations are used instead of AI-generated ones.
+   * Format: { [locale]: "translated text" }
+   * @example { "de": "Klicken Sie hier", "fr": "Cliquez ici" }
+   */
+  overrides?: Record<string, string>;
 };
 
 /**

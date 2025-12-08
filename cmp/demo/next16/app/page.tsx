@@ -50,6 +50,9 @@ export default function Home() {
             <ServerChild />
           </ClientChildWrapper>
         </div>
+        <div data-lingo-override={{ ru: "Секретная информация" }}>
+          Use data-lingo-override to override translations
+        </div>
         <div>
           Text inserted as an <code>{"{expression}"}</code> is not translated:{" "}
           {text}

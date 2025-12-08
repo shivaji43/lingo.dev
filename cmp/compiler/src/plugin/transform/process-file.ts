@@ -25,6 +25,7 @@ import {
   processNextStaticMetadata,
 } from "./metadata";
 import { traverse } from "./babel-compat";
+import { processOverrideAttributes } from "./parse-override";
 
 type ComponentEntry = {
   name: string;
@@ -390,24 +391,65 @@ function serializeJSXChildren(
   return { text, variables, expressions, components };
 }
 
-/**
- * Transform a JSX element with mixed content into a translation call
- */
-function transformMixedJSXElement(
+function transformVoidElement(
+  node: t.JSXElement,
+  state: VisitorsInternalState,
+) {
+  translateAttributes(node, state);
+}
+
+function processJSXElement(
   path: NodePath<t.JSXElement | t.JSXFragment>,
   state: VisitorsInternalState,
 ): void {
-  if (shouldSkipTranslationForElement(path.node)) {
-    path.skip();
-    return;
-  }
-
   const component = state.componentsStack.at(-1);
   if (!component) return;
 
-  const serialized = serializeJSXChildren(path.node.children, state);
-  const text = serialized.text.trim();
-  if (text.length === 0) return;
+  let type = undefined;
+  let textNode;
+  let textNodeIndex: number | undefined;
+  if (hasMixedContent(path.node)) {
+    type = "mixed";
+  } else {
+    // If there were several text elements we will be in the mixed content above
+    textNodeIndex = path.node.children.findIndex(
+      (child) => child.type === "JSXText" && child.value.trim().length > 0,
+    );
+    if (
+      textNodeIndex !== -1 &&
+      path.node.children.every(
+        (child) =>
+          child.type === "JSXText" ||
+          (child.type === "JSXElement" && isVoidElement(child)),
+      )
+    ) {
+      type = "text";
+      textNode = path.node.children[textNodeIndex] as t.JSXText;
+    }
+  }
+  logger.warn(`Type: ${type}`);
+
+  if (!type) {
+    return;
+  }
+
+  const overrides = processOverrideAttributes(path);
+
+  let text;
+  let args;
+  if (type === "mixed") {
+    const serialized = serializeJSXChildren(path.node.children, state);
+    text = serialized.text.trim();
+    args = {
+      variables: serialized.variables,
+      expressions: serialized.expressions,
+      components: serialized.components,
+    };
+  } else {
+    text = normalizeWhitespace(textNode!.value);
+  }
+
+  if (text.length == 0) return;
 
   const entry = createTranslationEntry(
     "content",
@@ -416,6 +458,7 @@ function transformMixedJSXElement(
     state.filePath,
     path.node.loc?.start.line,
     path.node.loc?.start.column,
+    overrides,
   );
   state.newEntries.push(entry);
 
@@ -423,13 +466,22 @@ function transformMixedJSXElement(
   hashes.push(entry.hash);
   state.componentHashes.set(component.name, hashes);
 
-  const tCall = constructTranslationCall(entry.hash, text, {
-    variables: serialized.variables,
-    expressions: serialized.expressions,
-    components: serialized.components,
-  });
-
-  path.node.children = [tCall];
+  if (type === "mixed") {
+    path.node.children = [constructTranslationCall(entry.hash, text, args)];
+    path.skip();
+  } else {
+    path.node.children = path.node.children.map((it, index) => {
+      if (index === textNodeIndex) {
+        return constructTranslationCall(entry.hash, text);
+      } else if (it.type === "JSXElement") {
+        transformVoidElement(it, state);
+        return it;
+      } else {
+        return it;
+      }
+    });
+    path.skip();
+  }
 }
 
 /**
@@ -490,40 +542,6 @@ function injectHtmlLangAttribute(
 
   // Mark that this component needs locale destructured from the hook
   state.componentsNeedingLocale.add(component.name);
-}
-
-/**
- * Transform a JSX text node into a translation call
- */
-function transformJSXText(
-  path: NodePath<t.JSXText>,
-  state: VisitorsInternalState,
-): void {
-  // These messages are rendered as is, so no ICU escaping is required.
-  const text = normalizeWhitespace(path.node.value);
-  if (text.length == 0) return;
-
-  // This function is not called for the nodes that should be skipped. So we don't have to make the check here.
-
-  // Find the nearest component ancestor
-  const component = state.componentsStack.at(-1);
-  if (!component) return;
-
-  const entry = createTranslationEntry(
-    "content",
-    text,
-    { componentName: component.name },
-    state.filePath,
-    path.node.loc?.start.line,
-    path.node.loc?.start.column,
-  );
-  state.newEntries.push(entry);
-
-  const hashes = state.componentHashes.get(component.name) || [];
-  hashes.push(entry.hash);
-  state.componentHashes.set(component.name, hashes);
-
-  path.replaceWith(constructTranslationCall(entry.hash, text));
 }
 
 /**
@@ -632,11 +650,7 @@ const componentVisitors = {
     // No attributes to translate on the fragment, so we only check if it has mixed content. If it doesn't, go ahead and its children will be checked.
     // We also do not check for translation skip, because fragments are mostly used to make the bare text translatable.
     // But if we want to support <Fragment data-lingo-skip>Text</Fragment> we should do it here.
-    if (hasMixedContent(path.node)) {
-      transformMixedJSXElement(path, this.visitorState);
-      // Skip traversing children since we've already processed them
-      path.skip();
-    }
+    processJSXElement(path, this.visitorState);
   },
 
   // Transform JSX elements with mixed content (text + expressions or nested elements)
@@ -650,17 +664,7 @@ const componentVisitors = {
       path.skip();
       return;
     }
-    if (hasMixedContent(path.node)) {
-      transformMixedJSXElement(path, this.visitorState);
-      // Skip traversing children since we've already processed them
-      path.skip();
-    }
-  },
-
-  // Transform JSX text nodes
-  // This only runs for simple text nodes, both inside fragments and elements. Mixed content is handled separately.
-  JSXText(path: NodePath<t.JSXText>) {
-    transformJSXText(path, this.visitorState);
+    processJSXElement(path, this.visitorState);
   },
 } satisfies TraverseOptions<{ visitorState: VisitorsInternalState }>;
 
