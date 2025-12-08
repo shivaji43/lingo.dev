@@ -22,7 +22,7 @@ export default async function devServerLoader(
   const startPort = config.dev.serverStartPort;
 
   let server;
-  if (!isDev) {
+  if (isDev) {
     if (!serverPromise) {
       serverPromise = startOrGetTranslationServer({
         startPort,
