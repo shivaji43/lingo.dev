@@ -176,7 +176,7 @@ export async function processBuildTranslations(
   } finally {
     if (translationServer) {
       await translationServer.stop();
-      logger.info("🛑 Translation server stopped");
+      logger.info("✅ Translation server stopped");
     }
   }
 }
