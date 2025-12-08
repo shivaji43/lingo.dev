@@ -111,16 +111,22 @@ export async function processBuildTranslations(
       config,
     });
 
+    // When pluralization is enabled, we need to generate the source locale file too
+    // because pluralization modifies the sourceText
+    const needsSourceLocale = config.pluralization?.enabled !== false;
+    const allLocales = needsSourceLocale
+      ? [config.sourceLocale, ...config.targetLocales]
+      : config.targetLocales;
+
     logger.info(
-      `Processing translations for ${config.targetLocales.length} locale(s)...`,
+      `Processing translations for ${allLocales.length} locale(s)${needsSourceLocale ? " (including source locale for pluralization)" : ""}...`,
     );
 
     const stats: BuildTranslationResult["stats"] = {};
     const errors: Array<{ locale: string; error: string }> = [];
 
     // Translate all locales in parallel
-    // TODO (AleksandrSl 07/12/2025): We have to include the sourceLocale too.
-    const localePromises = config.targetLocales.map(async (locale) => {
+    const localePromises = allLocales.map(async (locale) => {
       logger.info(`Translating to ${locale}...`);
 
       const result = await translationServer!.translateAll(locale);
@@ -191,7 +197,13 @@ async function validateCache(
     total: number;
   }> = [];
 
-  for (const locale of config.targetLocales) {
+  // Include source locale if pluralization is enabled
+  const needsSourceLocale = config.pluralization?.enabled !== false;
+  const allLocales = needsSourceLocale
+    ? [config.sourceLocale, ...config.targetLocales]
+    : config.targetLocales;
+
+  for (const locale of allLocales) {
     const cacheFilePath = getCachePath(config, locale);
 
     try {
@@ -236,7 +248,13 @@ function buildCacheStats(
   const totalEntries = Object.keys(metadata.entries).length;
   const stats: BuildTranslationResult["stats"] = {};
 
-  for (const locale of config.targetLocales) {
+  // Include source locale if pluralization is enabled
+  const needsSourceLocale = config.pluralization?.enabled !== false;
+  const allLocales = needsSourceLocale
+    ? [config.sourceLocale, ...config.targetLocales]
+    : config.targetLocales;
+
+  for (const locale of allLocales) {
     stats[locale] = {
       total: totalEntries,
       translated: totalEntries, // Assumed complete if validation passed
@@ -255,7 +273,13 @@ async function copyStaticFiles(
 
   await fs.mkdir(publicOutputPath, { recursive: true });
 
-  for (const locale of config.targetLocales) {
+  // Include source locale if pluralization is enabled
+  const needsSourceLocale = config.pluralization?.enabled !== false;
+  const allLocales = needsSourceLocale
+    ? [config.sourceLocale, ...config.targetLocales]
+    : config.targetLocales;
+
+  for (const locale of allLocales) {
     const cacheFilePath = getCachePath(config, locale);
     const publicFilePath = path.join(publicOutputPath, `${locale}.json`);
 
