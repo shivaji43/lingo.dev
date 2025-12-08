@@ -238,6 +238,10 @@ function TranslationProvider__Prod({
     }
   }, []); // Only run on mount
 
+  useEffect(() => {
+    setTranslations(initialTranslations);
+  }, [initialTranslations]);
+
   /**
    * Change locale
    * - For Next.js SSR: triggers server re-render via router.refresh()
