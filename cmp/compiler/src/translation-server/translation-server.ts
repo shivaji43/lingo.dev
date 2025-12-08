@@ -14,7 +14,7 @@
 import http from "http";
 import type { Socket } from "net";
 import { URL } from "url";
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocket, WebSocketServer } from "ws";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
 import { getLogger } from "./logger";
 import {
@@ -62,6 +62,12 @@ export class TranslationServer {
   private connections: Set<Socket> = new Set();
   private wss: WebSocketServer | null = null;
   private wsClients: Set<WebSocket> = new Set();
+
+  // Translation activity tracking for "busy" notifications
+  private activeTranslations = 0;
+  private isBusy = false;
+  private busyTimeout: NodeJS.Timeout | null = null;
+  private readonly BUSY_DEBOUNCE_MS = 500; // Time after last translation to send "idle" event
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
@@ -225,6 +231,12 @@ export class TranslationServer {
     if (!this.server) {
       this.logger.debug("Translation server is not running. Nothing to stop.");
       return;
+    }
+
+    // Clear any pending busy timeout
+    if (this.busyTimeout) {
+      clearTimeout(this.busyTimeout);
+      this.busyTimeout = null;
     }
 
     // Close all WebSocket connections
@@ -449,6 +461,57 @@ export class TranslationServer {
   }
 
   /**
+   * Mark translation activity start - emits busy event if not already busy
+   */
+  private startTranslationActivity(): void {
+    this.activeTranslations++;
+
+    // Clear any pending idle timeout
+    if (this.busyTimeout) {
+      clearTimeout(this.busyTimeout);
+      this.busyTimeout = null;
+    }
+
+    // Emit busy event if this is the first active translation
+    if (!this.isBusy && this.activeTranslations > 0) {
+      this.isBusy = true;
+      this.broadcast(
+        createEvent("server:busy", {
+          activeTranslations: this.activeTranslations,
+        }),
+      );
+      this.logger.debug(
+        `[BUSY] Server is now busy (${this.activeTranslations} active)`,
+      );
+    }
+  }
+
+  /**
+   * Mark translation activity end - emits idle event after debounce period
+   */
+  private endTranslationActivity(): void {
+    this.activeTranslations = Math.max(0, this.activeTranslations - 1);
+
+    // If no more active translations, schedule idle notification
+    if (this.activeTranslations === 0 && this.isBusy) {
+      // Clear any existing timeout
+      if (this.busyTimeout) {
+        clearTimeout(this.busyTimeout);
+      }
+
+      // Wait for debounce period before sending idle event
+      // This prevents rapid busy->idle->busy cycles when translations come in quick succession
+      this.busyTimeout = setTimeout(() => {
+        if (this.activeTranslations === 0) {
+          this.isBusy = false;
+          this.broadcast(createEvent("server:idle", {}));
+          this.logger.debug("[IDLE] Server is now idle");
+        }
+      }, this.BUSY_DEBOUNCE_MS);
+    }
+  }
+
+  /**
    * Check if a given URL is running our translation server by calling the health endpoint
    */
   private async checkIfTranslationServer(url: string): Promise<boolean> {
@@ -619,25 +682,33 @@ export class TranslationServer {
       this.logger.info(`🔄 Translating ${hashes.length} hashes to ${locale}`);
       this.logger.debug(`🔄 Hashes: ${hashes.join(", ")}`);
 
-      // Translate using the stored service
-      const result = await this.translationService.translate(
-        locale,
-        this.metadata,
-        hashes,
-      );
+      // Mark translation activity start
+      this.startTranslationActivity();
 
-      // Return successful response
-      res.writeHead(200, {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-cache",
-      });
-      res.end(
-        JSON.stringify({
+      try {
+        // Translate using the stored service
+        const result = await this.translationService.translate(
           locale,
-          translations: result.translations,
-          errors: result.errors,
-        }),
-      );
+          this.metadata,
+          hashes,
+        );
+
+        // Return successful response
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache",
+        });
+        res.end(
+          JSON.stringify({
+            locale,
+            translations: result.translations,
+            errors: result.errors,
+          }),
+        );
+      } finally {
+        // Mark translation activity end
+        this.endTranslationActivity();
+      }
     } catch (error) {
       this.logger.error(
         `Error getting batch translations for ${locale}:`,
