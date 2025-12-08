@@ -101,7 +101,7 @@ class LingoDevWidget extends HTMLElement {
         border-radius: 8px;
         padding: 8px 12px;
         background: rgba(0, 0, 0, 0.8);
-        box-shadow: 0 0 0 1px #171717, inset 0 0 0 1px rgba(0, 0, 0, 0.24), 0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+        box-shadow: 0 0 0 1px #373737a, inset 0 0 0 1px rgba(0, 0, 0, 0.24), 0px 16px 32px -8px rgba(0, 0, 0, 0.24);
         backdrop-filter: blur(48px);
       }
 
@@ -115,23 +115,6 @@ class LingoDevWidget extends HTMLElement {
         display: flex;
         align-items: center;
         gap: 8px;
-      }
-
-      .loading {
-      }
-
-      .idle {
-        display: flex;
-        align-items: center;
-        padding: 6px 10px;
-        background-color: rgba(0, 0, 0, 0.7);
-        color: white;
-        border-radius: 6px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(8px);
-        opacity: 0.7;
-        transition: opacity 0.2s ease-in-out;
-        cursor: default;
       }
 
       .spinner {
