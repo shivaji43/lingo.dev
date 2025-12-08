@@ -12,7 +12,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
 import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
-import { serverUrl, cacheDir } from "@lingo.dev/compiler/dev-config";
+import { cacheDir, serverUrl } from "@lingo.dev/compiler/dev-config";
 
 /**
  * Configuration for translation fetching
@@ -112,7 +112,14 @@ export async function fetchTranslationsOnServer(
     logger.debug(
       `Server. Fetching translations for ${locale} and ${hashes.join(", ")} from dev server (${serverUrl})`,
     );
-    return await fetchFromDevServer(locale, hashes, serverUrl);
+    try {
+      return await fetchFromDevServer(locale, hashes, serverUrl);
+    } catch (error) {
+      logger.warn(
+        `Failed to fetch translations from translation server: ${error}.`,
+      );
+      return {};
+    }
   }
 
   logger.debug(`Reading translations for ${locale} from filesystem`);

@@ -1,7 +1,5 @@
 "use client";
 
-// TODO (AleksandrSl 21/11/2025): I think there should be a better type
-import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import {
   createContext,
   type ReactNode,
@@ -105,7 +103,7 @@ export interface TranslationProviderProps {
    * If provided, calls router.refresh() after locale change
    * This ensures Server Components re-render with new locale
    */
-  router?: AppRouterInstance;
+  router?: { refresh: () => void };
 
   /**
    * Development widget configuration
@@ -303,16 +301,10 @@ function TranslationProvider__Dev({
     useState<Record<string, string>>(initialTranslations);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Track registered hashes from components (updated every render)
-  const registeredHashesRef = useRef<Set<string>>(new Set());
-
-  // Track all hashes that have been seen (for hot reload detection)
   const [allSeenHashes, setAllSeenHashes] = useState<Set<string>>(new Set());
-
-  // Track which hashes are pending translation request
+  const registeredHashesRef = useRef<Set<string>>(new Set());
   const pendingHashesRef = useRef<Set<string>>(new Set());
-
-  // Batch timer reference
+  const erroredHashesRef = useRef<Set<string>>(new Set());
   const batchTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Use ref to track translations to avoid stale closures
@@ -379,9 +371,12 @@ function TranslationProvider__Dev({
       [...allSeenHashes.values()],
       [...pendingHashesRef.current.values()],
     );
-    logger.debug("translationsRef.current: ", translations);
     for (const hash of allSeenHashes) {
-      if (!translations[hash] && !pendingHashesRef.current.has(hash)) {
+      if (
+        !translations[hash] &&
+        !pendingHashesRef.current.has(hash) &&
+        !erroredHashesRef.current.has(hash)
+      ) {
         missingHashes.push(hash);
         pendingHashesRef.current.add(hash);
       }
@@ -425,10 +420,13 @@ function TranslationProvider__Dev({
           registeredHashesRef.current.add(hash);
         }
       } catch (error) {
-        logger.error("Failed to fetch translations:", error);
+        logger.warn(
+          `Failed to fetch translations from translation server: ${error}.`,
+        );
         // Remove from pending so they can be retried
         for (const hash of hashesToFetch) {
           pendingHashesRef.current.delete(hash);
+          erroredHashesRef.current.add(hash);
         }
       } finally {
         setIsLoading(false);
@@ -470,6 +468,7 @@ function TranslationProvider__Dev({
       try {
         logger.info(`Fetching translations for locale: ${newLocale}`);
 
+        // TODO (AleksandrSl 08/12/2025): We should be fetching the existing cached translations here.
         const translatedDict = await fetchTranslations(
           newLocale,
           [],

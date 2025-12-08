@@ -17,11 +17,14 @@ export default async function devServerLoader(
   logger.debug("Running devServerLoader");
   const callback = this.async();
   const isDev = process.env.NODE_ENV === "development";
+  if (!isDev) {
+    return;
+  }
 
   const config: LingoConfig = this.getOptions();
   const startPort = config.dev.serverStartPort;
 
-  if (isDev && !serverPromise) {
+  if (!serverPromise) {
     serverPromise = startOrGetTranslationServer({
       startPort,
       onError: (err) => {
@@ -36,7 +39,7 @@ export default async function devServerLoader(
 
   // Wait for server with timeout to prevent compilation from hanging
   const server = await withTimeout(
-    serverPromise!,
+    serverPromise,
     DEFAULT_TIMEOUTS.SERVER_START,
     "Translation server startup",
   );
