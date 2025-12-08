@@ -65,7 +65,6 @@ describe("parseXmlFromResponseText", () => {
       products: "",
       prices: [1.99, 9.99],
     };
-    // TODO (AleksandrSl 06/12/2025): Why tests parses the producs incorrectly here?
     expect(parseXmlFromResponseText(original)).toEqual(expected);
   });
 

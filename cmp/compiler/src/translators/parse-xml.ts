@@ -62,6 +62,11 @@ function fromGenericNode(tag: string, data: any): any {
     if (data && typeof data === "object" && "#text" in data) {
       return data["#text"] ?? "";
     }
+    // For self-closing tags like <value key="x" />, data is { key: "x" }
+    // We should return empty string, not the attributes object
+    if (data && typeof data === "object") {
+      return "";
+    }
     return data ?? "";
   }
 

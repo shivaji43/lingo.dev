@@ -1,8 +1,9 @@
 /**
  * @vitest-environment node
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { assert, beforeEach, describe, expect, it, vi } from "vitest";
 import React from "react";
+import { logger } from "../../utils/logger";
 
 // Mock Next.js cookies
 vi.mock("next/headers", () => ({
@@ -56,8 +57,10 @@ describe("Server-side rich text rendering", () => {
       a0: (chunks) => <a href="/home">{chunks}</a>,
     });
 
-    // Should return React element
-    expect(React.isValidElement(result)).toBe(true);
+    assert.isOk(Array.isArray(result));
+    result.forEach((item) => {
+      expect(React.isValidElement(item)).toBe(true);
+    });
   });
 
   it("should render mixed content with variables and components", async () => {
@@ -77,7 +80,10 @@ describe("Server-side rich text rendering", () => {
       },
     );
 
-    expect(React.isValidElement(result)).toBe(true);
+    assert.isOk(Array.isArray(result));
+    result.forEach((item) => {
+      expect(React.isValidElement(item)).toBe(true);
+    });
   });
 
   it("should handle the page.tsx example case", async () => {
@@ -104,6 +110,9 @@ describe("Server-side rich text rendering", () => {
       },
     );
 
-    expect(React.isValidElement(result)).toBe(true);
+    assert.isOk(Array.isArray(result));
+    result.forEach((item) => {
+      expect(React.isValidElement(item)).toBe(true);
+    });
   });
 });
