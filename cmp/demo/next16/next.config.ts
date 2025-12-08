@@ -13,4 +13,5 @@ export default withLingo(nextConfig, {
   dev: {
     usePseudotranslator: true,
   },
+  buildMode: "cache-only",
 });

@@ -18,6 +18,7 @@ export default defineConfig({
       targetLocales: ["es", "de", "fr"],
       useDirective: true, // Set to true to require 'use i18n' directive
       models: "lingo.dev",
+      buildMode: "cache-only",
       dev: {
         usePseudotranslator: true,
       },
