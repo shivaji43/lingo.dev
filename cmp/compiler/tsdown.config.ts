@@ -16,8 +16,6 @@ export default defineConfig({
     "src/plugin/next.ts",
     "src/plugin/vite.ts",
     "src/plugin/webpack.ts",
-    "src/plugin/rollup.ts",
-    "src/plugin/esbuild.ts",
     "src/plugin/turbopack-loader.ts",
     "src/plugin/dev-server-loader.ts",
     "src/plugin/turbopack-locale-server-loader.ts",
@@ -25,9 +23,9 @@ export default defineConfig({
   ],
   external: [
     // Make external so plugins can resolve them dynamically
-    /^@lingo.dev\/compiler\/dev-config/,
-    /^@lingo.dev\/compiler\/locale-resolver/,
-    /^@lingo.dev\/compiler\/locale\//,
+    /^@lingo\.dev\/compiler\/dev-config/,
+    /^@lingo\.dev\/compiler\/locale-resolver/,
+    /^@lingo\.dev\/compiler\/locale\//,
     "unplugin", // Keep unplugin external so webpack can resolve its internal loaders
   ],
   outDir: "build",

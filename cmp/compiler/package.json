@@ -86,16 +86,6 @@
       "import": "./build/plugin/webpack.mjs",
       "require": "./build/plugin/webpack.cjs"
     },
-    "./rollup": {
-      "types": "./build/plugin/rollup.d.ts",
-      "import": "./build/plugin/rollup.mjs",
-      "require": "./build/plugin/rollup.cjs"
-    },
-    "./esbuild": {
-      "types": "./build/plugin/esbuild.d.ts",
-      "import": "./build/plugin/esbuild.mjs",
-      "require": "./build/plugin/esbuild.cjs"
-    },
     "./turbopack-loader": {
       "types": "./build/plugin/turbopack-loader.d.ts",
       "import": "./build/plugin/turbopack-loader.mjs",

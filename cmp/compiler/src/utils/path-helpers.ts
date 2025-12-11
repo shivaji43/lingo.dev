@@ -52,18 +52,7 @@ export function getMetadataPath(
   return path.join(rootPath, config.lingoDir, filename);
 }
 
-/**
- * Generate a unique build metadata filename with timestamp
- *
- * @returns Filename like "metadata.build-1701234567890.json"
- *
- * @example
- * ```typescript
- * generateBuildMetadataFilename()
- * // -> "metadata.build-1701234567890.json"
- * ```
- */
-export function generateBuildMetadataFilename(): string {
+export function getUniqueMetadataFileName(): string {
   return `metadata.build-${Date.now()}.json`;
 }
 

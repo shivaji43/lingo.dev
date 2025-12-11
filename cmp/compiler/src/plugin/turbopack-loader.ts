@@ -1,7 +1,7 @@
 import type { LingoConfig } from "../types";
-import { loadMetadata, saveMetadata, upsertEntries } from "../metadata/manager";
 import { shouldTransformFile, transformComponent } from "./transform";
 import { logger } from "../utils/logger";
+import { MetadataManager } from "../metadata/manager";
 
 /**
  * Turbopack/Webpack loader for automatic translation
@@ -20,17 +20,19 @@ export default async function lingoCompilerTurbopackLoader(
     throw new Error("This module must be run as a loader");
   }
   const callback = this.async();
-  const isDev = process.env.NODE_ENV === "development";
 
   try {
-    const config: LingoConfig & { buildMetadataFilename: string } =
+    const config: LingoConfig & { metadataFilePath: string } =
       this.getOptions();
 
+    const metadataManager = new MetadataManager(config.metadataFilePath);
     // TODO (AleksandrSl 07/12/2025): Remove too I think
     // Check if this file should be transformed
     if (!shouldTransformFile(this.resourcePath, config)) {
       return callback(null, source);
     }
+
+    logger.debug(`[Turbopack Loader] Processing: ${this.resourcePath}`);
 
     // Transform the component
     const result = transformComponent({
@@ -44,25 +46,15 @@ export default async function lingoCompilerTurbopackLoader(
       return callback(null, source);
     }
 
-    // Load current metadata
-    // In build mode, use timestamped metadata file; in dev mode, use default
-    const metadataFilename = isDev ? undefined : config.buildMetadataFilename;
-    const metadata = await loadMetadata(config, metadataFilename);
     // Update metadata with new entries
     if (result.newEntries && result.newEntries.length > 0) {
-      const updatedMetadata = upsertEntries(metadata, result.newEntries);
-      await saveMetadata(config, updatedMetadata, metadataFilename);
+      await metadataManager.saveMetadataWithEntries(result.newEntries);
 
-      // Log new translations discovered (in dev mode)
-      // Note: In production, translations are generated after build via runAfterProductionCompile
-      if (isDev) {
-        logger.debug(
-          `Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
-        );
-      }
+      logger.debug(
+        `[Turbopack Loader] Found ${result.newEntries.length} translatable text(s) in ${this.resourcePath}`,
+      );
     }
 
-    // Return transformed code
     callback(null, result.code, result.map);
   } catch (error) {
     logger.error(`Compiler failed for ${this.resourcePath}:`);

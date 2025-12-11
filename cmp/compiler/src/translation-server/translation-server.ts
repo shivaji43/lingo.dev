@@ -346,7 +346,7 @@ export class TranslationServer {
    */
   async reloadMetadata(): Promise<void> {
     try {
-      this.metadata = await loadMetadata(this.config);
+      this.metadata = await loadMetadata(this.config.metadataFilePath);
       this.logger.debug(
         `Reloaded metadata: ${Object.keys(this.metadata.entries).length} entries`,
       );

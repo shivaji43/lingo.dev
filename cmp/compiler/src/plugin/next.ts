@@ -4,23 +4,23 @@ import type {
   TurbopackOptions,
   WebpackConfigContext,
 } from "next/dist/server/config-shared";
-
-// Removed getLocaleResolverPath - now using virtual modules in unplugin
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import { lingoUnplugin } from "./unplugin";
 import { useI18nRegex } from "./transform/use-i18n";
 import {
-  generateBuildMetadataFilename,
+  getUniqueMetadataFileName,
   getMetadataPath,
 } from "../utils/path-helpers";
-import * as fs from "fs/promises";
+import { processBuildTranslations } from "./build-translator";
+import { cleanup } from "./cleanup";
+import {
+  startTranslationServer,
+  TranslationServer,
+} from "../translation-server";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
-
-// Track build metadata filename per config (use WeakMap for memory safety)
-const buildMetadataFilenames = new WeakMap<PartialLingoConfig, string>();
 
 /**
  * Check if Next.js supports stable turbopack config (Next.js 16+)
@@ -49,121 +49,175 @@ function getTurbopackConfig(userConfig: NextConfig): TurbopackOptions {
  */
 function mergeTurbopackRules(
   existingRules: Record<string, any>,
-  newRule: { pattern: string; config: any },
+  newRules: { pattern: string; config: any }[],
 ): Record<string, any> {
-  // Create a shallow copy to avoid mutation
   const mergedRules = { ...existingRules };
 
-  const { pattern, config } = newRule;
+  for (const newRule of newRules) {
+    const { pattern, config } = newRule;
 
-  if (mergedRules[pattern]) {
-    if (Array.isArray(mergedRules[pattern])) {
-      mergedRules[pattern] = [...mergedRules[pattern], config];
+    if (mergedRules[pattern]) {
+      if (Array.isArray(mergedRules[pattern])) {
+        mergedRules[pattern] = [...mergedRules[pattern], config];
+      } else {
+        mergedRules[pattern] = [mergedRules[pattern], config];
+      }
     } else {
-      mergedRules[pattern] = [mergedRules[pattern], config];
+      mergedRules[pattern] = config;
     }
-  } else {
-    mergedRules[pattern] = config;
   }
 
   return mergedRules;
 }
 
-/**
- * Build the complete Lingo config object
- */
-function buildLingoConfig(
-  userNextConfig: NextConfig,
+// Next read config several times. Once in the main runner,
+// and ~ twice in the buil workers which cannot get the config otherwise, because it's not serializable.
+// Workers start in separate processed by get most of the env form the main loader
+function isMainRunner() {
+  return !process.env.NEXT_PRIVATE_BUILD_WORKER && !process.env.IS_NEXT_WORKER;
+}
+
+export async function withLingo(
+  nextConfig: NextConfig = {},
   lingoOptions: LingoNextPluginOptions,
-): NextConfig {
+): Promise<NextConfig> {
   const lingoConfig = createLingoConfig(lingoOptions);
+  let metadataFilePath = process.env.LINGO_BUILD_METADATA_FILE_NAME;
+  const isDev = process.env.NODE_ENV === "development";
+  let translationServer: TranslationServer | undefined;
 
-  // Generate timestamped metadata filename for build mode
-  const buildMetadataFilename = generateBuildMetadataFilename();
-  buildMetadataFilenames.set(lingoOptions, buildMetadataFilename);
+  logger.info(
+    `Initializing Lingo.dev compiler. Is dev mode: ${isDev}. Is main runner: ${isMainRunner()}`,
+  );
 
-  // Prepare Turbopack loader configuration
-  const loaderConfig = {
-    loader: "@lingo.dev/compiler/turbopack-loader",
-    options: {
-      sourceRoot: lingoConfig.sourceRoot,
-      lingoDir: lingoConfig.lingoDir,
-      sourceLocale: lingoConfig.sourceLocale,
-      useDirective: lingoConfig.useDirective,
-      buildMetadataFilename,
-    },
-  };
-
-  // Build rule config with optional content condition for useDirective
-  const lingoRuleConfig: any = { loaders: [loaderConfig] };
-
-  // If useDirective is enabled, add content condition to skip files without "use i18n"
-  // This is more efficient than checking in the loader itself
-  if (lingoConfig.useDirective) {
-    lingoRuleConfig.condition = {
-      content: useI18nRegex,
+  if (isMainRunner()) {
+    metadataFilePath = getMetadataPath(
+      lingoConfig,
+      getUniqueMetadataFileName(),
+    );
+    if (isDev && !lingoConfig.dev.translationServerUrl) {
+      translationServer = await startTranslationServer({
+        startPort: lingoConfig.dev.translationServerStartPort,
+        onError: (err) => {
+          logger.error("Translation server error:", err);
+        },
+        config: { ...lingoConfig, metadataFilePath },
+      });
+    }
+    // Setup cleanup handlers for various exit scenarios
+    let isCleaningUp = false;
+    const doCleanup = async () => {
+      if (isCleaningUp) return;
+      isCleaningUp = true;
+      logger.info("🛑 Shutting down Lingo.dev compiler...");
+      try {
+        await cleanup(translationServer, metadataFilePath!);
+        logger.info("✅ Cleanup completed successfully");
+      } catch (error) {
+        logger.error("❌ Cleanup failed:", error);
+      }
     };
+
+    // Handle graceful shutdown signals (Ctrl+C, kill)
+    // IMPORTANT: Don't call process.exit() immediately - wait for cleanup!
+    process.on("SIGINT", () => {
+      logger.info("Received SIGINT (Ctrl+C)");
+      doCleanup().then(() => process.exit(0));
+    });
+
+    process.on("SIGTERM", () => {
+      logger.info("Received SIGTERM");
+      doCleanup().then(() => process.exit(0));
+    });
+
+    // Windows-specific: Ctrl+Break
+    process.on("SIGBREAK", () => {
+      logger.info("Received SIGBREAK (Ctrl+Break)");
+      doCleanup().then(() => process.exit(0));
+    });
+    process.env.LINGO_BUILD_METADATA_FILE_NAME = metadataFilePath;
   }
 
-  const existingTurbopackConfig = getTurbopackConfig(userNextConfig);
-  let mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, {
-    pattern: "*.{tsx,jsx}",
-    config: lingoRuleConfig,
-  });
+  if (!metadataFilePath) {
+    logger.error("Failed to create metadata file");
+    process.exit(1);
+  }
 
-  // Add dev-config loader
-  mergedRules = mergeTurbopackRules(mergedRules, {
-    pattern: "**/dev-config.mjs",
-    config: {
-      loaders: [
-        {
-          loader: "@lingo.dev/compiler/dev-server-loader",
-          options: {
-            sourceRoot: lingoConfig.sourceRoot,
-            lingoDir: lingoConfig.lingoDir,
-            dev: lingoConfig.dev,
-            sourceLocale: lingoConfig.sourceLocale,
-          },
+  const existingTurbopackConfig = getTurbopackConfig(nextConfig);
+  let mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, [
+    {
+      pattern: "*.{tsx,jsx}",
+      config: {
+        condition: {
+          content: lingoConfig.useDirective ? useI18nRegex : undefined,
         },
-      ],
-    },
-  });
-
-  // Add locale/server loader
-  mergedRules = mergeTurbopackRules(mergedRules, {
-    pattern: "**/locale/server.mjs",
-    config: {
-      loaders: [
-        {
-          loader: "@lingo.dev/compiler/turbopack-locale-server-loader",
-          options: {
-            sourceRoot: lingoConfig.sourceRoot,
-            lingoDir: lingoConfig.lingoDir,
-            sourceLocale: lingoConfig.sourceLocale,
-            cookieConfig: lingoConfig.cookieConfig,
+        loaders: [
+          {
+            loader: "@lingo.dev/compiler/turbopack-loader",
+            options: {
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              sourceLocale: lingoConfig.sourceLocale,
+              useDirective: lingoConfig.useDirective,
+              metadataFilePath,
+            },
           },
-        },
-      ],
+        ],
+      },
     },
-  });
-
-  // Add locale/client loader (includes both getClientLocale and persistLocale)
-  mergedRules = mergeTurbopackRules(mergedRules, {
-    pattern: "**/locale/client.mjs",
-    config: {
-      loaders: [
-        {
-          loader: "@lingo.dev/compiler/turbopack-locale-client-loader",
-          options: {
-            sourceRoot: lingoConfig.sourceRoot,
-            lingoDir: lingoConfig.lingoDir,
-            sourceLocale: lingoConfig.sourceLocale,
-            cookieConfig: lingoConfig.cookieConfig,
+    {
+      pattern: "**/dev-config.mjs",
+      config: {
+        loaders: [
+          {
+            loader: "@lingo.dev/compiler/dev-server-loader",
+            options: {
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              dev: {
+                translationServerUrl: translationServer?.getUrl(),
+                ...lingoConfig.dev,
+              },
+              sourceLocale: lingoConfig.sourceLocale,
+              metadataFilePath,
+            },
           },
-        },
-      ],
+        ],
+      },
     },
-  });
+    {
+      pattern: "**/locale/server.mjs",
+      config: {
+        loaders: [
+          {
+            loader: "@lingo.dev/compiler/turbopack-locale-server-loader",
+            options: {
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              sourceLocale: lingoConfig.sourceLocale,
+              cookieConfig: lingoConfig.cookieConfig,
+            },
+          },
+        ],
+      },
+    },
+    {
+      pattern: "**/locale/client.mjs",
+      config: {
+        loaders: [
+          {
+            loader: "@lingo.dev/compiler/turbopack-locale-client-loader",
+            options: {
+              sourceRoot: lingoConfig.sourceRoot,
+              lingoDir: lingoConfig.lingoDir,
+              sourceLocale: lingoConfig.sourceLocale,
+              cookieConfig: lingoConfig.cookieConfig,
+            },
+          },
+        ],
+      },
+    },
+  ]);
 
   const existingResolveAlias = existingTurbopackConfig.resolveAlias;
   const mergedResolveAlias = {
@@ -171,12 +225,11 @@ function buildLingoConfig(
     // TODO (AleksandrSl 08/12/2025): Describe what have to be done to support custom resolvers
   };
 
-  // Build Turbopack config (handles Next.js 16+ vs <16)
   let turbopackConfig: Partial<NextConfig>;
   if (hasStableTurboConfig()) {
     turbopackConfig = {
       turbopack: {
-        ...userNextConfig.turbopack, // Preserve existing turbopack options
+        ...nextConfig.turbopack, // Preserve existing turbopack options
         rules: mergedRules,
         resolveAlias: mergedResolveAlias,
       },
@@ -184,11 +237,11 @@ function buildLingoConfig(
   } else {
     turbopackConfig = {
       experimental: {
-        ...userNextConfig.experimental, // Preserve ALL experimental options
+        ...nextConfig.experimental, // Preserve ALL experimental options
         // @ts-expect-error - turbo for Next.js <16
         turbo: {
           // @ts-expect-error - turbo for Next.js <16
-          ...userNextConfig.experimental?.turbo, // Preserve existing turbo options
+          ...nextConfig.experimental?.turbo, // Preserve existing turbo options
           rules: mergedRules,
           resolveAlias: mergedResolveAlias,
         },
@@ -203,43 +256,24 @@ function buildLingoConfig(
     distDir: string;
     projectDir: string;
   }) => {
-    // Call user's hook first if it exists
-    if (
-      typeof userNextConfig.compiler?.runAfterProductionCompile === "function"
-    ) {
-      await userNextConfig.compiler.runAfterProductionCompile({
+    if (typeof nextConfig.compiler?.runAfterProductionCompile === "function") {
+      await nextConfig.compiler.runAfterProductionCompile({
         distDir,
         projectDir,
       });
     }
 
     logger.info("Running post-build translation generation...");
-    logger.info(
-      `Build mode: Using temporary metadata file: ${buildMetadataFilename}`,
-    );
+    logger.info(`Build mode: Using metadata file: ${metadataFilePath}`);
 
     try {
-      const { processBuildTranslations } = await import("./build-translator");
-
       await processBuildTranslations({
         config: lingoConfig,
         publicOutputPath: distDir,
-        metadataFilename: buildMetadataFilename,
+        metadataFilePath,
       });
 
-      // Cleanup: Remove temporary build metadata file
-      const metadataPath = getMetadataPath(lingoConfig, buildMetadataFilename);
-      try {
-        await fs.unlink(metadataPath);
-        logger.info(
-          `🧹 Cleaned up temporary metadata file: ${buildMetadataFilename}`,
-        );
-      } catch (error: any) {
-        // Ignore if file doesn't exist
-        if (error.code !== "ENOENT") {
-          logger.warn(`Failed to cleanup metadata file: ${error.message}`);
-        }
-      }
+      await cleanup(undefined, metadataFilePath);
     } catch (error) {
       logger.error("Translation generation failed:", error);
       throw error;
@@ -252,54 +286,35 @@ function buildLingoConfig(
   ) => {
     // Apply user's webpack config first if it exists
     let modifiedConfig = config;
-    if (typeof userNextConfig.webpack === "function") {
-      modifiedConfig = userNextConfig.webpack(config, options);
+    if (typeof nextConfig.webpack === "function") {
+      modifiedConfig = nextConfig.webpack(config, options);
     }
 
-    modifiedConfig.plugins = modifiedConfig.plugins || [];
-    modifiedConfig.plugins.push(lingoUnplugin.webpack(lingoOptions));
+    modifiedConfig.plugins ??= [];
+    modifiedConfig.plugins.unshift(
+      lingoUnplugin.webpack({
+        ...lingoConfig,
+        dev: {
+          translationServerUrl: translationServer?.getUrl(),
+          ...lingoConfig.dev,
+        },
+      }),
+    );
+
+    logger.info("Adding Lingo.dev loader rules to webpack config");
 
     return modifiedConfig;
   };
 
-  const finalConfig = {
-    ...userNextConfig,
+  return {
+    ...nextConfig,
     ...turbopackConfig,
     compiler: {
-      ...userNextConfig.compiler,
+      ...nextConfig.compiler,
       runAfterProductionCompile,
     },
     webpack,
   };
-
-  // Attach Lingo config for CLI extraction
-  // @ts-expect-error - Internal property for CLI access
-  finalConfig._lingoConfig = lingoOptions;
-
-  return finalConfig;
-}
-
-/**
- * Next.js plugin that automatically adds the Lingo loader
- *
- * @example
- * // Simple usage
- * module.exports = withLingo({ reactStrictMode: true }, lingoOptions);
- *
- * @example
- * // With Next.js phase
- * module.exports = async (phase, { defaultConfig }) =>
- *   withLingo({ ...defaultConfig, custom: phase }, lingoOptions);
- *
- * @example
- * // Chained with other plugins
- * module.exports = withOtherPlugin(withLingo(baseConfig, lingoOptions));
- */
-export function withLingo(
-  nextConfig: NextConfig = {},
-  lingoOptions: LingoNextPluginOptions,
-): NextConfig {
-  return buildLingoConfig(nextConfig, lingoOptions);
 }
 
 // Also export TypeScript types

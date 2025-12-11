@@ -20,18 +20,8 @@ import { loadMetadata } from "../metadata/manager";
 
 export interface BuildTranslationOptions {
   config: LingoConfig;
-
-  /**
-   * Output directory for static translation files
-   * If not provided, files won't be generated
-   */
-  publicOutputPath?: string;
-
-  /**
-   * Custom metadata filename for build mode
-   * If not provided, uses default metadata.json
-   */
-  metadataFilename?: string;
+  publicOutputPath: string;
+  metadataFilePath: string;
 }
 
 export interface BuildTranslationResult {
@@ -66,7 +56,7 @@ export interface BuildTranslationResult {
 export async function processBuildTranslations(
   options: BuildTranslationOptions,
 ): Promise<BuildTranslationResult> {
-  const { config, publicOutputPath, metadataFilename } = options;
+  const { config, publicOutputPath, metadataFilePath } = options;
 
   // Determine build mode (env var > options > config)
   const buildMode =
@@ -75,7 +65,11 @@ export async function processBuildTranslations(
 
   logger.info(`🌍 Build mode: ${buildMode}`);
 
-  const metadata = await loadMetadata(config, metadataFilename);
+  if (metadataFilePath) {
+    logger.info(`📋 Using build metadata file: ${metadataFilePath}`);
+  }
+
+  const metadata = await loadMetadata(metadataFilePath);
 
   if (!metadata || Object.keys(metadata.entries).length === 0) {
     logger.info("No translations to process (metadata is empty)");
@@ -110,11 +104,11 @@ export async function processBuildTranslations(
 
   try {
     translationServer = await startTranslationServer({
-      startPort: config.dev.serverStartPort,
+      startPort: config.dev.translationServerStartPort,
       onError: (err) => {
         logger.error("Translation server error:", err);
       },
-      config,
+      config: { ...config, metadataFilePath },
     });
 
     // When pluralization is enabled, we need to generate the source locale file too
@@ -162,7 +156,7 @@ export async function processBuildTranslations(
     if (errors.length > 0) {
       const errorMsg = formatTranslationErrors(errors);
       logger.error(errorMsg);
-      throw new Error(errorMsg);
+      process.exit(1);
     }
 
     // Copy cache to public directory if requested
@@ -178,7 +172,7 @@ export async function processBuildTranslations(
     };
   } catch (error) {
     logger.error("❌ Translation generation failed:", error);
-    throw error;
+    process.exit(1);
   } finally {
     if (translationServer) {
       await translationServer.stop();
@@ -214,7 +208,7 @@ async function validateCache(
 
     try {
       const cacheContent = await fs.readFile(cacheFilePath, "utf-8");
-      const cache = JSON.parse(cacheContent) as Record<string, string>;
+      const cache = JSON.parse(cacheContent).entries as Record<string, string>;
 
       const missingHashes = allHashes.filter((hash) => !cache[hash]);
 
@@ -243,7 +237,8 @@ async function validateCache(
       missingLocales,
       incompleteLocales,
     );
-    throw new Error(errorMsg);
+    logger.error(errorMsg);
+    process.exit(1);
   }
 }
 
@@ -293,8 +288,8 @@ async function copyStaticFiles(
       await fs.copyFile(cacheFilePath, publicFilePath);
       logger.info(`✓ Generated ${locale}.json`);
     } catch (error) {
-      logger.error(`Failed to copy ${locale}.json:`, error);
-      throw new Error(`Failed to generate static file for ${locale}: ${error}`);
+      logger.error(`❌ Failed to copy ${locale}.json:`, error);
+      process.exit(1);
     }
   }
 }

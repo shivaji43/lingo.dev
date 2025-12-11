@@ -156,7 +156,9 @@ export type LingoConfig = {
      *
      * @default 60000
      */
-    serverStartPort: number;
+    translationServerStartPort: number;
+
+    translationServerUrl?: string;
   };
 
   /**
@@ -214,7 +216,7 @@ export type TranslationMiddlewareConfig = Pick<
   | "targetLocales"
   | "dev"
   | "pluralization"
->;
+> & { metadataFilePath: string };
 
 /**
  * Config needed for path operations

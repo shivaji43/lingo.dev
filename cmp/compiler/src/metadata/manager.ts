@@ -1,17 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
 import lockfile from "proper-lockfile";
-import type {
-  MetadataConfig,
-  MetadataSchema,
-  TranslationEntry,
-} from "../types";
-import { getMetadataPath as getMetadataPathUtil } from "../utils/path-helpers";
-import { withTimeout, DEFAULT_TIMEOUTS } from "../utils/timeout";
+import type { MetadataSchema, TranslationEntry } from "../types";
+import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
 
-/**
- * Default metadata schema
- */
 export function createEmptyMetadata(): MetadataSchema {
   return {
     version: "0.1",
@@ -23,190 +15,122 @@ export function createEmptyMetadata(): MetadataSchema {
   };
 }
 
-// TODO (AleksandrSl 24/11/2025): Probably remove and use path util as is
-/**
- * Get the path to the metadata file
- */
-export function getMetadataPath(
-  config: MetadataConfig,
-  filename?: string,
-): string {
-  return getMetadataPathUtil(config, filename);
+export function loadMetadata(path: string) {
+  return new MetadataManager(path).loadMetadata();
 }
 
-/**
- * Load metadata from disk
- * Creates empty metadata if file doesn't exist
- * Times out after 15 seconds to prevent indefinite hangs
- */
-export async function loadMetadata(
-  config: MetadataConfig,
-  filename?: string,
-): Promise<MetadataSchema> {
-  const metadataPath = getMetadataPath(config, filename);
+export class MetadataManager {
+  constructor(private readonly filePath: string) {}
 
-  try {
-    const content = await withTimeout(
-      fs.readFile(metadataPath, "utf-8"),
+  /**
+   * Load metadata from disk
+   * Creates empty metadata if file doesn't exist
+   * Times out after 15 seconds to prevent indefinite hangs
+   */
+  async loadMetadata(): Promise<MetadataSchema> {
+    try {
+      const content = await withTimeout(
+        fs.readFile(this.filePath, "utf-8"),
+        DEFAULT_TIMEOUTS.METADATA,
+        "Load metadata",
+      );
+      return JSON.parse(content) as MetadataSchema;
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        // File doesn't exist, create new metadata
+        return createEmptyMetadata();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Save metadata to disk
+   * Times out after 15 seconds to prevent indefinite hangs
+   */
+  private async saveMetadata(metadata: MetadataSchema): Promise<void> {
+    await withTimeout(
+      fs.mkdir(path.dirname(this.filePath), { recursive: true }),
+      DEFAULT_TIMEOUTS.FILE_IO,
+      "Create metadata directory",
+    );
+
+    metadata.stats = {
+      totalEntries: Object.keys(metadata.entries).length,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    await withTimeout(
+      fs.writeFile(this.filePath, JSON.stringify(metadata, null, 2), "utf-8"),
       DEFAULT_TIMEOUTS.METADATA,
-      "Load metadata",
-    );
-    return JSON.parse(content) as MetadataSchema;
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
-      // File doesn't exist, create new metadata
-      return createEmptyMetadata();
-    }
-    throw error;
-  }
-}
-
-/**
- * Save metadata to disk
- * Times out after 15 seconds to prevent indefinite hangs
- */
-export async function saveMetadata(
-  config: MetadataConfig,
-  metadata: MetadataSchema,
-  filename?: string,
-): Promise<void> {
-  const metadataPath = getMetadataPath(config, filename);
-  await withTimeout(
-    fs.mkdir(path.dirname(metadataPath), { recursive: true }),
-    DEFAULT_TIMEOUTS.FILE_IO,
-    "Create metadata directory",
-  );
-
-  metadata.stats = {
-    totalEntries: Object.keys(metadata.entries).length,
-    lastUpdated: new Date().toISOString(),
-  };
-
-  await withTimeout(
-    fs.writeFile(metadataPath, JSON.stringify(metadata, null, 2), "utf-8"),
-    DEFAULT_TIMEOUTS.METADATA,
-    "Save metadata",
-  );
-}
-
-/**
- * Thread-safe save operation that atomically updates metadata with new entries
- * Uses file locking to prevent concurrent write corruption
- *
- * @param config - Metadata configuration
- * @param entries - Translation entries to add/update
- * @param filename - Optional custom metadata filename
- * @returns The updated metadata schema
- */
-export async function saveMetadataWithEntries(
-  config: MetadataConfig,
-  entries: TranslationEntry[],
-  filename?: string,
-): Promise<MetadataSchema> {
-  const metadataPath = getMetadataPath(config, filename);
-  const lockDir = path.dirname(metadataPath);
-
-  // Ensure directory exists before locking
-  await fs.mkdir(lockDir, { recursive: true });
-
-  // Create lock file if it doesn't exist (lockfile needs a file to lock)
-  try {
-    await fs.access(metadataPath);
-  } catch {
-    await fs.writeFile(
-      metadataPath,
-      JSON.stringify(createEmptyMetadata(), null, 2),
-      "utf-8",
+      "Save metadata",
     );
   }
 
-  // Acquire lock with retry options
-  const release = await lockfile.lock(metadataPath, {
-    retries: {
-      retries: 10,
-      minTimeout: 50,
-      maxTimeout: 1000,
-    },
-    stale: 2000, // Consider lock stale after 5 seconds
-  });
+  /**
+   * Thread-safe save operation that atomically updates metadata with new entries
+   * Uses file locking to prevent concurrent write corruption
+   *
+   * @param entries - Translation entries to add/update
+   * @returns The updated metadata schema
+   */
+  async saveMetadataWithEntries(
+    entries: TranslationEntry[],
+  ): Promise<MetadataSchema> {
+    const lockDir = path.dirname(this.filePath);
 
-  try {
-    // Re-load metadata inside lock to get latest state
-    const currentMetadata = await loadMetadata(config, filename);
+    // Ensure directory exists before locking
+    await fs.mkdir(lockDir, { recursive: true });
 
-    // Apply updates
-    const updatedMetadata = upsertEntries(currentMetadata, entries);
+    // Create lock file if it doesn't exist (lockfile needs a file to lock)
+    try {
+      await fs.access(this.filePath);
+    } catch {
+      // TODO (AleksandrSl 10/12/2025): Should I use another file as a lock?
+      await fs.writeFile(
+        this.filePath,
+        JSON.stringify(createEmptyMetadata(), null, 2),
+        "utf-8",
+      );
+    }
 
-    // Save
-    await saveMetadata(config, updatedMetadata, filename);
+    // Acquire lock with retry options
+    const release = await lockfile.lock(this.filePath, {
+      retries: {
+        retries: 10,
+        minTimeout: 50,
+        maxTimeout: 1000,
+      },
+      stale: 2000, // Consider lock stale after 5 seconds
+    });
 
-    return updatedMetadata;
-  } finally {
-    // Always release lock
-    await release();
-  }
-}
-
-/**
- * Add or update a translation entry in metadata
- */
-export function upsertEntry(
-  metadata: MetadataSchema,
-  entry: TranslationEntry,
-): MetadataSchema {
-  metadata.entries[entry.hash] = entry;
-
-  return metadata;
-}
-
-/**
- * Batch add multiple entries
- */
-export function upsertEntries(
-  metadata: MetadataSchema,
-  entries: TranslationEntry[],
-): MetadataSchema {
-  let result = metadata;
-  for (const entry of entries) {
-    result = upsertEntry(result, entry);
-  }
-  return result;
-}
-
-/**
- * Get an entry by hash
- */
-export function getEntry(
-  metadata: MetadataSchema,
-  hash: string,
-): TranslationEntry | undefined {
-  return metadata.entries[hash];
-}
-
-/**
- * Check if an entry exists
- */
-export function hasEntry(metadata: MetadataSchema, hash: string): boolean {
-  return hash in metadata.entries;
-}
-
-/**
- * Remove entries by hash
- */
-export function removeEntries(
-  metadata: MetadataSchema,
-  hashesToRemove: Set<string>,
-): MetadataSchema {
-  const filtered: Record<string, TranslationEntry> = {};
-
-  for (const [hash, entry] of Object.entries(metadata.entries)) {
-    if (!hashesToRemove.has(hash)) {
-      filtered[hash] = entry;
+    try {
+      // Re-load metadata inside lock to get latest state
+      const currentMetadata = await this.loadMetadata();
+      for (const entry of entries) {
+        currentMetadata.entries[entry.hash] = entry;
+      }
+      await this.saveMetadata(currentMetadata);
+      return currentMetadata;
+    } finally {
+      await release();
     }
   }
 
-  return {
-    ...metadata,
-    entries: filtered,
-  };
+  /**
+   * Get an entry by hash
+   */
+  getEntry(
+    metadata: MetadataSchema,
+    hash: string,
+  ): TranslationEntry | undefined {
+    return metadata.entries[hash];
+  }
+
+  /**
+   * Check if an entry exists
+   */
+  hasEntry(metadata: MetadataSchema, hash: string): boolean {
+    return hash in metadata.entries;
+  }
 }
