@@ -1,19 +1,22 @@
-# @lingo.dev/\_compiler
+# @lingo.dev/compiler
 
 Official Lingo.dev compiler with automatic translation support for React applications.
 
-This package provides plugins for multiple bundlers (Vite, Webpack, Rollup, esbuild) and a Next.js loader that automatically transforms React components to inject translation calls. It uses a hash-based metadata system to track translatable text across your application.
+This package provides plugins for multiple bundlers (Vite, Webpack, Rollup, esbuild) and a Next.js loader that
+automatically transforms React components to inject translation calls. It uses a hash-based metadata system to track
+translatable text across your application.
 
 ## Features
 
-- 🔄 **Automatic JSX text transformation** - Automatically detects and transforms translatable text in JSX
-- 📝 **Hash-based metadata** - Generates unique hashes for each translatable text based on content, component name, and file path
-- 🎯 **Opt-in or automatic** - Configure whether to require `'use i18n'` directive or transform all files
-- 🔌 **Multi-bundler support** - Works with Vite, Webpack, Rollup, esbuild, and Next.js
-- 🏗️ **Built on unplugin** - Unified plugin API across all bundlers
-- 📊 **Metadata tracking** - Maintains `.lingo/metadata.json` with all translatable content
-- ⚡ **Translation server** - On-demand translation generation during development
-- 🌐 **AI-powered translations** - Support for multiple LLM providers and Lingo.dev Engine
+- **Automatic JSX text transformation** - Automatically detects and transforms translatable text in JSX
+- **Hash-based metadata** - Generates unique hashes for each translatable text based on content, component name, and
+  file path
+- **Opt-in or automatic** - Configure whether to require `'use i18n'` directive or transform all files
+- **Multi-bundler support** - Works with Vite, Webpack, Rollup, esbuild, and Next.js
+- **Built on unplugin** - Unified plugin API across all bundlers
+- **Metadata tracking** - Maintains `.lingo/metadata.json` with all translatable content
+- **Translation server** - On-demand translation generation during development
+- **AI-powered translations** - Support for multiple LLM providers and Lingo.dev Engine
 
 ## Installation
 
@@ -27,128 +30,11 @@ yarn add @lingo.dev/compiler
 
 ## Quick Start
 
-### Vite
-
-```ts
-// vite.config.ts
-import { defineConfig } from "vite";
-import { lingoCompilerPlugin } from "@lingo.dev/compiler/vite";
-
-export default defineConfig({
-  plugins: [
-    lingoCompilerPlugin({
-      sourceLocale: "en",
-      targetLocales: ["es", "fr"],
-    }),
-  ],
-});
-```
-
-### Webpack
-
-```js
-// webpack.config.js
-import { lingoCompilerPlugin } from "@lingo.dev/compiler/webpack";
-
-export default {
-  plugins: [
-    lingoCompilerPlugin({
-      sourceLocale: "en",
-      targetLocales: ["es", "fr"],
-    }),
-  ],
-};
-```
-
-### Rollup
-
-```js
-// rollup.config.js
-import { lingoCompilerPlugin } from "@lingo.dev/compiler/rollup";
-
-export default {
-  plugins: [
-    lingoCompilerPlugin({
-      sourceLocale: "en",
-      targetLocales: ["es", "fr"],
-    }),
-  ],
-};
-```
-
-### esbuild
-
-```js
-// build.js
-import { build } from "esbuild";
-import { lingoCompilerPlugin } from "@lingo.dev/compiler/esbuild";
-
-await build({
-  plugins: [
-    lingoCompilerPlugin({
-      sourceLocale: "en",
-      targetLocales: ["es", "fr"],
-    }),
-  ],
-});
-```
-
-### Next.js
-
-```js
-// next.config.js
-import { lingoCompilerLoader } from "@lingo.dev/compiler/next";
-
-export default {
-  webpack: (config) => {
-    config.module.rules.push({
-      test: /\.(tsx|jsx)$/,
-      exclude: /node_modules/,
-      use: [
-        {
-          loader: lingoCompilerLoader,
-          options: {
-            sourceLocale: "en",
-            sourceRoot: "src",
-          },
-        },
-      ],
-    });
-    return config;
-  },
-};
-```
-
-For detailed bundler-specific documentation, see [BUNDLER_SUPPORT.md](./BUNDLER_SUPPORT.md).
-
 ## Usage with Turbopack (Next.js 16+)
 
 ### 1. Configure Next.js
 
-```javascript
-// next.config.js
-module.exports = {
-  turbopack: {
-    rules: {
-      "*.{tsx,jsx}": {
-        loaders: [
-          {
-            loader: "@lingo.dev/compiler-beta/loader",
-            options: {
-              sourceRoot: "./src", // Root directory of source code
-              lingoDir: ".lingo", // Directory for metadata
-              sourceLocale: "en", // Source language
-              useDirective: false, // Set to true to require 'use i18n' directive
-              skipPatterns: [/node_modules/, /\.spec\./], // Files to skip
-            },
-          },
-        ],
-        as: "*.js",
-      },
-    },
-  },
-};
-```
+[//]: # ( TODO (AleksandrSl 12/12/2025):
 
 ### 2. (Optional) Use directive mode
 
@@ -194,119 +80,13 @@ export function Welcome() {
 }
 ```
 
-And metadata will be saved to `.lingo/metadata.json`:
-
-```json
-{
-  "version": "0.1",
-  "entries": {
-    "a1b2c3d4e5f6": {
-      "sourceText": "Welcome to our site",
-      "context": {
-        "componentName": "Welcome",
-        "filePath": "src/components/Welcome.tsx",
-        "line": 4,
-        "column": 10
-      },
-      "hash": "a1b2c3d4e5f6",
-      "addedAt": "2025-01-17T10:00:00.000Z"
-    },
-    "f6e5d4c3b2a1": {
-      "sourceText": "This text will be automatically translated",
-      "context": {
-        "componentName": "Welcome",
-        "filePath": "src/components/Welcome.tsx",
-        "line": 5,
-        "column": 10
-      },
-      "hash": "f6e5d4c3b2a1",
-      "addedAt": "2025-01-17T10:00:00.000Z"
-    }
-  },
-  "stats": {
-    "totalEntries": 2,
-    "lastUpdated": "2025-01-17T10:00:00.000Z"
-  }
-}
-```
-
-## Programmatic API
-
-You can also use the transformation functions directly:
-
-```typescript
-import {
-  transformComponent,
-  loadMetadata,
-  saveMetadata,
-  generateTranslationHash,
-  type LoaderConfig,
-} from "@lingo.dev/compiler-beta";
-
-// Transform a component
-const config: LoaderConfig = {
-  sourceRoot: "./src",
-  lingoDir: ".lingo",
-  sourceLocale: "en",
-};
-
-const metadata = await loadMetadata(config);
-
-const result = transformComponent({
-  code: `export function Hello() { return <div>Hello World</div>; }`,
-  filePath: "src/Hello.tsx",
-  config,
-  metadata,
-});
-
-console.log(result.code); // Transformed code
-console.log(result.newEntries); // New translation entries found
-
-// Save updated metadata
-if (result.newEntries && result.newEntries.length > 0) {
-  const updatedMetadata = upsertEntries(metadata, result.newEntries);
-  await saveMetadata(config, updatedMetadata);
-}
-```
-
-## Architecture
-
-The compiler-beta is designed with a reusable architecture:
-
-- **`src/types.ts`** - TypeScript types and interfaces
-- **`src/utils/hash.ts`** - Hash generation utilities
-- **`src/metadata/manager.ts`** - Metadata file management
-- **`src/transform/babel-plugin.ts`** - Core Babel AST transformation
-- **`src/transform/index.ts`** - High-level transformation API
-- **`src/loader.ts`** - Turbopack/Webpack loader wrapper
-
-This separation allows the core transformation logic to be reused for other bundlers (e.g., Vite) in the future.
-
-## Configuration Options
-
-| Option         | Type       | Default                                    | Description                   |
-| -------------- | ---------- | ------------------------------------------ | ----------------------------- |
-| `sourceRoot`   | `string`   | `process.cwd()`                            | Root directory of source code |
-| `lingoDir`     | `string`   | `'.lingo'`                                 | Directory for Lingo files     |
-| `sourceLocale` | `string`   | `'en'`                                     | Source language code          |
-| `useDirective` | `boolean`  | `false`                                    | Require 'use i18n' directive  |
-| `skipPatterns` | `RegExp[]` | `[/node_modules/, /\.spec\./, /\.test\./]` | Patterns to skip              |
-
 ## How It Works
 
-1. **Detection**: Scans JSX files for React components
-2. **Extraction**: Finds plain text JSX children (e.g., `<div>Hello</div>`)
-3. **Hashing**: Generates unique hash from `sourceText + componentName + filePath`
-4. **Transformation**: Replaces text with `{t("hash")}`
-5. **Injection**: Adds `const t = useTranslation()` to component
-6. **Metadata**: Saves entry to `.lingo/metadata.json`
+[//]: # ( TODO (AleksandrSl 12/12/2025):
 
 ## Limitations (Current Version)
 
-- Only transforms **plain text** JSX children (no nested elements yet)
-- Skips text with only whitespace/newlines
 - Requires manual runtime setup (TranslationProvider, etc.)
-- Client components only (Server Component support coming)
 
 ## Supported Bundlers
 
@@ -314,25 +94,9 @@ This separation allows the core transformation logic to be reused for other bund
 | ------- | --------------- | ----------------------------- |
 | Vite    | ✅ Full Support | `@lingo.dev/compiler/vite`    |
 | Webpack | ✅ Full Support | `@lingo.dev/compiler/webpack` |
-| Rollup  | ✅ Full Support | `@lingo.dev/compiler/rollup`  |
-| esbuild | ✅ Full Support | `@lingo.dev/compiler/esbuild` |
 | Next.js | ✅ Full Support | `@lingo.dev/compiler/next`    |
 
-All bundler plugins share the same configuration API and are powered by [unplugin](https://github.com/unjs/unplugin).
-
-## Roadmap
-
-- [x] Hash-based metadata system
-- [x] Babel transformation plugin
-- [x] Turbopack loader
-- [x] Multi-bundler support (Vite, Webpack, Rollup, esbuild)
-- [x] unplugin-based architecture
-- [x] Server Component detection and transformation
-- [x] Runtime library integration
-- [x] Translation API integration (LCP)
-- [ ] JSX attribute translation (alt, title, placeholder)
-- [ ] Nested JSX content support
-- [ ] React Server Components optimization
+All bundler plugins share the same configuration API.
 
 ## Contributing
 

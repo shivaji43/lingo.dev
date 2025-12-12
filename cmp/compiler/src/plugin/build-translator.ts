@@ -108,7 +108,7 @@ export async function processBuildTranslations(
       onError: (err) => {
         logger.error("Translation server error:", err);
       },
-      config: { ...config, metadataFilePath },
+      config,
     });
 
     // When pluralization is enabled, we need to generate the source locale file too

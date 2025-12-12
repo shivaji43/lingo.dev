@@ -9,16 +9,10 @@ import { logger } from "../utils/logger";
 import type { PartialLingoConfig } from "../types";
 import { lingoUnplugin } from "./unplugin";
 import { useI18nRegex } from "./transform/use-i18n";
-import {
-  getUniqueMetadataFileName,
-  getMetadataPath,
-} from "../utils/path-helpers";
 import { processBuildTranslations } from "./build-translator";
-import { cleanup } from "./cleanup";
-import {
-  startTranslationServer,
-  TranslationServer,
-} from "../translation-server";
+import { startOrGetTranslationServer } from "../translation-server/translation-server";
+import { cleanupExistingMetadata, getMetadataPath } from "../metadata/manager";
+import { registerCleanupOnCurrentProcess } from "./cleanup";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
 
@@ -49,11 +43,12 @@ function getTurbopackConfig(userConfig: NextConfig): TurbopackOptions {
  */
 function mergeTurbopackRules(
   existingRules: Record<string, any>,
-  newRules: { pattern: string; config: any }[],
+  newRules: ({ pattern: string; config: any } | undefined)[],
 ): Record<string, any> {
   const mergedRules = { ...existingRules };
 
   for (const newRule of newRules) {
+    if (!newRule) continue;
     const { pattern, config } = newRule;
 
     if (mergedRules[pattern]) {
@@ -71,10 +66,14 @@ function mergeTurbopackRules(
 }
 
 // Next read config several times. Once in the main runner,
-// and ~ twice in the buil workers which cannot get the config otherwise, because it's not serializable.
-// Workers start in separate processed by get most of the env form the main loader
+// and ~ twice in the build workers which cannot get the config otherwise, because it's not serializable.
+// Workers start in separate processed by get most of the env from the main loader
 function isMainRunner() {
-  return !process.env.NEXT_PRIVATE_BUILD_WORKER && !process.env.IS_NEXT_WORKER;
+  return (
+    !process.env.NEXT_PRIVATE_BUILD_WORKER &&
+    !process.env.IS_NEXT_WORKER &&
+    !process.env.NEXT_PRIVATE_WORKER
+  );
 }
 
 export async function withLingo(
@@ -82,65 +81,51 @@ export async function withLingo(
   lingoOptions: LingoNextPluginOptions,
 ): Promise<NextConfig> {
   const lingoConfig = createLingoConfig(lingoOptions);
-  let metadataFilePath = process.env.LINGO_BUILD_METADATA_FILE_NAME;
+  let metadataFilePath = getMetadataPath(lingoConfig);
   const isDev = process.env.NODE_ENV === "development";
-  let translationServer: TranslationServer | undefined;
 
-  logger.info(
+  logger.debug(
     `Initializing Lingo.dev compiler. Is dev mode: ${isDev}. Is main runner: ${isMainRunner()}`,
   );
 
-  if (isMainRunner()) {
-    metadataFilePath = getMetadataPath(
-      lingoConfig,
-      getUniqueMetadataFileName(),
-    );
-    if (isDev && !lingoConfig.dev.translationServerUrl) {
-      translationServer = await startTranslationServer({
-        startPort: lingoConfig.dev.translationServerStartPort,
-        onError: (err) => {
-          logger.error("Translation server error:", err);
+  // TODO (AleksandrSl 12/12/2025): Add API keys validation too, so we can log it nicely.
+
+  // Try to start up the translation server once.
+  // We have two barriers, a simple one here and a more complex one inside the startTranslationServer which doesn't start the server if it can find one running.
+  // We do not use isMainRunner here, because we need to start the server as early as possible, so the loaders get the translation server url. The main runner in dev mode runs after a dev server process is started.
+  if (isDev && !process.env.LINGO_TRANSLATION_SERVER_URL) {
+    const translationServer = await startOrGetTranslationServer({
+      startPort: lingoConfig.dev.translationServerStartPort,
+      onError: (err) => {
+        logger.error("Translation server error:", err);
+      },
+      onReady: (port) => {
+        logger.info(`Translation server started successfully on port: ${port}`);
+      },
+      config: lingoConfig,
+    });
+    process.env.LINGO_TRANSLATION_SERVER_URL = translationServer.url;
+    if (translationServer.server) {
+      // We start the server in the same process, so we should be fine without any sync cleanup. Server should be killed with the process.
+      registerCleanupOnCurrentProcess({
+        asyncCleanup: async () => {
+          await translationServer.server.stop();
         },
-        config: { ...lingoConfig, metadataFilePath },
       });
     }
-    // Setup cleanup handlers for various exit scenarios
-    let isCleaningUp = false;
-    const doCleanup = async () => {
-      if (isCleaningUp) return;
-      isCleaningUp = true;
-      logger.info("🛑 Shutting down Lingo.dev compiler...");
-      try {
-        await cleanup(translationServer, metadataFilePath!);
-        logger.info("✅ Cleanup completed successfully");
-      } catch (error) {
-        logger.error("❌ Cleanup failed:", error);
-      }
-    };
-
-    // Handle graceful shutdown signals (Ctrl+C, kill)
-    // IMPORTANT: Don't call process.exit() immediately - wait for cleanup!
-    process.on("SIGINT", () => {
-      logger.info("Received SIGINT (Ctrl+C)");
-      doCleanup().then(() => process.exit(0));
-    });
-
-    process.on("SIGTERM", () => {
-      logger.info("Received SIGTERM");
-      doCleanup().then(() => process.exit(0));
-    });
-
-    // Windows-specific: Ctrl+Break
-    process.on("SIGBREAK", () => {
-      logger.info("Received SIGBREAK (Ctrl+Break)");
-      doCleanup().then(() => process.exit(0));
-    });
-    process.env.LINGO_BUILD_METADATA_FILE_NAME = metadataFilePath;
   }
 
-  if (!metadataFilePath) {
-    logger.error("Failed to create metadata file");
-    process.exit(1);
+  const translationServerUrl = process.env.LINGO_TRANSLATION_SERVER_URL;
+
+  if (isMainRunner()) {
+    // We need to cleaup the file only once, to avoid having extra translation introduced into the build, or old translation to pile up.
+    cleanupExistingMetadata(metadataFilePath);
+
+    registerCleanupOnCurrentProcess({
+      cleanup: () => {
+        cleanupExistingMetadata(metadataFilePath);
+      },
+    });
   }
 
   const existingTurbopackConfig = getTurbopackConfig(nextConfig);
@@ -165,26 +150,27 @@ export async function withLingo(
         ],
       },
     },
-    {
-      pattern: "**/dev-config.mjs",
-      config: {
-        loaders: [
-          {
-            loader: "@lingo.dev/compiler/dev-server-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              dev: {
-                translationServerUrl: translationServer?.getUrl(),
-                ...lingoConfig.dev,
+    translationServerUrl
+      ? {
+          pattern: "**/dev-config.mjs",
+          config: {
+            loaders: [
+              {
+                loader: "@lingo.dev/compiler/dev-server-loader",
+                options: {
+                  sourceRoot: lingoConfig.sourceRoot,
+                  lingoDir: lingoConfig.lingoDir,
+                  dev: {
+                    translationServerUrl,
+                    ...lingoConfig.dev,
+                  },
+                  sourceLocale: lingoConfig.sourceLocale,
+                },
               },
-              sourceLocale: lingoConfig.sourceLocale,
-              metadataFilePath,
-            },
+            ],
           },
-        ],
-      },
-    },
+        }
+      : undefined,
     {
       pattern: "**/locale/server.mjs",
       config: {
@@ -272,8 +258,6 @@ export async function withLingo(
         publicOutputPath: distDir,
         metadataFilePath,
       });
-
-      await cleanup(undefined, metadataFilePath);
     } catch (error) {
       logger.error("Translation generation failed:", error);
       throw error;
@@ -295,7 +279,7 @@ export async function withLingo(
       lingoUnplugin.webpack({
         ...lingoConfig,
         dev: {
-          translationServerUrl: translationServer?.getUrl(),
+          translationServerUrl,
           ...lingoConfig.dev,
         },
       }),

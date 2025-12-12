@@ -314,7 +314,7 @@ function buildConfig(
     dev: {
       usePseudotranslator:
         cliOpts.usePseudo ?? fileConfig?.dev?.usePseudotranslator,
-      serverStartPort: fileConfig?.dev?.serverStartPort,
+      translationServerStartPort: fileConfig?.dev?.translationServerStartPort,
     },
   });
 }
@@ -423,7 +423,8 @@ export async function main(): Promise<void> {
     const config = buildConfig(cliOpts, fileConfig);
 
     // Determine final port: CLI option > config > default
-    const startPort = cliOpts.port || config.dev?.serverStartPort || 60000;
+    const startPort =
+      cliOpts.port || config.dev?.translationServerStartPort || 60000;
 
     // Log configuration
     logger.info("Starting translation server with configuration:");

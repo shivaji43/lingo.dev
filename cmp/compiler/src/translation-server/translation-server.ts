@@ -22,7 +22,11 @@ import {
   LocalTranslationCache,
   TranslationService,
 } from "../translators";
-import { createEmptyMetadata, loadMetadata } from "../metadata/manager";
+import {
+  createEmptyMetadata,
+  getMetadataPath,
+  loadMetadata,
+} from "../metadata/manager";
 import type { TranslationServerEvent } from "./ws-events";
 import { createEvent } from "./ws-events";
 
@@ -346,7 +350,7 @@ export class TranslationServer {
    */
   async reloadMetadata(): Promise<void> {
     try {
-      this.metadata = await loadMetadata(this.config.metadataFilePath);
+      this.metadata = await loadMetadata(getMetadataPath(this.config));
       this.logger.debug(
         `Reloaded metadata: ${Object.keys(this.metadata.entries).length} entries`,
       );

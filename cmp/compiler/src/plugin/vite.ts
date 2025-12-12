@@ -18,16 +18,10 @@
  * ```
  */
 
-import { lingoUnplugin, type LingoPluginOptions } from "./unplugin";
+import { type LingoPluginOptions, lingoUnplugin } from "./unplugin";
 
 export function lingoCompilerPlugin(options: LingoPluginOptions) {
-  const plugin = lingoUnplugin.vite(options);
-
-  // Attach Lingo config for CLI extraction
-  // @ts-expect-error - Internal property for CLI access
-  plugin._lingoConfig = options;
-
-  return plugin;
+  return lingoUnplugin.vite(options);
 }
 
 export type { LingoPluginOptions };

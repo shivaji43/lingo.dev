@@ -1,8 +1,11 @@
-import fs from "fs/promises";
+import fsPromises from "fs/promises";
+import fs from "fs";
 import path from "path";
 import lockfile from "proper-lockfile";
-import type { MetadataSchema, TranslationEntry } from "../types";
+import type { MetadataSchema, PathConfig, TranslationEntry } from "../types";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
+import { getLingoDir } from "../utils/path-helpers";
+import { logger } from "../utils/logger";
 
 export function createEmptyMetadata(): MetadataSchema {
   return {
@@ -19,6 +22,40 @@ export function loadMetadata(path: string) {
   return new MetadataManager(path).loadMetadata();
 }
 
+export function cleanupExistingMetadata(metadataFilePath: string) {
+  // General cleanup. Delete metadata and stop the server if any was started.
+  logger.debug(`Attempting to cleanup metadata file: ${metadataFilePath}`);
+
+  try {
+    fs.unlinkSync(metadataFilePath);
+    logger.info(`🧹 Cleaned up build metadata file: ${metadataFilePath}`);
+  } catch (error: any) {
+    // Ignore if file doesn't exist
+    if (error.code === "ENOENT") {
+      logger.debug(
+        `Metadata file already deleted or doesn't exist: ${metadataFilePath}`,
+      );
+    } else {
+      logger.warn(`Failed to cleanup metadata file: ${error.message}`);
+    }
+  }
+}
+
+/**
+ * Get the absolute path to the metadata file
+ *
+ * @param config - Config with sourceRoot and lingoDir
+ * @returns Absolute path to metadata file
+ */
+export function getMetadataPath(config: PathConfig): string {
+  const filename =
+    // Similar to next keeping dev build separate, let's keep the build metadata clean of any dev mode additions
+    process.env.NODE_ENV === "development"
+      ? "metadata-dev.json"
+      : "metadata-build.json";
+  return path.join(getLingoDir(config), filename);
+}
+
 export class MetadataManager {
   constructor(private readonly filePath: string) {}
 
@@ -30,7 +67,7 @@ export class MetadataManager {
   async loadMetadata(): Promise<MetadataSchema> {
     try {
       const content = await withTimeout(
-        fs.readFile(this.filePath, "utf-8"),
+        fsPromises.readFile(this.filePath, "utf-8"),
         DEFAULT_TIMEOUTS.METADATA,
         "Load metadata",
       );
@@ -50,7 +87,7 @@ export class MetadataManager {
    */
   private async saveMetadata(metadata: MetadataSchema): Promise<void> {
     await withTimeout(
-      fs.mkdir(path.dirname(this.filePath), { recursive: true }),
+      fsPromises.mkdir(path.dirname(this.filePath), { recursive: true }),
       DEFAULT_TIMEOUTS.FILE_IO,
       "Create metadata directory",
     );
@@ -61,7 +98,11 @@ export class MetadataManager {
     };
 
     await withTimeout(
-      fs.writeFile(this.filePath, JSON.stringify(metadata, null, 2), "utf-8"),
+      fsPromises.writeFile(
+        this.filePath,
+        JSON.stringify(metadata, null, 2),
+        "utf-8",
+      ),
       DEFAULT_TIMEOUTS.METADATA,
       "Save metadata",
     );
@@ -80,14 +121,14 @@ export class MetadataManager {
     const lockDir = path.dirname(this.filePath);
 
     // Ensure directory exists before locking
-    await fs.mkdir(lockDir, { recursive: true });
+    await fsPromises.mkdir(lockDir, { recursive: true });
 
     // Create lock file if it doesn't exist (lockfile needs a file to lock)
     try {
-      await fs.access(this.filePath);
+      await fsPromises.access(this.filePath);
     } catch {
       // TODO (AleksandrSl 10/12/2025): Should I use another file as a lock?
-      await fs.writeFile(
+      await fsPromises.writeFile(
         this.filePath,
         JSON.stringify(createEmptyMetadata(), null, 2),
         "utf-8",

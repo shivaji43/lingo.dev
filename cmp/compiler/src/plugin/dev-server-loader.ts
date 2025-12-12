@@ -10,12 +10,9 @@ export default async function devServerLoader(
   if (typeof this.async !== "function") {
     throw new Error("This module must be run as a loader");
   }
-  logger.debug("Running devServerLoader");
   const callback = this.async();
 
-  const config: LingoConfig & {
-    metadataFilePath: string;
-  } = this.getOptions();
+  const config: LingoConfig = this.getOptions();
 
   callback(
     null,

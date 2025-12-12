@@ -216,7 +216,7 @@ export type TranslationMiddlewareConfig = Pick<
   | "targetLocales"
   | "dev"
   | "pluralization"
-> & { metadataFilePath: string };
+>;
 
 /**
  * Config needed for path operations

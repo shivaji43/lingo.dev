@@ -5,7 +5,6 @@
 
 import type { LingoConfig } from "../types";
 import { generateServerLocaleCode } from "./locale-code-generator";
-import { logger } from "../utils/logger";
 
 export default async function turbopackLocaleServerLoader(
   this: any,
@@ -17,6 +16,5 @@ export default async function turbopackLocaleServerLoader(
   const implementation = generateServerLocaleCode(config);
 
   const result = source.replace('return "en"', implementation);
-
   callback(null, result);
 }

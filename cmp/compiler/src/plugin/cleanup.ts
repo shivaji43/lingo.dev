@@ -1,33 +1,27 @@
-import { logger } from "../utils/logger";
-import fs from "fs";
-import type { TranslationServer } from "../translation-server";
+export function registerCleanupOnCurrentProcess({
+  cleanup,
+  asyncCleanup,
+}: {
+  cleanup?: () => void;
+  asyncCleanup?: () => Promise<void>;
+}) {
+  if (asyncCleanup) {
+    let shuttingDown = false;
+    async function performGracefulShutdown(code: number) {
+      if (shuttingDown) return;
+      shuttingDown = true;
 
-export async function cleanup(
-  server: TranslationServer | undefined,
-  metadataFilePath: string,
-) {
-  // General cleanup. Delete metadata and stop the server if any was started.
-  logger.debug(`Attempting to cleanup metadata file: ${metadataFilePath}`);
+      await asyncCleanup?.();
 
-  try {
-    // Check if file exists first
-    fs.accessSync(metadataFilePath);
-    fs.unlinkSync(metadataFilePath);
-    logger.info(`🧹 Cleaned up build metadata file: ${metadataFilePath}`);
-  } catch (error: any) {
-    // Ignore if file doesn't exist
-    if (error.code === "ENOENT") {
-      logger.debug(
-        `Metadata file already deleted or doesn't exist: ${metadataFilePath}`,
-      );
-    } else {
-      logger.warn(`Failed to cleanup metadata file: ${error.message}`);
+      process.exit(code);
     }
+
+    process.on("SIGINT", () => performGracefulShutdown(0));
+    process.on("SIGTERM", () => performGracefulShutdown(143));
+    process.on("SIGBREAK", () => performGracefulShutdown(0));
   }
 
-  if (server) {
-    logger.debug("Stopping translation server...");
-    await server.stop();
-    logger.info("Translation server stopped");
+  if (cleanup) {
+    process.on("exit", () => cleanup());
   }
 }
