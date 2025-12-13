@@ -44,13 +44,13 @@ export function cleanupExistingMetadata(metadataFilePath: string) {
 /**
  * Get the absolute path to the metadata file
  *
- * @param config - Config with sourceRoot and lingoDir
+ * @param config - Config with sourceRoot, lingoDir, and environment
  * @returns Absolute path to metadata file
  */
 export function getMetadataPath(config: PathConfig): string {
   const filename =
     // Similar to next keeping dev build separate, let's keep the build metadata clean of any dev mode additions
-    process.env.NODE_ENV === "development"
+    config.environment === "development"
       ? "metadata-dev.json"
       : "metadata-build.json";
   return path.join(getLingoDir(config), filename);

@@ -16,7 +16,11 @@ import {
   startTranslationServer,
   type TranslationServer,
 } from "../translation-server";
-import { getMetadataPath, MetadataManager } from "../metadata/manager";
+import {
+  cleanupExistingMetadata,
+  getMetadataPath,
+  MetadataManager,
+} from "../metadata/manager";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
 import { getCacheDir } from "../utils/path-helpers";
@@ -36,34 +40,6 @@ let translationServer: TranslationServer;
 
 const PLUGIN_NAME = "lingo-compiler";
 
-export async function cleanup(
-  server: TranslationServer | undefined,
-  metadataFilePath: string,
-) {
-  // General cleanup. Delete metadata and stop the server if any was started.
-  logger.debug(`Attempting to cleanup metadata file: ${metadataFilePath}`);
-
-  try {
-    fs.unlinkSync(metadataFilePath);
-    logger.info(`🧹 Cleaned up build metadata file: ${metadataFilePath}`);
-  } catch (error: any) {
-    // Ignore if file doesn't exist
-    if (error.code === "ENOENT") {
-      logger.debug(
-        `Metadata file already deleted or doesn't exist: ${metadataFilePath}`,
-      );
-    } else {
-      logger.warn(`Failed to cleanup metadata file: ${error.message}`);
-    }
-  }
-
-  if (server) {
-    logger.debug("Stopping translation server...");
-    await server.stop();
-    logger.info("Translation server stopped");
-  }
-}
-
 /**
  * Universal plugin for Lingo.dev compiler
  * Supports Vite, Webpack, Rollup, and esbuild
@@ -71,18 +47,10 @@ export async function cleanup(
 export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
   const config = createLingoConfig(options);
 
-  const isDev = process.env.NODE_ENV === "development";
+  // Won't work for webpack most likely. Use mode there to set correct environment in configs.
+  const isDev = config.environment === "development";
   const startPort = config.dev.translationServerStartPort;
   const metadataFilePath = getMetadataPath(config);
-
-  // Warn if NODE_ENV is not set (common webpack issue)
-  if (!process.env.NODE_ENV) {
-    logger.warn(
-      "⚠️  process.env.NODE_ENV is undefined. Lingo will assume production mode.\n" +
-        "   For webpack users: Add webpack.DefinePlugin to set process.env.NODE_ENV.\n" +
-        "   See: https://webpack.js.org/plugins/define-plugin/",
-    );
-  }
 
   return {
     name: PLUGIN_NAME,
@@ -90,6 +58,11 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
 
     vite: {
       async buildStart() {
+        cleanupExistingMetadata(metadataFilePath);
+
+        registerCleanupOnCurrentProcess({
+          cleanup: () => cleanupExistingMetadata(metadataFilePath),
+        });
         if (isDev && !translationServer) {
           translationServer = await startTranslationServer({
             startPort,
@@ -112,7 +85,6 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
         }
       },
 
-      // Doesn't fire when error happens
       async buildEnd() {
         if (!isDev) {
           try {
@@ -123,13 +95,62 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
             });
           } catch (error) {
             logger.error("Build-time translation processing failed:", error);
-            // throw error;
           }
         }
-
-        logger.warn("Build end");
-        await cleanup(translationServer, metadataFilePath);
       },
+    },
+
+    webpack(compiler) {
+      // if (config.isEmbeddedIntoNext) {
+      //   return;
+      // }
+      compiler.hooks.watchRun.tapPromise(PLUGIN_NAME, async () => {
+        cleanupExistingMetadata(metadataFilePath);
+        registerCleanupOnCurrentProcess({
+          cleanup: () => cleanupExistingMetadata(metadataFilePath),
+        });
+
+        if (compiler.options.mode === "development" && !translationServer) {
+          translationServer = await startTranslationServer({
+            startPort,
+            onError: (err) => {
+              logger.error("Translation server error:", err);
+            },
+            onReady: (port) => {
+              logger.info(
+                `Translation server started successfully on port: ${port}`,
+              );
+            },
+            config: { ...config, environment: compiler.options.mode },
+          });
+          registerCleanupOnCurrentProcess({
+            asyncCleanup: async () => {
+              await translationServer.stop();
+            },
+          });
+        }
+      });
+
+      compiler.hooks.additionalPass.tapPromise(PLUGIN_NAME, async () => {
+        if (compiler.options.mode === "production") {
+          try {
+            await processBuildTranslations({
+              config: { ...config, environment: compiler.options.mode },
+              publicOutputPath: "public/translations",
+              metadataFilePath: metadataFilePath,
+            });
+          } catch (error) {
+            logger.error("Build-time translation processing failed:", error);
+            throw error;
+          }
+        }
+      });
+
+      // Duplicates process handlers, but won't hurt
+      compiler.hooks.shutdown.tapPromise(PLUGIN_NAME, async () => {
+        cleanupExistingMetadata(metadataFilePath);
+        await translationServer?.stop();
+      });
     },
 
     resolveId(id) {
@@ -169,6 +190,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
     },
 
     load(id) {
+      logger.warn(`ID: ${id}`);
       if (id === "\0virtual:lingo-dev-config") {
         const serverUrl =
           translationServer?.getUrl() || `http://127.0.0.1:${startPort}`;
@@ -218,6 +240,7 @@ export function persistLocale(locale) {
       },
       handler: async (code, id) => {
         try {
+          // TODO (AleksandrSl 13/12/2025): How do I get Webpack mode here?
           // Transform the component
           const result = transformComponent({
             code,
@@ -243,7 +266,6 @@ export function persistLocale(locale) {
 
             await metadataManager.saveMetadataWithEntries(result.newEntries);
 
-            // Log new translations discovered (in dev mode)
             if (isDev) {
               logger.info(
                 `Found ${result.newEntries.length} translatable text(s) in ${id}`,

@@ -16,7 +16,7 @@ export const DEFAULT_CONFIG = {
   useDirective: false,
   skipPatterns: [/node_modules/, /\.spec\./, /\.test\./] as RegExp[],
   dev: {
-    serverStartPort: 60000,
+    translationServerStartPort: 60000,
   },
   cookieConfig: {
     name: "locale",
@@ -32,7 +32,7 @@ export const DEFAULT_CONFIG = {
     model: "groq:llama-3.1-8b-instant",
   },
   buildMode: "translate",
-} satisfies Omit<LingoConfig, LingoConfigRequiredFields>;
+} satisfies Omit<LingoConfig, LingoConfigRequiredFields | "environment">;
 
 /**
  * Create a LoaderConfig with defaults applied
@@ -45,6 +45,8 @@ export function createLingoConfig(options: PartialLingoConfig): LingoConfig {
   return {
     ...DEFAULT_CONFIG,
     ...options,
+    environment:
+      process.env.NODE_ENV === "development" ? "development" : "production",
     dev: {
       ...DEFAULT_CONFIG.dev,
       ...options.dev,

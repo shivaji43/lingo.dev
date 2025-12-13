@@ -32,12 +32,17 @@ export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
  */
 export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
 
+export type LingoInternalFields = "environment";
+
 /**
  * Configuration for the Lingo compiler
  */
 export type PartialLingoConfig = Pick<LingoConfig, LingoConfigRequiredFields> &
   Partial<
-    Omit<LingoConfig, LingoConfigRequiredFields | "dev"> & {
+    Omit<
+      LingoConfig,
+      LingoConfigRequiredFields | "dev" | LingoInternalFields
+    > & {
       dev: Partial<LingoConfig["dev"]>;
     }
   >;
@@ -73,6 +78,14 @@ export type LingoConfig = {
    * Directory for lingo files (.lingo/)
    */
   lingoDir: string;
+
+  /**
+   * Environment mode
+   * Determines metadata file naming and translator behavior
+   *
+   * @default "production"
+   */
+  environment: "development" | "production";
 
   /**
    * The locale to translate from.
@@ -216,13 +229,17 @@ export type TranslationMiddlewareConfig = Pick<
   | "targetLocales"
   | "dev"
   | "pluralization"
+  | "environment"
 >;
 
 /**
  * Config needed for path operations
- * Alias for MetadataConfig (same fields)
+ * Includes environment to determine metadata file naming
  */
-export type PathConfig = Pick<LingoConfig, "sourceRoot" | "lingoDir">;
+export type PathConfig = Pick<
+  LingoConfig,
+  "sourceRoot" | "lingoDir" | "environment"
+>;
 
 export type MetadataTranslationEntry = BaseTranslationEntry<
   "metadata",

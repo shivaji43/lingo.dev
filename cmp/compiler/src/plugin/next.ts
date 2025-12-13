@@ -82,7 +82,7 @@ export async function withLingo(
 ): Promise<NextConfig> {
   const lingoConfig = createLingoConfig(lingoOptions);
   let metadataFilePath = getMetadataPath(lingoConfig);
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = lingoConfig.environment === "development";
 
   logger.debug(
     `Initializing Lingo.dev compiler. Is dev mode: ${isDev}. Is main runner: ${isMainRunner()}`,

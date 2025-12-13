@@ -15,6 +15,7 @@ export interface TranslatorFactoryConfig {
   sourceLocale: string;
   models?: "lingo.dev" | Record<string, string>;
   prompt?: string;
+  environment: "development" | "production";
   dev?: {
     usePseudotranslator?: boolean;
   };
@@ -42,7 +43,7 @@ export function createTranslator(
   config: TranslatorFactoryConfig,
   logger: Logger,
 ): Translator<any> {
-  const isDev = process.env.NODE_ENV === "development";
+  const isDev = config.environment === "development";
 
   // 1. Explicit dev override takes precedence
   if (isDev && config.dev?.usePseudotranslator) {
