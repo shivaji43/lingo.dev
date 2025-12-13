@@ -41,12 +41,15 @@ export const DEFAULT_CONFIG = {
  * @returns Complete LoaderConfig with all defaults applied
  *
  */
-export function createLingoConfig(options: PartialLingoConfig): LingoConfig {
+export function createLingoConfig(
+  options: PartialLingoConfig & Partial<Pick<LingoConfig, "environment">>,
+): LingoConfig {
   return {
     ...DEFAULT_CONFIG,
     ...options,
     environment:
-      process.env.NODE_ENV === "development" ? "development" : "production",
+      options.environment ??
+      (process.env.NODE_ENV === "development" ? "development" : "production"),
     dev: {
       ...DEFAULT_CONFIG.dev,
       ...options.dev,

@@ -6,15 +6,132 @@ import type {
 } from "next/dist/server/config-shared";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
-import type { PartialLingoConfig } from "../types";
-import { lingoUnplugin } from "./unplugin";
-import { useI18nRegex } from "./transform/use-i18n";
+import type { LingoConfig, PartialLingoConfig } from "../types";
 import { processBuildTranslations } from "./build-translator";
 import { startOrGetTranslationServer } from "../translation-server/translation-server";
 import { cleanupExistingMetadata, getMetadataPath } from "../metadata/manager";
 import { registerCleanupOnCurrentProcess } from "./cleanup";
+import { useI18nRegex } from "./transform/use-i18n";
 
 export type LingoNextPluginOptions = PartialLingoConfig;
+
+type RuleKey = "compiler" | "devConfig" | "localeServer" | "localeClient";
+
+export function loaders({
+  lingoConfig,
+  metadataFilePath,
+  translationServerUrl,
+}: {
+  lingoConfig: LingoConfig;
+  metadataFilePath: string;
+  translationServerUrl?: string;
+}): Record<RuleKey, { turbopack?: any; webpack?: any }> {
+  const common = {
+    sourceRoot: lingoConfig.sourceRoot,
+    lingoDir: lingoConfig.lingoDir,
+    sourceLocale: lingoConfig.sourceLocale,
+  };
+
+  // TODO (AleksandrSl 14/12/2025): Type options.
+  const compilerLoader = {
+    loader: "@lingo.dev/compiler/next-compiler-loader",
+    options: {
+      ...common,
+      useDirective: lingoConfig.useDirective,
+      metadataFilePath,
+    },
+  };
+
+  const devConfigLoader = {
+    loader: "@lingo.dev/compiler/next-dev-config-loader",
+    options: {
+      ...common,
+      dev: {
+        translationServerUrl,
+        ...lingoConfig.dev,
+      },
+    },
+  };
+  const localeServerLoader = {
+    loader: "@lingo.dev/compiler/next-locale-server-loader",
+    options: {
+      ...common,
+      cookieConfig: lingoConfig.cookieConfig,
+    },
+  };
+
+  const localeClientLoader = {
+    loader: "@lingo.dev/compiler/next-locale-client-loader",
+    options: {
+      ...common,
+      cookieConfig: lingoConfig.cookieConfig,
+    },
+  };
+
+  return {
+    compiler: {
+      turbopack: {
+        pattern: "*.{tsx,jsx}",
+        config: {
+          condition: {
+            content: lingoConfig.useDirective ? useI18nRegex : undefined,
+          },
+          loaders: [compilerLoader],
+        },
+      },
+      webpack: {
+        enforce: "pre",
+        test: /\.(tsx|jsx)$/i,
+        exclude: /node_modules/,
+        use: [compilerLoader],
+      },
+    },
+
+    devConfig: translationServerUrl
+      ? {
+          turbopack: {
+            pattern: "**/dev-config.mjs",
+            config: {
+              loaders: [devConfigLoader],
+            },
+          },
+          webpack: {
+            enforce: "pre",
+            test: /dev-config\.mjs$/i,
+            use: [devConfigLoader],
+          },
+        }
+      : {},
+
+    localeServer: {
+      turbopack: {
+        pattern: "**/locale/server.mjs",
+        config: {
+          loaders: [localeServerLoader],
+        },
+      },
+      webpack: {
+        enforce: "pre",
+        test: /locale[\\/]server\.mjs$/i,
+        use: [localeServerLoader],
+      },
+    },
+
+    localeClient: {
+      turbopack: {
+        pattern: "**/locale/client.mjs",
+        config: {
+          loaders: [localeClientLoader],
+        },
+      },
+      webpack: {
+        enforce: "pre",
+        test: /locale[\\/]client\.mjs$/i,
+        use: [localeClientLoader],
+      },
+    },
+  };
+}
 
 /**
  * Check if Next.js supports stable turbopack config (Next.js 16+)
@@ -129,81 +246,12 @@ export async function withLingo(
   }
 
   const existingTurbopackConfig = getTurbopackConfig(nextConfig);
-  let mergedRules = mergeTurbopackRules(existingTurbopackConfig.rules ?? {}, [
-    {
-      pattern: "*.{tsx,jsx}",
-      config: {
-        condition: {
-          content: lingoConfig.useDirective ? useI18nRegex : undefined,
-        },
-        loaders: [
-          {
-            loader: "@lingo.dev/compiler/turbopack-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              sourceLocale: lingoConfig.sourceLocale,
-              useDirective: lingoConfig.useDirective,
-              metadataFilePath,
-            },
-          },
-        ],
-      },
-    },
-    translationServerUrl
-      ? {
-          pattern: "**/dev-config.mjs",
-          config: {
-            loaders: [
-              {
-                loader: "@lingo.dev/compiler/dev-server-loader",
-                options: {
-                  sourceRoot: lingoConfig.sourceRoot,
-                  lingoDir: lingoConfig.lingoDir,
-                  dev: {
-                    translationServerUrl,
-                    ...lingoConfig.dev,
-                  },
-                  sourceLocale: lingoConfig.sourceLocale,
-                },
-              },
-            ],
-          },
-        }
-      : undefined,
-    {
-      pattern: "**/locale/server.mjs",
-      config: {
-        loaders: [
-          {
-            loader: "@lingo.dev/compiler/turbopack-locale-server-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              sourceLocale: lingoConfig.sourceLocale,
-              cookieConfig: lingoConfig.cookieConfig,
-            },
-          },
-        ],
-      },
-    },
-    {
-      pattern: "**/locale/client.mjs",
-      config: {
-        loaders: [
-          {
-            loader: "@lingo.dev/compiler/turbopack-locale-client-loader",
-            options: {
-              sourceRoot: lingoConfig.sourceRoot,
-              lingoDir: lingoConfig.lingoDir,
-              sourceLocale: lingoConfig.sourceLocale,
-              cookieConfig: lingoConfig.cookieConfig,
-            },
-          },
-        ],
-      },
-    },
-  ]);
+  let mergedRules = mergeTurbopackRules(
+    existingTurbopackConfig.rules ?? {},
+    Object.values(
+      loaders({ lingoConfig, metadataFilePath, translationServerUrl }),
+    ).map((rules) => rules.turbopack),
+  );
 
   const existingResolveAlias = existingTurbopackConfig.resolveAlias;
   const mergedResolveAlias = {
@@ -274,19 +322,15 @@ export async function withLingo(
       modifiedConfig = nextConfig.webpack(config, options);
     }
 
-    modifiedConfig.plugins ??= [];
-    modifiedConfig.plugins.unshift(
-      lingoUnplugin.webpack({
-        ...lingoConfig,
-        dev: {
-          translationServerUrl,
-          ...lingoConfig.dev,
-        },
-        isEmbeddedIntoNext: true,
-      }),
-    );
+    const lingoRules = Object.values(
+      loaders({ lingoConfig, metadataFilePath, translationServerUrl }),
+    )
+      .map((rules) => rules.webpack)
+      .filter(Boolean);
 
-    logger.info("Adding Lingo.dev loader rules to webpack config");
+    // I tried using plugin from unplugin, but with all the loaders stuff it works poorly.
+    // Failing with weird errors which appear on the later compilations, probably something with the cache and virtual modules
+    modifiedConfig.module.rules.unshift(...lingoRules);
 
     return modifiedConfig;
   };

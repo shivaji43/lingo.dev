@@ -11,10 +11,11 @@ import { MetadataManager } from "../metadata/manager";
  * For production builds, translations are generated after compilation completes
  * via Next.js's runAfterProductionCompile hook (see next.ts plugin).
  */
-export default async function lingoCompilerTurbopackLoader(
+export default async function nextCompilerLoader(
   this: any,
   source: string,
 ): Promise<void> {
+  // TODO (AleksandrSl 14/12/2025): Webpack doesn't like callback usage in async function. But asycn function can return only code, so we have to use promises which is sad.
   // Ensure we're running in loader context
   if (typeof this.async !== "function") {
     throw new Error("This module must be run as a loader");
@@ -55,10 +56,27 @@ export default async function lingoCompilerTurbopackLoader(
       );
     }
 
-    callback(null, result.code, result.map);
+    // Validate source map before passing to webpack
+    // Webpack crashes if sources array contains undefined values
+    const validMap =
+      result.map &&
+      result.map.sources &&
+      Array.isArray(result.map.sources) &&
+      result.map.sources.every((s: any) => typeof s === "string")
+        ? result.map
+        : undefined;
+
+    callback(null, result.code, validMap);
   } catch (error) {
     logger.error(`Compiler failed for ${this.resourcePath}:`);
-    logger.error("Details:", error);
+    logger.error(
+      "Details:",
+      error,
+      typeof error === "object" && error && "message" in error
+        ? error.message
+        : error,
+      error instanceof Error ? error.stack : undefined,
+    );
     callback(error as Error);
   }
 }

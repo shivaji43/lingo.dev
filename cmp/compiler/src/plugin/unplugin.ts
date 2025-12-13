@@ -27,16 +27,16 @@ import {
 } from "../metadata/manager";
 import { createLingoConfig } from "../utils/config-factory";
 import { logger } from "../utils/logger";
-import { getCacheDir } from "../utils/path-helpers";
 import { useI18nRegex } from "./transform/use-i18n";
 import {
-  generateClientLocaleCode,
-  generateServerLocaleCode,
+  generateClientLocaleModule,
+  generateDevConfigModule,
+  generateServerLocaleModule,
 } from "./locale-code-generator";
-import * as path from "path";
-import * as fs from "fs";
 import { processBuildTranslations } from "./build-translator";
 import { registerCleanupOnCurrentProcess } from "./cleanup";
+import path from "path";
+import fs from "fs";
 
 export type LingoPluginOptions = PartialLingoConfig;
 
@@ -44,12 +44,51 @@ let translationServer: TranslationServer;
 
 const PLUGIN_NAME = "lingo-compiler";
 
+function tryLocalOrReturnVirtual(
+  config: LingoConfig,
+  fileName: string,
+  virtualName: string,
+) {
+  const customPath = path.join(config.sourceRoot, config.lingoDir, fileName);
+  if (fs.existsSync(customPath)) {
+    return customPath;
+  }
+  return virtualName;
+}
+
+// TODO (AleksandrSl 14/12/2025): Could we type this so we are sure we match the virtual model names
+const virtualModulesResolvers = {
+  "@lingo.dev/compiler/dev-config": (config: LingoConfig) =>
+    "\0virtual:lingo-dev-config",
+  "@lingo.dev/compiler/locale/server": (config: LingoConfig) =>
+    tryLocalOrReturnVirtual(
+      config,
+      "locale-resolver.server.ts",
+      "\0virtual:locale-resolver.server",
+    ),
+  "@lingo.dev/compiler/locale/client": (config: LingoConfig) =>
+    tryLocalOrReturnVirtual(
+      config,
+      "locale-resolver.client.ts",
+      "\0virtual:locale-resolver.client",
+    ),
+} satisfies Record<string, (config: LingoConfig) => string>;
+
+const virtualModulesLoaders = {
+  "\0virtual:lingo-dev-config": (config: LingoConfig) =>
+    generateDevConfigModule(config),
+  "\0virtual:locale-resolver.server": (config: LingoConfig) =>
+    generateServerLocaleModule(config),
+  "\0virtual:locale-resolver.client": (config: LingoConfig) =>
+    generateClientLocaleModule(config),
+} satisfies Record<string, (config: LingoConfig) => string>;
+
 /**
  * Universal plugin for Lingo.dev compiler
  * Supports Vite, Webpack, Rollup, and esbuild
  */
 export const lingoUnplugin = createUnplugin<
-  LingoPluginOptions & Pick<LingoConfig, LingoInternalFields>
+  LingoPluginOptions & Partial<Pick<LingoConfig, LingoInternalFields>>
 >((options) => {
   const config = createLingoConfig(options);
 
@@ -118,10 +157,6 @@ export const lingoUnplugin = createUnplugin<
     },
 
     webpack(compiler) {
-      if (config.isEmbeddedIntoNext) {
-        return;
-      }
-
       webpackMode =
         compiler.options.mode === "development" ? "development" : "production";
       const metadataFilePath = getMetadataPath();
@@ -180,81 +215,23 @@ export const lingoUnplugin = createUnplugin<
     },
 
     resolveId(id) {
-      if (id === "@lingo.dev/compiler/dev-config") {
-        // Return a virtual module ID (prefix with \0 to mark it as virtual)
-        return "\0virtual:lingo-dev-config";
+      const handler = virtualModulesResolvers[id];
+      if (handler) {
+        return handler(config);
       }
-
-      // Check for custom user implementation files first
-      // Locale modules resolve to virtual modules for dynamic generation
-      // The stub files are only used for Turbopack (via loaders)
-      if (id === "@lingo.dev/compiler/locale/server") {
-        const customPath = path.join(
-          config.sourceRoot,
-          config.lingoDir,
-          "locale-resolver.server.ts",
-        );
-        if (fs.existsSync(customPath)) {
-          return customPath;
-        }
-        return "\0virtual:locale-server";
-      }
-
-      if (id === "@lingo.dev/compiler/locale/client") {
-        const customPath = path.join(
-          config.sourceRoot,
-          config.lingoDir,
-          "locale-resolver.client.ts",
-        );
-        if (fs.existsSync(customPath)) {
-          return customPath;
-        }
-        return "\0virtual:locale-client";
-      }
-
       return null;
     },
 
     load: {
       filter: {
+        // Without the filter webpack goes mad
         id: /virtual:/,
       },
       handler(id: string) {
-        logger.warn(`ID: ${id}`);
-        if (id === "\0virtual:lingo-dev-config") {
-          const serverUrl =
-            translationServer?.getUrl() || `http://127.0.0.1:${startPort}`;
-          const cacheDir = getCacheDir(config);
-
-          return `export const serverUrl = ${JSON.stringify(serverUrl)};
-export const cacheDir = ${JSON.stringify(cacheDir)};`;
+        const handler = virtualModulesLoaders[id];
+        if (handler) {
+          return handler(config);
         }
-
-        // Server locale resolver - default implementation
-        if (id === "\0virtual:locale-server") {
-          // For Next.js, generate server-side locale resolver using cookies
-          const implementation = generateServerLocaleCode(config);
-          return `
-export async function getServerLocale() {${implementation}
-}
-`;
-        }
-
-        // Client locale resolver - default implementation
-        // Includes both getClientLocale() and persistLocale()
-        if (id === "\0virtual:locale-client") {
-          const { getClientLocale, persistLocale } =
-            generateClientLocaleCode(config);
-          return `
-export function getClientLocale() {
-  ${getClientLocale}
-}
-
-export function persistLocale(locale) {
-  ${persistLocale}
-}`;
-        }
-
         return null;
       },
     },

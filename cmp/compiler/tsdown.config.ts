@@ -16,10 +16,10 @@ export default defineConfig({
     "src/plugin/next.ts",
     "src/plugin/vite.ts",
     "src/plugin/webpack.ts",
-    "src/plugin/turbopack-loader.ts",
-    "src/plugin/dev-server-loader.ts",
-    "src/plugin/turbopack-locale-server-loader.ts",
-    "src/plugin/turbopack-locale-client-loader.ts",
+    "src/plugin/next-compiler-loader.ts",
+    "src/plugin/next-dev-config-loader.ts",
+    "src/plugin/next-locale-server-loader.ts",
+    "src/plugin/next-locale-client-loader.ts",
   ],
   external: [
     // Make external so plugins can resolve them dynamically

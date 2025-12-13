@@ -86,25 +86,25 @@
       "import": "./build/plugin/webpack.mjs",
       "require": "./build/plugin/webpack.cjs"
     },
-    "./turbopack-loader": {
-      "types": "./build/plugin/turbopack-loader.d.ts",
-      "import": "./build/plugin/turbopack-loader.mjs",
-      "require": "./build/plugin/turbopack-loader.cjs"
+    "./next-compiler-loader": {
+      "types": "./build/plugin/next-compiler-loader.d.ts",
+      "import": "./build/plugin/next-compiler-loader.mjs",
+      "require": "./build/plugin/next-compiler-loader.cjs"
     },
-    "./dev-server-loader": {
-      "types": "./build/plugin/dev-server-loader.d.ts",
-      "import": "./build/plugin/dev-server-loader.mjs",
-      "require": "./build/plugin/dev-server-loader.cjs"
+    "./next-dev-config-loader": {
+      "types": "./build/plugin/next-dev-config-loader.d.ts",
+      "import": "./build/plugin/next-dev-config-loader.mjs",
+      "require": "./build/plugin/next-dev-config-loader.cjs"
     },
-    "./turbopack-locale-server-loader": {
-      "types": "./build/plugin/turbopack-locale-server-loader.d.ts",
-      "import": "./build/plugin/turbopack-locale-server-loader.mjs",
-      "require": "./build/plugin/turbopack-locale-server-loader.cjs"
+    "./next-locale-server-loader": {
+      "types": "./build/plugin/next-locale-server-loader.d.ts",
+      "import": "./build/plugin/next-locale-server-loader.mjs",
+      "require": "./build/plugin/next-locale-server-loader.cjs"
     },
-    "./turbopack-locale-client-loader": {
-      "types": "./build/plugin/turbopack-locale-client-loader.d.ts",
-      "import": "./build/plugin/turbopack-locale-client-loader.mjs",
-      "require": "./build/plugin/turbopack-locale-client-loader.cjs"
+    "./next-locale-client-loader": {
+      "types": "./build/plugin/next-locale-client-loader.d.ts",
+      "import": "./build/plugin/next-locale-client-loader.mjs",
+      "require": "./build/plugin/next-locale-client-loader.cjs"
     }
   },
   "files": [

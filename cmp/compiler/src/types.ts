@@ -32,7 +32,7 @@ export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
  */
 export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
 
-export type LingoInternalFields = "environment" | "isEmbeddedIntoNext";
+export type LingoInternalFields = "environment";
 
 /**
  * Configuration for the Lingo compiler
@@ -198,8 +198,6 @@ export type LingoConfig = {
    * @default "translate"
    */
   buildMode: "translate" | "cache-only";
-
-  isEmbeddedIntoNext: boolean;
 };
 
 /**
