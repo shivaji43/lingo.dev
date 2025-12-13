@@ -282,6 +282,7 @@ export async function withLingo(
           translationServerUrl,
           ...lingoConfig.dev,
         },
+        isEmbeddedIntoNext: true,
       }),
     );
 

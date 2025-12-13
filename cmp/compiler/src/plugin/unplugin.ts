@@ -11,7 +11,11 @@
  */
 import { createUnplugin } from "unplugin";
 import { transformComponent } from "./transform";
-import type { PartialLingoConfig } from "../types";
+import type {
+  LingoConfig,
+  LingoInternalFields,
+  PartialLingoConfig,
+} from "../types";
 import {
   startTranslationServer,
   type TranslationServer,
@@ -44,7 +48,9 @@ const PLUGIN_NAME = "lingo-compiler";
  * Universal plugin for Lingo.dev compiler
  * Supports Vite, Webpack, Rollup, and esbuild
  */
-export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
+export const lingoUnplugin = createUnplugin<
+  LingoPluginOptions & Pick<LingoConfig, LingoInternalFields>
+>((options) => {
   const config = createLingoConfig(options);
 
   // Won't work for webpack most likely. Use mode there to set correct environment in configs.
@@ -112,9 +118,9 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
     },
 
     webpack(compiler) {
-      // if (config.isEmbeddedIntoNext) {
-      //   return;
-      // }
+      if (config.isEmbeddedIntoNext) {
+        return;
+      }
 
       webpackMode =
         compiler.options.mode === "development" ? "development" : "production";
