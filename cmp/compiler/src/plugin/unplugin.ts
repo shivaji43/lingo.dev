@@ -18,7 +18,7 @@ import {
 } from "../translation-server";
 import {
   cleanupExistingMetadata,
-  getMetadataPath,
+  getMetadataPath as rawGetMetadataPath,
   MetadataManager,
 } from "../metadata/manager";
 import { createLingoConfig } from "../utils/config-factory";
@@ -50,7 +50,15 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
   // Won't work for webpack most likely. Use mode there to set correct environment in configs.
   const isDev = config.environment === "development";
   const startPort = config.dev.translationServerStartPort;
-  const metadataFilePath = getMetadataPath(config);
+
+  // For webpack: store the actual mode and use it to compute the correct metadata path
+  let webpackMode: "development" | "production" | undefined;
+  // Should be dynamic, because webpack only tells us the mode inside the plugin, not inside the config.
+  const getMetadataPath = () => {
+    return rawGetMetadataPath(
+      webpackMode ? { ...config, environment: webpackMode } : config,
+    );
+  };
 
   return {
     name: PLUGIN_NAME,
@@ -58,6 +66,8 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
 
     vite: {
       async buildStart() {
+        const metadataFilePath = getMetadataPath();
+
         cleanupExistingMetadata(metadataFilePath);
 
         registerCleanupOnCurrentProcess({
@@ -86,12 +96,13 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
       },
 
       async buildEnd() {
+        const metadataFilePath = getMetadataPath();
         if (!isDev) {
           try {
             await processBuildTranslations({
               config,
               publicOutputPath: "public/translations",
-              metadataFilePath: metadataFilePath,
+              metadataFilePath,
             });
           } catch (error) {
             logger.error("Build-time translation processing failed:", error);
@@ -104,13 +115,22 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
       // if (config.isEmbeddedIntoNext) {
       //   return;
       // }
-      compiler.hooks.watchRun.tapPromise(PLUGIN_NAME, async () => {
+
+      webpackMode =
+        compiler.options.mode === "development" ? "development" : "production";
+      const metadataFilePath = getMetadataPath();
+      // Yes, this is dirty play, but webpack runs only for this plugin, and this way we save people from using wrong config
+      config.environment = webpackMode;
+
+      compiler.hooks.initialize.tap(PLUGIN_NAME, () => {
         cleanupExistingMetadata(metadataFilePath);
         registerCleanupOnCurrentProcess({
           cleanup: () => cleanupExistingMetadata(metadataFilePath),
         });
+      });
 
-        if (compiler.options.mode === "development" && !translationServer) {
+      compiler.hooks.watchRun.tapPromise(PLUGIN_NAME, async () => {
+        if (webpackMode === "development" && !translationServer) {
           translationServer = await startTranslationServer({
             startPort,
             onError: (err) => {
@@ -121,7 +141,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
                 `Translation server started successfully on port: ${port}`,
               );
             },
-            config: { ...config, environment: compiler.options.mode },
+            config,
           });
           registerCleanupOnCurrentProcess({
             asyncCleanup: async () => {
@@ -132,12 +152,12 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
       });
 
       compiler.hooks.additionalPass.tapPromise(PLUGIN_NAME, async () => {
-        if (compiler.options.mode === "production") {
+        if (webpackMode === "production") {
           try {
             await processBuildTranslations({
-              config: { ...config, environment: compiler.options.mode },
+              config,
               publicOutputPath: "public/translations",
-              metadataFilePath: metadataFilePath,
+              metadataFilePath,
             });
           } catch (error) {
             logger.error("Build-time translation processing failed:", error);
@@ -146,7 +166,7 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
         }
       });
 
-      // Duplicates process handlers, but won't hurt
+      // Duplicates the cleanup process handlers does, but won't hurt since cleanup is idempotent.
       compiler.hooks.shutdown.tapPromise(PLUGIN_NAME, async () => {
         cleanupExistingMetadata(metadataFilePath);
         await translationServer?.stop();
@@ -189,33 +209,37 @@ export const lingoUnplugin = createUnplugin<LingoPluginOptions>((options) => {
       return null;
     },
 
-    load(id) {
-      logger.warn(`ID: ${id}`);
-      if (id === "\0virtual:lingo-dev-config") {
-        const serverUrl =
-          translationServer?.getUrl() || `http://127.0.0.1:${startPort}`;
-        const cacheDir = getCacheDir(config);
+    load: {
+      filter: {
+        id: /virtual:/,
+      },
+      handler(id: string) {
+        logger.warn(`ID: ${id}`);
+        if (id === "\0virtual:lingo-dev-config") {
+          const serverUrl =
+            translationServer?.getUrl() || `http://127.0.0.1:${startPort}`;
+          const cacheDir = getCacheDir(config);
 
-        return `export const serverUrl = ${JSON.stringify(serverUrl)};
+          return `export const serverUrl = ${JSON.stringify(serverUrl)};
 export const cacheDir = ${JSON.stringify(cacheDir)};`;
-      }
+        }
 
-      // Server locale resolver - default implementation
-      if (id === "\0virtual:locale-server") {
-        // For Next.js, generate server-side locale resolver using cookies
-        const implementation = generateServerLocaleCode(config);
-        return `
+        // Server locale resolver - default implementation
+        if (id === "\0virtual:locale-server") {
+          // For Next.js, generate server-side locale resolver using cookies
+          const implementation = generateServerLocaleCode(config);
+          return `
 export async function getServerLocale() {${implementation}
 }
 `;
-      }
+        }
 
-      // Client locale resolver - default implementation
-      // Includes both getClientLocale() and persistLocale()
-      if (id === "\0virtual:locale-client") {
-        const { getClientLocale, persistLocale } =
-          generateClientLocaleCode(config);
-        return `
+        // Client locale resolver - default implementation
+        // Includes both getClientLocale() and persistLocale()
+        if (id === "\0virtual:locale-client") {
+          const { getClientLocale, persistLocale } =
+            generateClientLocaleCode(config);
+          return `
 export function getClientLocale() {
   ${getClientLocale}
 }
@@ -223,9 +247,10 @@ export function getClientLocale() {
 export function persistLocale(locale) {
   ${persistLocale}
 }`;
-      }
+        }
 
-      return null;
+        return null;
+      },
     },
 
     transform: {
@@ -239,8 +264,8 @@ export function persistLocale(locale) {
         code: config.useDirective ? useI18nRegex : undefined,
       },
       handler: async (code, id) => {
+        // TODO (AleksandrSl 13/12/2025): It's weird we don't have any this.getOptions() here
         try {
-          // TODO (AleksandrSl 13/12/2025): How do I get Webpack mode here?
           // Transform the component
           const result = transformComponent({
             code,
@@ -255,8 +280,7 @@ export function persistLocale(locale) {
             logger.debug(`No transformation needed for ${id}`);
             return null;
           }
-
-          const metadataManager = new MetadataManager(metadataFilePath);
+          const metadataManager = new MetadataManager(getMetadataPath());
 
           // Update metadata with new entries (thread-safe)
           if (result.newEntries && result.newEntries.length > 0) {
