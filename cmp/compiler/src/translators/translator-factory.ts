@@ -7,12 +7,13 @@ import { PseudoTranslator } from "./pseudotranslator";
 import { Service } from "./lingo";
 import { Logger } from "../utils/logger";
 import type { LocaleCode } from "lingo.dev/spec";
+import type { LingoEnvironment } from "../types";
 
-export interface TranslatorFactoryConfig {
+interface TranslatorFactoryConfig {
   sourceLocale: LocaleCode;
-  models?: "lingo.dev" | Record<string, string>;
+  models: "lingo.dev" | Record<string, string>;
   prompt?: string;
-  environment: "development" | "production";
+  environment: LingoEnvironment;
   dev?: {
     usePseudotranslator?: boolean;
   };
@@ -39,7 +40,7 @@ export interface TranslatorFactoryConfig {
 export function createTranslator(
   config: TranslatorFactoryConfig,
   logger: Logger,
-): Translator<any> {
+): Translator<unknown> {
   const isDev = config.environment === "development";
 
   // 1. Explicit dev override takes precedence
@@ -52,8 +53,7 @@ export function createTranslator(
   // LingoTranslator constructor will validate and fetch API keys
   // If validation fails, it will throw an error with helpful message
   try {
-    // TODO (AleksandrSl 14/12/2025): Get rid of default
-    const models = config.models || "lingo.dev";
+    const models = config.models;
 
     logger.info(
       `Creating Lingo translator with models: ${JSON.stringify(models)}`,
@@ -63,7 +63,7 @@ export function createTranslator(
       {
         models,
         sourceLocale: config.sourceLocale,
-        prompt: config.prompt || null,
+        prompt: config.prompt,
       },
       logger,
     );
@@ -72,8 +72,8 @@ export function createTranslator(
     if (isDev) {
       // Use console.error to ensure visibility in all contexts (loader, server, etc.)
       const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error(`\n❌ [Lingo] Translation setup error: ${errorMsg}\n`);
-      console.warn(
+      logger.error(`\n❌ [Lingo] Translation setup error: ${errorMsg}\n`);
+      logger.warn(
         `⚠️  [Lingo] Auto-fallback to pseudotranslator in development mode.\n` +
           `   Set the required API keys for real translations.\n`,
       );

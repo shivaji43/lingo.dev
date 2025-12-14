@@ -12,7 +12,6 @@ export { PseudoTranslator } from "./pseudotranslator";
 export { Service } from "./lingo";
 export type { LingoTranslatorConfig } from "./lingo";
 export { createTranslator } from "./translator-factory";
-export type { TranslatorFactoryConfig } from "./translator-factory";
 
 // Translation Service (orchestrator)
 export { TranslationService } from "./translation-service";

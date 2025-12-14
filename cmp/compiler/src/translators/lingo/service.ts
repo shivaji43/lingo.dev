@@ -25,7 +25,7 @@ import type { LocaleCode } from "lingo.dev/spec";
 export interface LingoTranslatorConfig {
   models: "lingo.dev" | Record<string, string>;
   sourceLocale: LocaleCode;
-  prompt?: string | null;
+  prompt?: string;
 }
 
 /**
@@ -200,7 +200,7 @@ export class Service implements Translator<LingoTranslatorConfig> {
               content: getSystemPrompt({
                 sourceLocale: this.config.sourceLocale,
                 targetLocale,
-                prompt: this.config.prompt ?? undefined,
+                prompt: this.config.prompt,
               }),
             },
             // Add few-shot examples

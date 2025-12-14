@@ -41,7 +41,7 @@ async function readFromFilesystem(
   locale: LocaleCode,
   basePath: string = process.cwd(),
 ): Promise<Record<string, string>> {
-  // TODO (AleksandrSl 02/12/2025): Sanity check. We need to try loading the most up to date translations first. Fo the dev mode they are in lingo. Gor build they are in next.
+  // TODO (AleksandrSl 15/12/2025): What should be the correct way here to load translations on server for other frameworks?
   const possiblePaths = [
     join(basePath, cacheDir, `${locale}.json`),
     join(basePath, ".next", `${locale}.json`),

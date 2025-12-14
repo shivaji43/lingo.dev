@@ -55,7 +55,10 @@ export function isReactComponent(
     }
   }
 
-  // TODO (AleksandrSl 25/11/2025): In which order does it traverse? If it's DFS it may find the incorrect return?
+  // Babel traverses with DFS so we get the innermost function return first if any.
+  // But if at least one function returns JSX I guess we should transform the whole function.
+  // It's a weird corner case.
+
   // Check for explicit return statements with JSX
   // We could also check for the first JSX?
   let returnsJSX = false;
@@ -181,7 +184,6 @@ export function constructTranslationCall(
             t.arrowFunctionExpression([], element)
           : // Create: tagName: (chunks) => <Element>{chunks}</Element>
             t.arrowFunctionExpression(
-              // TODO (AleksandrSl 28/11/2025): Use content instead of the chunks later
               [t.identifier("chunks")],
               t.jsxElement(
                 t.jsxOpeningElement(
