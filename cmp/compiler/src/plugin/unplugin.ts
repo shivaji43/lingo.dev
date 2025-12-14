@@ -1,14 +1,3 @@
-/**
- * Universal Plugin for Lingo.dev Compiler
- *
- * Built with unplugin to support:
- * - Vite
- * - Webpack
- *
- * Provides:
- * 1. Dev server with translation server for on-demand translation generation
- * 2. Babel transformation of JSX
- */
 import { createUnplugin } from "unplugin";
 import { transformComponent } from "./transform";
 import type {
@@ -59,6 +48,8 @@ function tryLocalOrReturnVirtual(
 /**
  * Single source of truth for virtual modules
  * Each entry defines both resolver (import path → virtual ID) and loader (virtual ID → code)
+ *
+ * If customFileCheck is defined, the specified file will be first searched for, and if not found virtual module will be used.
  */
 const virtualModules = {
   "@lingo.dev/compiler/dev-config": {
@@ -69,13 +60,11 @@ const virtualModules = {
   "@lingo.dev/compiler/locale/server": {
     virtualId: "\0virtual:locale-resolver.server" as const,
     loader: (config: LingoConfig) => generateServerLocaleModule(config),
-    // Custom file resolver - allows user overrides
     customFileCheck: "locale-resolver.server.ts" as const,
   },
   "@lingo.dev/compiler/locale/client": {
     virtualId: "\0virtual:locale-resolver.client" as const,
     loader: (config: LingoConfig) => generateClientLocaleModule(config),
-    // Custom file resolver - allows user overrides
     customFileCheck: "locale-resolver.client.ts" as const,
   },
 } as const;
@@ -101,7 +90,7 @@ const virtualModulesLoaders = Object.fromEntries(
 
 /**
  * Universal plugin for Lingo.dev compiler
- * Supports Vite, Webpack, Rollup, and esbuild
+ * Supports Vite, Webpack
  */
 export const lingoUnplugin = createUnplugin<
   LingoPluginOptions & Partial<Pick<LingoConfig, LingoInternalFields>>
@@ -262,8 +251,7 @@ export const lingoUnplugin = createUnplugin<
         // This is more efficient than checking in the handler
         code: config.useDirective ? useI18nRegex : undefined,
       },
-      handler: async (code, id) => {
-        // TODO (AleksandrSl 13/12/2025): It's weird we don't have any this.getOptions() here
+      async handler(code, id) {
         try {
           // Transform the component
           const result = transformComponent({
@@ -271,8 +259,6 @@ export const lingoUnplugin = createUnplugin<
             filePath: id,
             config,
           });
-
-          logger.debug(`Transforming ${result.code}`);
 
           // If no transformation occurred, return original code
           if (!result.transformed) {
@@ -283,17 +269,11 @@ export const lingoUnplugin = createUnplugin<
 
           // Update metadata with new entries (thread-safe)
           if (result.newEntries && result.newEntries.length > 0) {
-            logger.debug(
-              `Updating metadata with ${result.newEntries.length} new entries`,
-            );
-
             await metadataManager.saveMetadataWithEntries(result.newEntries);
 
-            if (isDev) {
-              logger.info(
-                `Found ${result.newEntries.length} translatable text(s) in ${id}`,
-              );
-            }
+            logger.debug(
+              `Found ${result.newEntries.length} translatable text(s) in ${id}`,
+            );
           }
 
           logger.debug(`Returning transformed code for ${id}`);
