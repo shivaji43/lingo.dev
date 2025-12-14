@@ -306,5 +306,3 @@ export interface MetadataSchema {
     lastUpdated: string;
   };
 }
-
-export type ComponentType = "client" | "server" | "unknown";

@@ -3,7 +3,7 @@
  */
 import * as t from "@babel/types";
 import type { NodePath, TraverseOptions } from "@babel/traverse";
-import type { ComponentType, TranslationEntry } from "../../types";
+import type { TranslationEntry } from "../../types";
 import { logger } from "../../utils/logger";
 import {
   comstructUnifiedImport,
@@ -29,7 +29,6 @@ import { processOverrideAttributes } from "./parse-override";
 
 type ComponentEntry = {
   name: string;
-  type: ComponentType;
   isAsync: boolean;
 };
 
@@ -616,7 +615,6 @@ function processComponentFunction(
   // Push component to stack with async info and path reference
   const componentEntry: ComponentEntry = {
     name: componentName,
-    type: "unknown",
     isAsync: path.node.async,
   };
   state.componentsStack.push(componentEntry);

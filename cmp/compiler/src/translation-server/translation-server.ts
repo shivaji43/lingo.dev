@@ -92,8 +92,6 @@ export class TranslationServer {
     this.logger.info(`🔧 Initializing translator...`);
 
     const translator = createTranslator(this.config, this.logger);
-    // TODO (AleksandrSl 14/12/2025): I think this should be taken from the translator directly
-    const isPseudo = translator.constructor.name === "PseudoTranslator";
     const cache = createCache(this.config);
 
     this.translationService = new TranslationService(
@@ -102,7 +100,6 @@ export class TranslationServer {
       {
         sourceLocale: this.config.sourceLocale,
         pluralization: this.config.pluralization,
-        isPseudo,
       },
       this.logger,
     );

@@ -17,18 +17,13 @@ import {
 } from "./pluralization";
 import type { Logger } from "../utils/logger";
 import type { LocaleCode } from "lingo.dev/spec";
+import { PseudoTranslator } from "./pseudotranslator";
 
 export interface TranslationServiceConfig {
   /**
    * Source locale (e.g., "en")
    */
   sourceLocale: LocaleCode;
-
-  /**
-   * Whether the translator is a pseudo translator
-   * If true, translations will NOT be cached
-   */
-  isPseudo?: boolean;
 
   /**
    * Pluralization configuration
@@ -69,11 +64,12 @@ export class TranslationService {
     private config: TranslationServiceConfig,
     private logger: Logger,
   ) {
-    this.useCache = !this.config.isPseudo;
+    const isPseudo = this.translator instanceof PseudoTranslator;
+    this.useCache = !isPseudo;
 
     // Initialize pluralization service if enabled
     // Do this once at construction to avoid repeated API key validation and model creation
-    if (this.config.pluralization?.enabled !== false && !this.config.isPseudo) {
+    if (this.config.pluralization?.enabled !== false && !isPseudo) {
       this.logger.info("Initializing pluralization service...");
       this.pluralizationService = new PluralizationService(
         {
