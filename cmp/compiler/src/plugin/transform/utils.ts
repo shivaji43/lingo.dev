@@ -133,7 +133,7 @@ export function createTranslationEntry<T extends keyof TranslationEntryByType>(
     },
     overrides:
       overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
-    // TODO (AleksandrSl 08/12/2025): Figure out why it doesn't work without the cast
+    // Seems like the only approach without the cast is function overloads, which are noisy. The type cast is not that bad since it's inside the function.
   } as TranslationEntryByType[T];
 }
 

@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useLingoContext } from "./LingoContext";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Locale configuration
@@ -10,7 +11,7 @@ export interface LocaleConfig {
   /**
    * Locale code (e.g., 'en', 'de', 'fr')
    */
-  code: string;
+  code: LocaleCode;
 
   /**
    * Display name (e.g., 'English', 'Deutsch', 'Français')
@@ -94,7 +95,7 @@ export function LocaleSwitcher({
   return (
     <select
       value={locale}
-      onChange={(e) => setLocale(e.target.value)}
+      onChange={(e) => setLocale(e.target.value as LocaleCode)}
       disabled={loading}
       className={className}
       style={{

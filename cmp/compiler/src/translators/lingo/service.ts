@@ -1,6 +1,11 @@
 import { generateText } from "ai";
 import { LingoDotDevEngine } from "lingo.dev/sdk";
-import type { DictionarySchema, TranslatableEntry, Translator } from "../api";
+import {
+  dictionaryFrom,
+  type DictionarySchema,
+  type TranslatableEntry,
+  type Translator,
+} from "../api";
 import { getSystemPrompt } from "./prompt";
 import { obj2xml, parseXmlFromResponseText } from "../parse-xml";
 import { shots } from "./shots";
@@ -12,13 +17,14 @@ import {
 } from "./model-factory";
 import { Logger } from "../../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Lingo Translator configuration
  */
 export interface LingoTranslatorConfig {
   models: "lingo.dev" | Record<string, string>;
-  sourceLocale: string;
+  sourceLocale: LocaleCode;
   prompt?: string | null;
 }
 
@@ -41,33 +47,24 @@ export class Service implements Translator<LingoTranslatorConfig> {
    * Translate multiple entries
    */
   async translate(
-    locale: string,
+    locale: LocaleCode,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
-    this.logger.debug(`[TRACE-LINGO] translate() ENTERED for ${locale}`);
     this.logger.debug(
       `[TRACE-LINGO] translate() called for ${locale} with ${Object.keys(entriesMap).length} entries`,
     );
 
-    // Create dictionary from entries map
-    const sourceDictionary: DictionarySchema = {
-      version: 0.1,
-      locale: this.config.sourceLocale,
-      entries: Object.fromEntries(
+    const sourceDictionary: DictionarySchema = dictionaryFrom(
+      this.config.sourceLocale,
+      Object.fromEntries(
         Object.entries(entriesMap).map(([hash, entry]) => [hash, entry.text]),
       ),
-    };
+    );
 
     this.logger.debug(
       `[TRACE-LINGO] Created source dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
     );
-    this.logger.debug(`[TRACE-LINGO] Calling translateDictionary()`);
-
     const translated = await this.translateDictionary(sourceDictionary, locale);
-
-    this.logger.debug(
-      `[TRACE-LINGO] translateDictionary() completed, returned ${Object.keys(translated.entries || {}).length} entries`,
-    );
 
     return translated.entries || {};
   }
@@ -135,8 +132,6 @@ export class Service implements Translator<LingoTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
-    this.logger.debug(`[TRACE-LINGO] translateWithLingoDotDev() called`);
-
     const apiKey = this.validatedKeys["lingo.dev"];
     if (!apiKey) {
       throw new Error(
@@ -148,15 +143,9 @@ export class Service implements Translator<LingoTranslatorConfig> {
       `Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
-    this.logger.debug(`[TRACE-LINGO] Creating LingoDotDevEngine client`);
     const engine = new LingoDotDevEngine({ apiKey });
 
     try {
-      this.logger.debug(
-        `[TRACE-LINGO] Calling engine.localizeObject() with timeout ${DEFAULT_TIMEOUTS.AI_API}ms`,
-      );
-      const apiStartTime = performance.now();
-
       const result = await withTimeout(
         engine.localizeObject(sourceDictionary, {
           sourceLocale: this.config.sourceLocale,
@@ -166,17 +155,9 @@ export class Service implements Translator<LingoTranslatorConfig> {
         `Lingo.dev API translation to ${targetLocale}`,
       );
 
-      const apiEndTime = performance.now();
-      this.logger.debug(
-        `[TRACE-LINGO] engine.localizeObject() completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`,
-      );
-
       return result as DictionarySchema;
     } catch (error) {
-      this.logger.error(
-        `[TRACE-LINGO] translateWithLingoDotDev() failed:`,
-        error,
-      );
+      this.logger.error(`translateWithLingoDotDev() failed:`, error);
       throw new Error(
         `Lingo.dev translation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
       );
@@ -280,11 +261,7 @@ export class Service implements Translator<LingoTranslatorConfig> {
     dictionaries: DictionarySchema[],
   ): DictionarySchema {
     if (dictionaries.length === 0) {
-      return {
-        version: 0.1,
-        locale: this.config.sourceLocale,
-        entries: {},
-      };
+      return dictionaryFrom(this.config.sourceLocale, {});
     }
 
     // Merge all entries from all dictionaries

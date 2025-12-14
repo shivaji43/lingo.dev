@@ -5,9 +5,10 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type { LocalCacheConfig, TranslationCache } from "./cache";
-import type { DictionarySchema } from "./api";
+import { dictionaryFrom, type DictionarySchema } from "./api";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../utils/timeout";
 import type { Logger } from "../utils/logger";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Local file system cache for translations
@@ -23,7 +24,7 @@ export class LocalTranslationCache implements TranslationCache {
     this.config = config;
   }
 
-  private getCachePath(locale: string): string {
+  private getCachePath(locale: LocaleCode): string {
     return path.join(this.config.cacheDir, `${locale}.json`);
   }
 
@@ -31,7 +32,7 @@ export class LocalTranslationCache implements TranslationCache {
    * Read dictionary file from disk
    * Times out after 10 seconds to prevent indefinite hangs
    */
-  async getDictionary(locale: string): Promise<DictionarySchema | null> {
+  async getDictionary(locale: LocaleCode): Promise<DictionarySchema | null> {
     try {
       const cachePath = this.getCachePath(locale);
       const content = await withTimeout(
@@ -49,8 +50,8 @@ export class LocalTranslationCache implements TranslationCache {
    * Write dictionary file to disk
    * Times out after 10 seconds to prevent indefinite hangs
    */
-  async setDictionary(
-    locale: string,
+  private async setDictionary(
+    locale: LocaleCode,
     dictionary: DictionarySchema,
   ): Promise<void> {
     try {
@@ -79,10 +80,19 @@ export class LocalTranslationCache implements TranslationCache {
   /**
    * Get cached translations for a locale
    */
-  async get(locale: string): Promise<Record<string, string>> {
+  async get(
+    locale: LocaleCode,
+    hashes?: string[],
+  ): Promise<Record<string, string>> {
     const dictionary = await this.getDictionary(locale);
     if (!dictionary) {
       return {};
+    }
+    if (hashes) {
+      return hashes.reduce(
+        (acc, hash) => ({ ...acc, [hash]: dictionary.entries[hash] }),
+        {},
+      );
     }
     return dictionary.entries || {};
   }
@@ -91,16 +101,13 @@ export class LocalTranslationCache implements TranslationCache {
    * Update cache with new translations (merge)
    */
   async update(
-    locale: string,
+    locale: LocaleCode,
     translations: Record<string, string>,
   ): Promise<void> {
-    // Read existing cache
     const existing = await this.get(locale);
 
-    // Merge with new translations
     const merged = { ...existing, ...translations };
 
-    // Write back
     await this.set(locale, merged);
   }
 
@@ -108,22 +115,16 @@ export class LocalTranslationCache implements TranslationCache {
    * Replace entire cache for a locale
    */
   async set(
-    locale: string,
+    locale: LocaleCode,
     translations: Record<string, string>,
   ): Promise<void> {
-    const dictionary: DictionarySchema = {
-      version: 0.1,
-      locale,
-      entries: translations,
-    };
-
-    await this.setDictionary(locale, dictionary);
+    await this.setDictionary(locale, dictionaryFrom(locale, translations));
   }
 
   /**
    * Check if cache exists for a locale
    */
-  async has(locale: string): Promise<boolean> {
+  async has(locale: LocaleCode): Promise<boolean> {
     try {
       const cachePath = this.getCachePath(locale);
       await fs.access(cachePath);
@@ -136,7 +137,7 @@ export class LocalTranslationCache implements TranslationCache {
   /**
    * Clear cache for a specific locale
    */
-  async clear(locale: string): Promise<void> {
+  async clear(locale: LocaleCode): Promise<void> {
     try {
       const cachePath = this.getCachePath(locale);
       await fs.unlink(cachePath);

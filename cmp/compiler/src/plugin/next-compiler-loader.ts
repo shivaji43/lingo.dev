@@ -15,7 +15,9 @@ export default async function nextCompilerLoader(
   this: any,
   source: string,
 ): Promise<void> {
-  // TODO (AleksandrSl 14/12/2025): Webpack doesn't like callback usage in async function. But asycn function can return only code, so we have to use promises which is sad.
+  // TODO (AleksandrSl 14/12/2025): Webpack doesn't like callback usage in async function.
+  //  But async function can return only code, so we have to use promises which is sad. It actually errors only when we catch an error, so it's not an urgent problem
+
   // Ensure we're running in loader context
   if (typeof this.async !== "function") {
     throw new Error("This module must be run as a loader");

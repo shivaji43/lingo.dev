@@ -1,6 +1,7 @@
 /**
  * Type definitions for the framework-agnostic dev widget
  */
+import type { LocaleCode } from "lingo.dev/spec";
 
 export type WidgetPosition =
   | "bottom-left"
@@ -9,7 +10,7 @@ export type WidgetPosition =
   | "top-right";
 
 export interface ServerTranslationProgress {
-  locale: string;
+  locale: LocaleCode;
   total: number;
   completed: number;
   status: "in-progress" | "complete" | "error";
@@ -17,7 +18,7 @@ export interface ServerTranslationProgress {
 
 export interface LingoDevState {
   isLoading: boolean;
-  locale: string;
+  locale: LocaleCode;
   sourceLocale: string;
   pendingCount: number;
   position: WidgetPosition;

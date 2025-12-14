@@ -10,7 +10,7 @@ The translation system now uses the `Translator` interface consistently across a
 interface Translator<Config> {
   config: Config;
   translate: (
-    locale: string,
+    locale: LocaleCode,
     entriesMap: Record<string, TranslatableEntry>,
   ) => Promise<Record<string, string>>;
 }
@@ -183,7 +183,7 @@ class MyCustomTranslator implements Translator<MyConfig> {
   constructor(readonly config: MyConfig) {}
 
   async translate(
-    locale: string,
+    locale: LocaleCode,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
     // Translate multiple entries

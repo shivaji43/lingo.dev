@@ -17,6 +17,8 @@ import {
 } from "../translation-server";
 import { loadMetadata } from "../metadata/manager";
 import { createCache, type TranslationCache } from "../translators";
+import { dictionaryFrom } from "../translators/api";
+import type { LocaleCode } from "lingo.dev/spec";
 
 export interface BuildTranslationOptions {
   config: LingoConfig;
@@ -125,7 +127,7 @@ export async function processBuildTranslations(
     );
 
     const stats: BuildTranslationResult["stats"] = {};
-    const errors: Array<{ locale: string; error: string }> = [];
+    const errors: Array<{ locale: LocaleCode; error: string }> = [];
 
     // Translate all locales in parallel
     const localePromises = allLocales.map(async (locale) => {
@@ -195,7 +197,7 @@ async function validateCache(
   const allHashes = Object.keys(metadata.entries);
   const missingLocales: string[] = [];
   const incompleteLocales: Array<{
-    locale: string;
+    locale: LocaleCode;
     missing: number;
     total: number;
   }> = [];
@@ -295,36 +297,8 @@ async function copyStaticFiles(
     const publicFilePath = path.join(publicOutputPath, `${locale}.json`);
 
     try {
-      // TODO (AleksandrSl 14/12/2025): Probably make it required?
-      // Use getDictionary if available (for LocalTranslationCache), otherwise use get
-      const dictionary = cache.getDictionary
-        ? await cache.getDictionary(locale)
-        : null;
-
-      if (!dictionary) {
-        logger.error(`❌ Failed to read cache for ${locale}`);
-        process.exit(1);
-      }
-
-      const filteredEntries: Record<string, string> = {};
-      let includedCount = 0;
-      let skippedCount = 0;
-
-      for (const [hash, translation] of Object.entries(dictionary.entries)) {
-        if (usedHashes.has(hash)) {
-          filteredEntries[hash] = translation;
-          includedCount++;
-        } else {
-          skippedCount++;
-        }
-      }
-
-      // Write filtered translations
-      const outputData = {
-        locale,
-        entries: filteredEntries,
-        version: dictionary.version,
-      };
+      const entries = await cache.get(locale, Array.from(usedHashes));
+      const outputData = dictionaryFrom(locale, entries);
 
       await fs.writeFile(
         publicFilePath,
@@ -333,7 +307,7 @@ async function copyStaticFiles(
       );
 
       logger.info(
-        `✓ Generated ${locale}.json (${includedCount} translations, ${skippedCount} unused skipped)`,
+        `✓ Generated ${locale}.json (${Object.keys(entries).length} translations)`,
       );
     } catch (error) {
       logger.error(`❌ Failed to generate ${locale}.json:`, error);
@@ -344,7 +318,11 @@ async function copyStaticFiles(
 
 function formatCacheValidationError(
   missingLocales: string[],
-  incompleteLocales: Array<{ locale: string; missing: number; total: number }>,
+  incompleteLocales: Array<{
+    locale: LocaleCode;
+    missing: number;
+    total: number;
+  }>,
 ): string {
   let msg = "❌ Cache validation failed in cache-only mode:\n\n";
 
@@ -374,7 +352,7 @@ function formatCacheValidationError(
 }
 
 function formatTranslationErrors(
-  errors: Array<{ locale: string; error: string }>,
+  errors: Array<{ locale: LocaleCode; error: string }>,
 ): string {
   let msg = "❌ Translation generation failed:\n\n";
 

@@ -29,6 +29,7 @@ import {
 } from "../metadata/manager";
 import type { TranslationServerEvent } from "./ws-events";
 import { createEvent } from "./ws-events";
+import type { LocaleCode } from "lingo.dev/spec";
 
 export interface TranslationServerOptions {
   /**
@@ -361,7 +362,7 @@ export class TranslationServer {
    *
    * This is the recommended method for build-time translation generation.
    */
-  async translateAll(locale: string): Promise<{
+  async translateAll(locale: LocaleCode): Promise<{
     translations: Record<string, string>;
     errors: Array<{ hash: string; error: string }>;
   }> {
@@ -606,7 +607,12 @@ export class TranslationServer {
       const postMatch = url.pathname.match(/^\/translations\/([^/]+)$/);
       if (postMatch && req.method === "POST") {
         const [, locale] = postMatch;
-        await this.handleBatchTranslationRequest(locale, req, res);
+        // TODO (AleksandrSl 14/12/2025): Validate localeCode
+        await this.handleBatchTranslationRequest(
+          locale as LocaleCode,
+          req,
+          res,
+        );
         return;
       }
 
@@ -614,7 +620,7 @@ export class TranslationServer {
       const dictMatch = url.pathname.match(/^\/translations\/([^/]+)$/);
       if (dictMatch && req.method === "GET") {
         const [, locale] = dictMatch;
-        await this.handleDictionaryRequest(locale, res);
+        await this.handleDictionaryRequest(locale as LocaleCode, res);
         return;
       }
 
@@ -647,7 +653,7 @@ export class TranslationServer {
    * Handle batch translation request
    */
   private async handleBatchTranslationRequest(
-    locale: string,
+    locale: LocaleCode,
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
@@ -737,7 +743,7 @@ export class TranslationServer {
    * Handle request for full translation dictionary
    */
   private async handleDictionaryRequest(
-    locale: string,
+    locale: LocaleCode,
     res: http.ServerResponse,
   ): Promise<void> {
     try {

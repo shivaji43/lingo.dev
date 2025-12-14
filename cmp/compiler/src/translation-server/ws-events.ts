@@ -3,6 +3,8 @@
  * Sent from translation server to dev widget clients
  */
 
+import type { LocaleCode } from "lingo.dev/spec";
+
 /**
  * Base event structure
  */
@@ -26,7 +28,7 @@ export interface ConnectedEvent extends BaseEvent {
 export interface TranslationStartEvent extends BaseEvent {
   type: "translation:start";
   hash: string;
-  locale: string;
+  locale: LocaleCode;
   sourceText: string;
 }
 
@@ -36,7 +38,7 @@ export interface TranslationStartEvent extends BaseEvent {
 export interface TranslationCompleteEvent extends BaseEvent {
   type: "translation:complete";
   hash: string;
-  locale: string;
+  locale: LocaleCode;
   translatedText: string;
   duration: number; // ms
 }
@@ -47,7 +49,7 @@ export interface TranslationCompleteEvent extends BaseEvent {
 export interface TranslationErrorEvent extends BaseEvent {
   type: "translation:error";
   hash: string;
-  locale: string;
+  locale: LocaleCode;
   error: string;
 }
 
@@ -56,7 +58,7 @@ export interface TranslationErrorEvent extends BaseEvent {
  */
 export interface BatchStartEvent extends BaseEvent {
   type: "batch:start";
-  locale: string;
+  locale: LocaleCode;
   total: number;
   hashes: string[];
 }
@@ -66,7 +68,7 @@ export interface BatchStartEvent extends BaseEvent {
  */
 export interface BatchProgressEvent extends BaseEvent {
   type: "batch:progress";
-  locale: string;
+  locale: LocaleCode;
   completed: number;
   total: number;
   percent: number;
@@ -77,7 +79,7 @@ export interface BatchProgressEvent extends BaseEvent {
  */
 export interface BatchCompleteEvent extends BaseEvent {
   type: "batch:complete";
-  locale: string;
+  locale: LocaleCode;
   total: number;
   successful: number;
   failed: number;
@@ -98,7 +100,7 @@ export interface MetadataUpdateEvent extends BaseEvent {
  */
 export interface CacheUpdateEvent extends BaseEvent {
   type: "cache:update";
-  locale: string;
+  locale: LocaleCode;
   entriesCount: number;
 }
 

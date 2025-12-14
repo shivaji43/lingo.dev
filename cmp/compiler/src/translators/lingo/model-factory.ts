@@ -8,12 +8,31 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOllama } from "ollama-ai-provider";
 import { createMistral } from "@ai-sdk/mistral";
 import type { LanguageModel } from "ai";
-import { getKeyFromEnv } from "./api-keys";
+import * as dotenv from "dotenv";
+import * as path from "path";
 
 export type LocaleModel = {
   provider: string;
   name: string;
 };
+
+export function getKeyFromEnv(envVarName: string): string | undefined {
+  if (process.env[envVarName]) {
+    return process.env[envVarName];
+  }
+
+  const projectRoot = process.cwd();
+
+  const result = dotenv.config({
+    path: [
+      path.resolve(projectRoot, ".env"),
+      path.resolve(projectRoot, ".env.local"),
+      path.resolve(projectRoot, ".env.development"),
+    ],
+  });
+
+  return result?.parsed?.[envVarName];
+}
 
 /**
  * Pre-validated API keys for all providers

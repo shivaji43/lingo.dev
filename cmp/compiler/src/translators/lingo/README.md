@@ -261,12 +261,12 @@ Translation data is serialized to XML for better LLM understanding:
 ### `lingoTranslator` class
 
 ```typescript
-class lingoTranslator implements Translator<lingoTranslatorConfig> {
+class LingoTranslator implements Translator<lingoTranslatorConfig> {
   constructor(config: lingoTranslatorConfig);
 
   // Translate one or more entries
   translate(
-    locale: string,
+    locale: LocaleCode,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>>;
 }

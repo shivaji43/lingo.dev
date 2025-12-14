@@ -17,6 +17,7 @@ import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.
 import { getServerLocale } from "@lingo.dev/compiler/locale/server";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Get server-side translations function
@@ -31,7 +32,7 @@ export async function getServerTranslations(options: {
   /**
    * Target locale for translations (required)
    */
-  locale?: string;
+  locale?: LocaleCode;
 
   /**
    * List of translation hashes needed for this component
@@ -50,7 +51,7 @@ export async function getServerTranslations(options: {
     sourceText: string,
     params?: RichTextParams,
   ) => string | ReactNode;
-  locale: string;
+  locale: LocaleCode;
   translations: Record<string, string>;
 }> {
   const locale = options.locale || (await getServerLocale());

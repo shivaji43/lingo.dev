@@ -13,6 +13,7 @@ import { join } from "path";
 import { logger } from "../../utils/logger";
 import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
 import { cacheDir, serverUrl } from "@lingo.dev/compiler/dev-config";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Configuration for translation fetching
@@ -37,7 +38,7 @@ export interface TranslationFetchConfig {
  * @returns Translation dictionary (hash -> translated text)
  */
 async function readFromFilesystem(
-  locale: string,
+  locale: LocaleCode,
   basePath: string = process.cwd(),
 ): Promise<Record<string, string>> {
   // TODO (AleksandrSl 02/12/2025): Sanity check. We need to try loading the most up to date translations first. Fo the dev mode they are in lingo. Gor build they are in next.
@@ -101,7 +102,7 @@ async function readFromFilesystem(
  * ```
  */
 export async function fetchTranslationsOnServer(
-  locale: string,
+  locale: LocaleCode,
   hashes: string[],
   config: TranslationFetchConfig = {},
 ): Promise<Record<string, string>> {

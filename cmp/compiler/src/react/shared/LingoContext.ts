@@ -1,15 +1,21 @@
 import { createContext, useContext } from "react";
+import type { LocaleCode } from "lingo.dev/spec";
 
 interface LingoContextType {
   /**
+   * Source locale (default language)
+   */
+  sourceLocale: LocaleCode;
+
+  /**
    * Current locale (e.g., 'en', 'de', 'fr')
    */
-  locale: string;
+  locale: LocaleCode;
 
   /**
    * Change the current locale and dynamically load translations
    */
-  setLocale: (locale: string) => Promise<void>;
+  setLocale: (locale: LocaleCode) => Promise<void>;
 
   /**
    * Translation dictionary: hash -> translated text
@@ -26,11 +32,6 @@ interface LingoContextType {
    * Whether translations are currently being loaded
    */
   isLoading: boolean;
-
-  /**
-   * Source locale (default language)
-   */
-  sourceLocale: string;
 
   /**
    * Development statistics (only in dev mode)

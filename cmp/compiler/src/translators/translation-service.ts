@@ -90,7 +90,7 @@ export class TranslationService {
    * @returns Translation result with translations and errors
    */
   async translate(
-    locale: string,
+    locale: LocaleCode,
     metadata: MetadataSchema,
     requestedHashes?: string[],
   ): Promise<TranslationResult> {

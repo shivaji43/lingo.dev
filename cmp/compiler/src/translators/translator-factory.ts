@@ -6,13 +6,10 @@ import type { Translator } from "./api";
 import { PseudoTranslator } from "./pseudotranslator";
 import { Service } from "./lingo";
 import { Logger } from "../utils/logger";
+import type { LocaleCode } from "lingo.dev/spec";
 
-/**
- * Configuration required for creating a translator
- * (subset of LoaderConfig)
- */
 export interface TranslatorFactoryConfig {
-  sourceLocale: string;
+  sourceLocale: LocaleCode;
   models?: "lingo.dev" | Record<string, string>;
   prompt?: string;
   environment: "development" | "production";
@@ -55,6 +52,7 @@ export function createTranslator(
   // LingoTranslator constructor will validate and fetch API keys
   // If validation fails, it will throw an error with helpful message
   try {
+    // TODO (AleksandrSl 14/12/2025): Get rid of default
     const models = config.models || "lingo.dev";
 
     logger.info(

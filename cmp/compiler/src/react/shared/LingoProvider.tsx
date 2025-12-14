@@ -16,6 +16,7 @@ import {
   persistLocale,
 } from "@lingo.dev/compiler/locale/client";
 import { LingoContext } from "./LingoContext";
+import type { LocaleCode } from "lingo.dev/spec";
 
 const noop = () => {};
 
@@ -26,12 +27,12 @@ export interface LingoProviderProps {
   /**
    * Initial locale to use
    */
-  initialLocale?: string;
+  initialLocale?: LocaleCode;
 
   /**
    * Source locale (default language)
    */
-  sourceLocale?: string;
+  sourceLocale?: LocaleCode;
 
   /**
    * Initial translations (pre-loaded)
@@ -97,13 +98,14 @@ export const LingoProvider = IS_DEV ? LingoProvider__Dev : LingoProvider__Prod;
 
 function LingoProvider__Prod({
   initialLocale,
+  // TODO (AleksandrSl 14/12/2025): Remove sourceLocale here.
   sourceLocale = "en",
   initialTranslations = {},
   router,
   children,
 }: LingoProviderProps) {
   // Use client locale detection if no initialLocale provided
-  const [locale, setLocaleState] = useState(() => {
+  const [locale, setLocaleState] = useState<LocaleCode>(() => {
     if (initialLocale) return initialLocale;
     // Only detect on client-side (not during SSR)
     if (typeof window !== "undefined") {
@@ -135,7 +137,7 @@ function LingoProvider__Prod({
    * Lazy loads on-demand for SPAs
    */
   const loadTranslations = useCallback(
-    async (targetLocale: string) => {
+    async (targetLocale: LocaleCode) => {
       // If we already have initialTranslations (Next.js SSR), don't fetch
       if (Object.keys(initialTranslations).length > 0) {
         return;
@@ -189,7 +191,7 @@ function LingoProvider__Prod({
    * - For SPAs: lazy loads translations from /translations/{locale}.json
    */
   const setLocale = useCallback(
-    async (newLocale: string) => {
+    async (newLocale: LocaleCode) => {
       // 1. Persist to cookie so server can read it on next render
       persistLocale(newLocale);
 
@@ -391,7 +393,7 @@ function LingoProvider__Dev({
    * Change locale and load translations dynamically
    */
   const setLocale = useCallback(
-    async (newLocale: string) => {
+    async (newLocale: LocaleCode) => {
       // 1. Persist to cookie (unless disabled)
       persistLocale(newLocale);
 

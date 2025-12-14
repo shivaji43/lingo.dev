@@ -4,6 +4,7 @@
 
 import type { TranslatableEntry, Translator } from "../api";
 import { Logger } from "../../utils/logger";
+import type { LocaleCode } from "lingo.dev/spec";
 
 export interface PseudoTranslatorConfig {
   delayMedian?: number;
@@ -19,7 +20,7 @@ export class PseudoTranslator implements Translator<PseudoTranslatorConfig> {
     private readonly logger: Logger,
   ) {}
 
-  translate(locale: string, entries: Record<string, TranslatableEntry>) {
+  translate(locale: LocaleCode, entries: Record<string, TranslatableEntry>) {
     this.logger.debug(
       `[TRACE-PSEUDO] translate() ENTERED for ${locale} with ${Object.keys(entries).length} entries`,
     );

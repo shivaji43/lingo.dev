@@ -6,6 +6,8 @@
  * it's purely an optimization layer.
  */
 
+import type { LocaleCode } from "lingo.dev/spec";
+
 /**
  * Translation cache interface
  * Implementations can be local disk, remote server, memory, etc.
@@ -15,51 +17,37 @@ export interface TranslationCache {
    * Get cached translations for a locale
    * Returns empty object if no cache exists
    */
-  get(locale: string): Promise<Record<string, string>>;
+  get(locale: LocaleCode): Promise<Record<string, string>>;
+  get(locale: LocaleCode, hashes: string[]): Promise<Record<string, string>>;
 
   /**
    * Update cache with new translations
    * Merges with existing cache (doesn't replace)
    */
-  update(locale: string, translations: Record<string, string>): Promise<void>;
+  update(
+    locale: LocaleCode,
+    translations: Record<string, string>,
+  ): Promise<void>;
 
   /**
    * Replace entire cache for a locale
    */
-  set(locale: string, translations: Record<string, string>): Promise<void>;
+  set(locale: LocaleCode, translations: Record<string, string>): Promise<void>;
 
   /**
    * Check if cache exists for a locale
    */
-  has(locale: string): Promise<boolean>;
+  has(locale: LocaleCode): Promise<boolean>;
 
   /**
    * Clear cache for a specific locale
    */
-  clear(locale: string): Promise<void>;
+  clear(locale: LocaleCode): Promise<void>;
 
   /**
    * Clear all cached translations
    */
   clearAll(): Promise<void>;
-
-  /**
-   * Get full dictionary schema for a locale (includes version, metadata)
-   * Used for build-time operations that need the complete schema
-   * Returns null if cache doesn't exist
-   */
-  getDictionary?(
-    locale: string,
-  ): Promise<import("./api").DictionarySchema | null>;
-
-  /**
-   * Write full dictionary schema for a locale
-   * Used for build-time operations that need to preserve schema metadata
-   */
-  setDictionary?(
-    locale: string,
-    dictionary: import("./api").DictionarySchema,
-  ): Promise<void>;
 }
 
 /**
