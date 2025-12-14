@@ -117,11 +117,6 @@ export type LingoConfig = {
   useDirective: boolean;
 
   /**
-   * Skip transformation for specific patterns
-   */
-  skipPatterns: RegExp[];
-
-  /**
    * Model configuration for lingo translator
    * - Use "lingo.dev" for Lingo.dev Engine (recommended)
    * - Use locale-pair mapping for direct LLM providers

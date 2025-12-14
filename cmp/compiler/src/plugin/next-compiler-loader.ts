@@ -1,5 +1,5 @@
 import type { LingoConfig } from "../types";
-import { shouldTransformFile, transformComponent } from "./transform";
+import { transformComponent } from "./transform";
 import { logger } from "../utils/logger";
 import { MetadataManager } from "../metadata/manager";
 
@@ -27,11 +27,6 @@ export default async function nextCompilerLoader(
       this.getOptions();
 
     const metadataManager = new MetadataManager(config.metadataFilePath);
-    // TODO (AleksandrSl 07/12/2025): Remove too I think
-    // Check if this file should be transformed
-    if (!shouldTransformFile(this.resourcePath, config)) {
-      return callback(null, source);
-    }
 
     logger.debug(`[Turbopack Loader] Processing: ${this.resourcePath}`);
 

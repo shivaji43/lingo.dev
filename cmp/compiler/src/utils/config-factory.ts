@@ -14,7 +14,6 @@ export const DEFAULT_CONFIG = {
   sourceRoot: "src",
   lingoDir: "lingo",
   useDirective: false,
-  skipPatterns: [/node_modules/, /\.spec\./, /\.test\./] as RegExp[],
   dev: {
     translationServerStartPort: 60000,
   },
