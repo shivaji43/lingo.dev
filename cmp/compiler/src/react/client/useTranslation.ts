@@ -1,13 +1,13 @@
 "use client";
 
 import { type ReactNode, useCallback, useEffect } from "react";
-import { useTranslationContext } from "../shared/TranslationContext";
 import { logger } from "../../utils/logger";
 import {
   renderRichText,
   type RichTextParams,
 } from "../shared/render-rich-text";
 import type { TranslationHook } from "../types";
+import { useLingoContext } from "../shared/LingoContext";
 
 /**
  * useTranslation Hook
@@ -45,7 +45,7 @@ import type { TranslationHook } from "../types";
  */
 export const useTranslation: TranslationHook = (hashes: string[]) => {
   const { translations, registerHashes, locale, sourceLocale } =
-    useTranslationContext();
+    useLingoContext();
 
   useEffect(() => {
     logger.debug(`Registering ${hashes.length} hashes for component`);

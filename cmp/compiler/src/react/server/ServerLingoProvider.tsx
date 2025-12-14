@@ -1,23 +1,23 @@
 import {
-  TranslationProvider as BaseTranslationProvider,
-  type TranslationProviderProps,
-} from "../shared/TranslationContext";
+  LingoProvider as BaseLingoProvider,
+  type LingoProviderProps,
+} from "../shared/LingoProvider";
 import { getServerTranslations } from "../server-only";
 import { logger } from "../../utils/logger";
 
-export async function TranslationProvider({
+export async function LingoProvider({
   initialLocale,
   initialTranslations = {},
   ...rest
-}: TranslationProviderProps) {
+}: LingoProviderProps) {
   const { locale, translations } = await getServerTranslations({
     locale: initialLocale,
   });
 
-  logger.debug(`Server. TranslationProvider. Resolved locale: ${locale}`);
+  logger.debug(`Server. LingoProvider. Resolved locale: ${locale}`);
 
   return (
-    <BaseTranslationProvider
+    <BaseLingoProvider
       initialLocale={locale}
       initialTranslations={translations}
       {...rest}

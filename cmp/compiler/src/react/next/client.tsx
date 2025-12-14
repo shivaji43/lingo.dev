@@ -1,12 +1,12 @@
 "use client";
 import {
-  TranslationProvider as BaseTranslationProvider,
-  type TranslationProviderProps,
-} from "../shared/TranslationContext";
+  LingoProvider as BaseLingoProvider,
+  type LingoProviderProps,
+} from "../shared/LingoProvider";
 import { useRouter } from "next/navigation";
 import { logger } from "../../utils/logger";
 
-export type { TranslationProviderProps };
+export type { LingoProviderProps };
 
 export const createNextCookieLocaleResolver = () => {
   return (locale: string) => {
@@ -15,7 +15,7 @@ export const createNextCookieLocaleResolver = () => {
   };
 };
 
-export const TranslationProvider = (props: TranslationProviderProps) => {
+export const LingoProvider = (props: LingoProviderProps) => {
   // So far we are just injecting the router to reload server components when the locale changes.
-  return <BaseTranslationProvider {...props} router={useRouter()} />;
+  return <BaseLingoProvider {...props} router={useRouter()} />;
 };

@@ -1,6 +1,6 @@
 import {
-  TranslationProvider as BaseTranslationProvider,
-  type TranslationProviderProps,
+  LingoProvider as BaseLingoProvider,
+  type LingoProviderProps,
 } from "./client";
 import { getServerTranslations } from "../server-only";
 import { logger } from "../../utils/logger";
@@ -8,21 +8,21 @@ import { createNextCookieLocaleResolver } from "./cookie-locale-resolver";
 
 export { createNextCookieLocaleResolver };
 
-export async function TranslationProvider({
+export async function LingoProvider({
   initialLocale,
   initialTranslations = {},
   ...rest
-}: TranslationProviderProps) {
+}: LingoProviderProps) {
   const { locale, translations } = await getServerTranslations({
     locale: initialLocale,
   });
 
   logger.debug(
-    `Server. TranslationProvider. Initial locale: ${initialLocale}. Resolved locale: ${locale}. Translations: ${JSON.stringify(translations)}`,
+    `Server. LingoProvider. Initial locale: ${initialLocale}. Resolved locale: ${locale}. Translations: ${JSON.stringify(translations)}`,
   );
 
   return (
-    <BaseTranslationProvider
+    <BaseLingoProvider
       initialLocale={locale}
       initialTranslations={translations}
       {...rest}

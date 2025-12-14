@@ -262,7 +262,7 @@ const t = useTranslation();
 
 **How it works**:
 
-1. Gets locale from `TranslationProvider` context
+1. Gets locale from `LingoProvider` context
 2. Loads translations from API endpoint or preloaded bundle
 3. Returns `t()` function that looks up translations by hash
 4. Falls back to source text if translation missing

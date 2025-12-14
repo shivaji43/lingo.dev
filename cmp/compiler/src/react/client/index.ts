@@ -7,11 +7,11 @@
  * @module @lingo.dev/compiler/react (client)
  */
 export {
-  TranslationProvider,
-  useTranslationContext,
-  type TranslationContextType,
-  type TranslationProviderProps,
-} from "../shared/TranslationContext";
+  LingoProvider,
+  type LingoProviderProps,
+} from "../shared/LingoProvider";
+
+export { useLingoContext } from "../shared/LingoContext";
 
 export { useTranslation } from "./useTranslation";
 

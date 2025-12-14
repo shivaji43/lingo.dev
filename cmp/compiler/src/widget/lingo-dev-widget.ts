@@ -14,7 +14,7 @@ import { logger } from "../utils/logger";
  * Lingo.dev Dev Widget Custom Element
  *
  * This Web Component displays translation status and updates based on
- * window.__LINGO_DEV_STATE__ changes triggered by TranslationProvider.
+ * window.__LINGO_DEV_STATE__ changes triggered by LingoProvider.
  */
 class LingoDevWidget extends HTMLElement {
   private shadow: ShadowRoot;
@@ -270,7 +270,7 @@ if (typeof window !== "undefined") {
   const widget = document.createElement("lingo-dev-widget");
   document.body.appendChild(widget);
 
-  // Initialize state if not already set (will be updated by TranslationProvider)
+  // Initialize state if not already set (will be updated by LingoProvider)
   if (!window.__LINGO_DEV_STATE__) {
     window.__LINGO_DEV_STATE__ = {
       isLoading: false,

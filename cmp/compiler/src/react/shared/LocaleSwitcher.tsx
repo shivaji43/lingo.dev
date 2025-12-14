@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslationContext } from "../shared/TranslationContext";
 import type { CSSProperties } from "react";
+import { useLingoContext } from "./LingoContext";
 
 /**
  * Locale configuration
@@ -53,7 +53,7 @@ export interface LocaleSwitcherProps {
  *
  * **How it works:**
  * 1. User selects new locale
- * 2. TranslationProvider automatically:
+ * 2. LingoProvider automatically:
  *    - Updates cookie for persistence
  *    - Refreshes Server Components (if Next.js router provided to provider)
  *    - Loads translations for new locale
@@ -87,7 +87,7 @@ export function LocaleSwitcher({
   className = "lingo-locale-switcher",
   showLoadingState = true,
 }: LocaleSwitcherProps) {
-  const { locale, setLocale, isLoading } = useTranslationContext();
+  const { locale, setLocale, isLoading } = useLingoContext();
 
   const loading = showLoadingState && isLoading;
 

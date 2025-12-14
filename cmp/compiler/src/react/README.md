@@ -4,7 +4,7 @@ This folder contains React components and hooks for the Lingo.dev translation ru
 
 ## Components
 
-### `<TranslationProvider>`
+### `<LingoProvider>`
 
 Context provider that manages translations and locale switching for your entire app.
 
@@ -19,13 +19,13 @@ Context provider that manages translations and locale switching for your entire 
 
 ```tsx
 // app/layout.tsx
-import { TranslationProvider } from "@lingo.dev/compiler-beta/react";
+import { LingoProvider } from "@lingo.dev/compiler-beta/react";
 
 export default function RootLayout({ children }) {
   return (
     <html>
       <body>
-        <TranslationProvider initialLocale="en">{children}</TranslationProvider>
+        <LingoProvider initialLocale="en">{children}</LingoProvider>
       </body>
     </html>
   );
@@ -157,7 +157,7 @@ For Server Components, use the separate `getServerTranslations()` function (not 
 
 ```
 ┌─────────────────────────────────────┐
-│       TranslationProvider           │
+│       LingoProvider           │
 │  (Context + State Management)       │
 └────────────┬────────────────────────┘
              │
@@ -180,7 +180,7 @@ For Server Components, use the separate `getServerTranslations()` function (not 
 
 ## Best Practices
 
-1. **Wrap your entire app** with `<TranslationProvider>` in the root layout
+1. **Wrap your entire app** with `<LingoProvider>` in the root layout
 2. **Pass the router** to `<LocaleSwitcher>` for seamless Server Component updates
 3. **Pre-load common translations** using `initialTranslations` prop
 4. **Use custom fetch function** if you have a custom translation API
@@ -191,7 +191,7 @@ All components and hooks are fully typed with TypeScript. Import types as needed
 
 ```tsx
 import type {
-  TranslationProviderProps,
+  LingoProviderProps,
   LocaleSwitcherProps,
   LocaleConfig,
   TranslationFunction,
@@ -204,16 +204,16 @@ import type {
 When testing components that use translations:
 
 ```tsx
-import { TranslationProvider } from "@lingo.dev/compiler-beta/react";
+import { LingoProvider } from "@lingo.dev/compiler-beta/react";
 
 test("my component", () => {
   render(
-    <TranslationProvider
+    <LingoProvider
       initialLocale="en"
       fetchTranslations={async () => ({ hash_abc: "Hello" })}
     >
       <MyComponent />
-    </TranslationProvider>,
+    </LingoProvider>,
   );
 });
 ```

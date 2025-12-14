@@ -12,6 +12,6 @@
  *
  * @module @lingo.dev/compiler/react (server)
  */
-export { TranslationProvider } from "./ServerTranslationProvider";
+export { LingoProvider } from "./ServerLingoProvider";
 export { LocaleSwitcher } from "../shared/LocaleSwitcher";
 export { useTranslation } from "./useTranslation";

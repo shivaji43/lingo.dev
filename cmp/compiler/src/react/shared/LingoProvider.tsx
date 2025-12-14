@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  createContext,
   type ReactNode,
   useCallback,
-  useContext,
   useEffect,
   useRef,
   useState,
@@ -17,62 +15,14 @@ import {
   getClientLocale,
   persistLocale,
 } from "@lingo.dev/compiler/locale/client";
+import { LingoContext } from "./LingoContext";
 
 const noop = () => {};
 
 /**
- * Translation context type
- */
-export interface TranslationContextType {
-  /**
-   * Current locale (e.g., 'en', 'de', 'fr')
-   */
-  locale: string;
-
-  /**
-   * Change the current locale and dynamically load translations
-   */
-  setLocale: (locale: string) => Promise<void>;
-
-  /**
-   * Translation dictionary: hash -> translated text
-   */
-  translations: Record<string, string>;
-
-  /**
-   * Register a hash as being used in a component
-   * The provider will automatically request missing translations
-   */
-  registerHashes: (hashes: string[]) => void;
-
-  /**
-   * Whether translations are currently being loaded
-   */
-  isLoading: boolean;
-
-  /**
-   * Source locale (default language)
-   */
-  sourceLocale: string;
-
-  /**
-   * Development statistics (only in dev mode)
-   */
-  _devStats?: {
-    pendingCount: number;
-    totalRegisteredCount: number;
-  };
-}
-
-/**
- * Translation context
- */
-const TranslationContext = createContext<TranslationContextType | null>(null);
-
-/**
  * Translation provider props
  */
-export interface TranslationProviderProps {
+export interface LingoProviderProps {
   /**
    * Initial locale to use
    */
@@ -127,15 +77,15 @@ const BATCH_DELAY = 200;
  * @example
  * ```tsx
  * // In your root layout
- * import { TranslationProvider } from '@lingo.dev/compiler-beta/react';
+ * import { LingoProvider } from '@lingo.dev/compiler-beta/react';
  *
  * export default function RootLayout({ children }) {
  *   return (
  *     <html>
  *       <body>
- *         <TranslationProvider initialLocale="en">
+ *         <LingoProvider initialLocale="en">
  *           {children}
- *         </TranslationProvider>
+ *         </LingoProvider>
  *       </body>
  *     </html>
  *   );
@@ -143,17 +93,15 @@ const BATCH_DELAY = 200;
  * ```
  */
 // Export the appropriate provider directly
-export const TranslationProvider = IS_DEV
-  ? TranslationProvider__Dev
-  : TranslationProvider__Prod;
+export const LingoProvider = IS_DEV ? LingoProvider__Dev : LingoProvider__Prod;
 
-function TranslationProvider__Prod({
+function LingoProvider__Prod({
   initialLocale,
   sourceLocale = "en",
   initialTranslations = {},
   router,
   children,
-}: TranslationProviderProps) {
+}: LingoProviderProps) {
   // Use client locale detection if no initialLocale provided
   const [locale, setLocaleState] = useState(() => {
     if (initialLocale) return initialLocale;
@@ -168,7 +116,7 @@ function TranslationProvider__Prod({
   const [isLoading, setIsLoading] = useState(false);
 
   logger.debug(
-    `TranslationProvider initialized with locale: ${locale}`,
+    `LingoProvider initialized with locale: ${locale}`,
     initialTranslations,
   );
 
@@ -261,7 +209,7 @@ function TranslationProvider__Prod({
   );
 
   return (
-    <TranslationContext.Provider
+    <LingoContext.Provider
       value={{
         locale,
         setLocale,
@@ -272,18 +220,18 @@ function TranslationProvider__Prod({
       }}
     >
       {children}
-    </TranslationContext.Provider>
+    </LingoContext.Provider>
   );
 }
 
-function TranslationProvider__Dev({
+function LingoProvider__Dev({
   initialLocale,
   sourceLocale = "en",
   initialTranslations = {},
   router,
   devWidget,
   children,
-}: TranslationProviderProps) {
+}: LingoProviderProps) {
   // Use client locale detection if no initialLocale provided
   const [locale, setLocaleState] = useState(() => {
     if (initialLocale) {
@@ -355,7 +303,7 @@ function TranslationProvider__Dev({
    */
   useEffect(() => {
     logger.debug(
-      `TranslationProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
+      `LingoProvider checking translations for locale ${locale}, seen hashes: ${allSeenHashes.size}`,
     );
 
     // Find hashes that are seen but not translated and not already pending
@@ -520,7 +468,7 @@ function TranslationProvider__Dev({
 
   // TODO (AleksandrSl 24/11/2025): Should I memo the value?
   return (
-    <TranslationContext.Provider
+    <LingoContext.Provider
       value={{
         locale,
         setLocale,
@@ -535,23 +483,6 @@ function TranslationProvider__Dev({
       }}
     >
       {children}
-    </TranslationContext.Provider>
+    </LingoContext.Provider>
   );
-}
-
-/**
- * Hook to access translation context
- *
- * @throws Error if used outside TranslationProvider
- */
-export function useTranslationContext(): TranslationContextType {
-  const context = useContext(TranslationContext);
-
-  if (!context) {
-    throw new Error(
-      "useTranslationContext must be used within TranslationProvider",
-    );
-  }
-
-  return context;
 }

@@ -3,11 +3,11 @@ import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 
 import Header from "../components/Header";
-import { TranslationProvider } from "@lingo.dev/compiler/react";
+import { LingoProvider } from "@lingo.dev/compiler/react";
 
 export const Route = createRootRoute({
   component: () => (
-    <TranslationProvider>
+    <LingoProvider>
       <div className="flex flex-col min-h-screen">
         <Header />
         <Outlet />
@@ -23,6 +23,6 @@ export const Route = createRootRoute({
           ]}
         />
       </div>
-    </TranslationProvider>
+    </LingoProvider>
   ),
 });
