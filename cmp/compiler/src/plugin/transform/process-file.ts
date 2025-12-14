@@ -1,5 +1,8 @@
 /**
- * Keep mutations to the current node and children. e.g. do not mutate program inserting imports when processing the component. This should be done in the end.
+ * Keep mutations to the current node and children. Do not mutate program inserting imports when processing the component.
+ * This should be done in the end.
+ * The overall idea is that state is used for side effect tracking. When we exit relevant points, we check if we need to make extra changes at this level.
+ * e.g. when we transform elements to insert translations, we record their hashes and add the translation hook call when leaving the component.
  */
 import * as t from "@babel/types";
 import type { NodePath, TraverseOptions } from "@babel/traverse";
