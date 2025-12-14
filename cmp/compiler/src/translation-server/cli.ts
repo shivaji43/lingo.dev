@@ -51,6 +51,7 @@ import { logger } from "../utils/logger";
 import { startOrGetTranslationServer } from "./translation-server";
 import { createLingoConfig } from "../utils/config-factory";
 import { type LocaleCode } from "lingo.dev/spec";
+import { parseLocaleOrThrow } from "../utils/is-valid-locale";
 
 interface CLIOptions {
   port?: number;
@@ -87,13 +88,15 @@ function parseCliArgs(): CLIOptions {
     allowPositionals: false,
   });
 
+  const parsedSourceLocale = parseLocaleOrThrow(values["source-locale"]);
+  const parsedTargetLocales = values["target-locales"]
+    ?.split(",")
+    .map((s) => parseLocaleOrThrow(s));
+
   return {
     port: values.port ? parseInt(values.port, 10) : undefined,
-    // TODO (AleksandrSl 04/12/2025): Validation for LocaleCode is needed
-    sourceLocale: values["source-locale"] as LocaleCode,
-    targetLocales: values["target-locales"]
-      ?.split(",")
-      .map((s) => s.trim()) as LocaleCode[],
+    sourceLocale: parsedSourceLocale,
+    targetLocales: parsedTargetLocales,
     lingoDir: values["lingo-dir"],
     sourceRoot: values["source-root"],
     models: values.models ? parseModelsString(values.models) : undefined,

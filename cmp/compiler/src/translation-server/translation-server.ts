@@ -30,6 +30,7 @@ import {
 import type { TranslationServerEvent } from "./ws-events";
 import { createEvent } from "./ws-events";
 import type { LocaleCode } from "lingo.dev/spec";
+import { parseLocaleOrThrow } from "../utils/is-valid-locale";
 
 export interface TranslationServerOptions {
   /**
@@ -607,12 +608,8 @@ export class TranslationServer {
       const postMatch = url.pathname.match(/^\/translations\/([^/]+)$/);
       if (postMatch && req.method === "POST") {
         const [, locale] = postMatch;
-        // TODO (AleksandrSl 14/12/2025): Validate localeCode
-        await this.handleBatchTranslationRequest(
-          locale as LocaleCode,
-          req,
-          res,
-        );
+
+        await this.handleBatchTranslationRequest(locale, req, res);
         return;
       }
 
@@ -620,7 +617,7 @@ export class TranslationServer {
       const dictMatch = url.pathname.match(/^\/translations\/([^/]+)$/);
       if (dictMatch && req.method === "GET") {
         const [, locale] = dictMatch;
-        await this.handleDictionaryRequest(locale as LocaleCode, res);
+        await this.handleDictionaryRequest(locale, res);
         return;
       }
 
@@ -653,11 +650,13 @@ export class TranslationServer {
    * Handle batch translation request
    */
   private async handleBatchTranslationRequest(
-    locale: LocaleCode,
+    locale: string,
     req: http.IncomingMessage,
     res: http.ServerResponse,
   ): Promise<void> {
     try {
+      const parsedLocale = parseLocaleOrThrow(locale);
+
       // Read request body
       let body = "";
       this.logger.debug("Reading request body...");
@@ -703,7 +702,7 @@ export class TranslationServer {
       try {
         // Translate using the stored service
         const result = await this.translationService.translate(
-          locale,
+          parsedLocale,
           this.metadata,
           hashes,
         );
@@ -743,10 +742,12 @@ export class TranslationServer {
    * Handle request for full translation dictionary
    */
   private async handleDictionaryRequest(
-    locale: LocaleCode,
+    locale: string,
     res: http.ServerResponse,
   ): Promise<void> {
     try {
+      const parsedLocale = parseLocaleOrThrow(locale);
+
       if (!this.translationService) {
         throw new Error("Translation service not initialized");
       }
@@ -765,7 +766,7 @@ export class TranslationServer {
 
       // Translate all hashes
       const result = await this.translationService.translate(
-        locale,
+        parsedLocale,
         this.metadata,
         allHashes,
       );

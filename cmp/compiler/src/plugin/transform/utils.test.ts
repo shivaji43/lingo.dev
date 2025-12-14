@@ -3,7 +3,10 @@
  */
 import { describe, expect, it } from "vitest";
 import IntlMessageFormat from "intl-messageformat";
-import { escapeTextForICU } from "./utils";
+import { parse } from "@babel/parser";
+import traverse from "@babel/traverse";
+import * as t from "@babel/types";
+import { escapeTextForICU, isReactComponent } from "./utils";
 
 describe("escapeTextForICU", () => {
   it.each([
