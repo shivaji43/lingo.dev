@@ -31,6 +31,7 @@
     "b790816bd521": "Pour le traduire, vous devez l'envelopper dans le '<>'{translatableText}'</>'",
     "6b03202608a3": "'Pour le traduire, vous devez l'envelopper dans le <>'{translatableText}'</> '",
     "17e475720c65": "Pour le traduire, vous devez l'envelopper dans le '<''>'{translatableText}'<'/'>'",
-    "1a95cb0327e7": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText}'<'/>"
+    "1a95cb0327e7": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText}'<'/>",
+    "5c15bd35e916": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText} '<'/>"
   }
 }

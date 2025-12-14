@@ -31,6 +31,7 @@
     "b790816bd521": "Um ihn zu übersetzen, müssen Sie ihn in das '<>'{translatableText}'</>' einpacken",
     "6b03202608a3": "'Um ihn zu übersetzen, müssen Sie ihn in das <>'{translatableText}'</> ' einpacken",
     "17e475720c65": "Um ihn zu übersetzen, müssen Sie ihn in das '<''>'{translatableText}'<'/'>' einpacken",
-    "1a95cb0327e7": "Um ihn zu übersetzen, müssen Sie ihn in das '<'>{translatableText}'<'/> einpacken"
+    "1a95cb0327e7": "Um ihn zu übersetzen, müssen Sie ihn in das '<'>{translatableText}'<'/> einpacken",
+    "5c15bd35e916": "Um es zu übersetzen, müssen Sie es in '<'>{translatableText} '<'/> einschließen"
   }
 }

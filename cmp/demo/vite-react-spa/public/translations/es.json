@@ -31,6 +31,7 @@
     "b790816bd521": "Para traducirlo tienes que envolverlo en el '<>'{translatableText}'</>'",
     "6b03202608a3": "'Para traducirlo tienes que envolverlo en el <>'{translatableText}'</> '",
     "17e475720c65": "Para traducirlo tienes que envolverlo en el '<''>'{translatableText}'<'/'>'",
-    "1a95cb0327e7": "Para traducirlo tienes que envolverlo en el '<'>{translatableText}'<'/>"
+    "1a95cb0327e7": "Para traducirlo tienes que envolverlo en el '<'>{translatableText}'<'/>",
+    "5c15bd35e916": "Para traducirlo tienes que envolverlo en el '<'>{translatableText} '<'/>"
   }
 }
