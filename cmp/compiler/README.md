@@ -37,15 +37,15 @@ The compiler is organized into several key modules:
 #### `src/plugin/` - Build-time transformation
 
 - **`transform/`** - Babel AST transformation logic for JSX text extraction
-- **`unplugin.ts`** - Universal plugin implementation (Vite, Webpack, Rollup, esbuild)
-- **`next.ts`** - Next.js-specific plugin with Turbopack and webpack support
+- **`unplugin.ts`** - Universal plugin implementation (Vite, Webpack)
+- **`next.ts`** - Next.js-specific plugin with Turbopack and Webpack support
 - **`build-translator.ts`** - Batch translation generation at build time
-- **`locale-code-generator.ts`** - Generates locale resolver modules
+- **`virtual-modules-code-generator.ts`** - Generates code for virtual modules, dev config and locale resolvers for client and server
 
 #### `src/metadata/` - Translation metadata management
 
 - **`manager.ts`** - CRUD operations for `.lingo/metadata.json`
-- Thread-safe metadata file operations with locking
+- Thread-safe metadata file operations with file locking
 - Manages translation entries with hash-based identifiers
 
 #### `src/translators/` - Translation provider abstraction

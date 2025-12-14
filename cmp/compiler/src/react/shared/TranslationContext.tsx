@@ -12,8 +12,6 @@ import {
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "./utils";
-import type { CookieConfig } from "../../types";
-import { defaultCookieConfig } from "../../utils/cookies";
 import { serverUrl } from "@lingo.dev/compiler/dev-config";
 import {
   getClientLocale,
@@ -91,16 +89,6 @@ export interface TranslationProviderProps {
   initialTranslations?: Record<string, string>;
 
   /**
-   * Debounce delay for batching translation requests (ms)
-   * Default: 100ms
-   */
-  batchDelay?: number;
-  /**
-   * Cookie configuration for persisting locale
-   */
-  cookieConfig?: CookieConfig;
-
-  /**
    * Optional router instance for Next.js integration
    * If provided, calls router.refresh() after locale change
    * This ensures Server Components re-render with new locale
@@ -128,6 +116,7 @@ export interface TranslationProviderProps {
 }
 
 const IS_DEV = process.env.NODE_ENV === "development";
+const BATCH_DELAY = 200;
 
 /**
  * Translation Provider Component
@@ -162,11 +151,9 @@ function TranslationProvider__Prod({
   initialLocale,
   sourceLocale = "en",
   initialTranslations = {},
-  cookieConfig: customCookieConfig,
   router,
   children,
 }: TranslationProviderProps) {
-  const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
   // Use client locale detection if no initialLocale provided
   const [locale, setLocaleState] = useState(() => {
     if (initialLocale) return initialLocale;
@@ -270,7 +257,7 @@ function TranslationProvider__Prod({
         await loadTranslations(newLocale);
       }
     },
-    [cookieConfig, router, loadTranslations],
+    [router, loadTranslations],
   );
 
   return (
@@ -293,13 +280,10 @@ function TranslationProvider__Dev({
   initialLocale,
   sourceLocale = "en",
   initialTranslations = {},
-  batchDelay = 100,
-  cookieConfig: customCookieConfig,
   router,
   devWidget,
   children,
 }: TranslationProviderProps) {
-  const [cookieConfig] = useState(customCookieConfig || defaultCookieConfig);
   // Use client locale detection if no initialLocale provided
   const [locale, setLocaleState] = useState(() => {
     if (initialLocale) {
@@ -441,8 +425,8 @@ function TranslationProvider__Dev({
       } finally {
         setIsLoading(false);
       }
-    }, batchDelay);
-  }, [allSeenHashes, locale, sourceLocale, batchDelay, translations]);
+    }, BATCH_DELAY);
+  }, [allSeenHashes, locale, sourceLocale, translations]);
 
   /**
    * Clear batch timer on unmount
@@ -504,7 +488,7 @@ function TranslationProvider__Dev({
         setIsLoading(false);
       }
     },
-    [cookieConfig, router],
+    [router],
   );
 
   // Load widget on client-side only (avoids SSR issues with HTMLElement)

@@ -13,8 +13,7 @@ Context provider that manages translations and locale switching for your entire 
 - `initialLocale` (string, required): Initial locale to use (e.g., 'en', 'de', 'fr')
 - `sourceLocale` (string, optional): Source language, default: 'en'
 - `initialTranslations` (object, optional): Pre-loaded translations
-- `fetchTranslations` (function, optional): Custom translation fetch function
-- `batchDelay` (number, optional): Debounce delay for batching requests in ms, default: 100
+- `fetchTranslations` (function, optional): Custom translation fetch function ms, default: 100
 
 **Example:**
 
