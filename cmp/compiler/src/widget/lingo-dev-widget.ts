@@ -8,6 +8,7 @@
  */
 
 import type { LingoDevState, WidgetPosition } from "./types";
+import { logger } from "../utils/logger";
 
 /**
  * Lingo.dev Dev Widget Custom Element
@@ -40,17 +41,14 @@ class LingoDevWidget extends HTMLElement {
       this.render();
     }
 
-    // Connect to WebSocket for real-time server updates
     this.connectWebSocket();
   }
 
   disconnectedCallback() {
-    // Cleanup
     if (window.__LINGO_DEV_UPDATE__) {
       delete window.__LINGO_DEV_UPDATE__;
     }
 
-    // Close WebSocket connection
     if (this.ws) {
       this.ws.close();
       this.ws = null;
@@ -60,22 +58,19 @@ class LingoDevWidget extends HTMLElement {
   private connectWebSocket() {
     const wsUrl = window.__LINGO_DEV_WS_URL__;
     if (!wsUrl) {
-      console.warn(
-        "[Lingo.dev] WebSocket URL not available, real-time updates disabled",
-      );
+      logger.warn("WebSocket URL not available, real-time updates disabled");
       return;
     }
 
     try {
-      // Convert HTTP URL to WS URL
       const url = new URL(wsUrl);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
       this.ws = new WebSocket(url.toString());
 
       this.ws.onopen = () => {
-        console.log("[Lingo.dev] WebSocket connected");
-        this.reconnectAttempts = 0; // Reset on successful connection
+        logger.info("WebSocket connected");
+        this.reconnectAttempts = 0;
       };
 
       this.ws.onmessage = (event) => {
@@ -83,19 +78,16 @@ class LingoDevWidget extends HTMLElement {
           const data = JSON.parse(event.data);
           this.handleServerEvent(data);
         } catch (error) {
-          console.error(
-            "[Lingo.dev] Failed to parse WebSocket message:",
-            error,
-          );
+          logger.error("Failed to parse WebSocket message:", error);
         }
       };
 
       this.ws.onerror = (error) => {
-        console.error("[Lingo.dev] WebSocket error:", error);
+        logger.error("WebSocket error:", error);
       };
 
       this.ws.onclose = () => {
-        console.log("[Lingo.dev] WebSocket disconnected");
+        logger.info("WebSocket disconnected");
         this.ws = null;
 
         // Attempt to reconnect with exponential backoff
@@ -105,26 +97,21 @@ class LingoDevWidget extends HTMLElement {
             10000,
           );
           this.reconnectAttempts++;
-          console.log(
-            `[Lingo.dev] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
+          logger.info(
+            `Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
           );
           setTimeout(() => this.connectWebSocket(), delay);
         }
       };
     } catch (error) {
-      console.error(
-        "[Lingo.dev] Failed to create WebSocket connection:",
-        error,
-      );
+      logger.error("Failed to create WebSocket connection:", error);
     }
   }
 
   private handleServerEvent(event: any) {
     switch (event.type) {
       case "connected":
-        console.log(
-          `[Lingo.dev] Connected to translation server: ${event.serverUrl}`,
-        );
+        logger.info(`Connected to translation server: ${event.serverUrl}`);
         break;
 
       case "batch:start":
@@ -183,8 +170,7 @@ class LingoDevWidget extends HTMLElement {
       this.state;
 
     // Show loader if either client or server translations are in progress
-    const showLoader =
-      isLoading || (serverProgress && serverProgress.status === "in-progress");
+    const showLoader = isLoading || serverProgress?.status === "in-progress";
 
     this.shadow.innerHTML = `
       <style>
@@ -242,41 +228,6 @@ class LingoDevWidget extends HTMLElement {
         height: 26px;
         flex-shrink: 0;
       }
-
-      .status {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .spinner {
-        display: inline-block;
-        font-size: 16px;
-        animation: lingo-spin 1s linear infinite;
-      }
-
-      @keyframes lingo-spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-
-      .content {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-
-      .title {
-        font-weight: 500;
-        font-size: 12px;
-        line-height: 16px;
-      }
-
-      .subtitle {
-        font-size: 11px;
-        opacity: 0.8;
-        line-height: 14px;
-      }
     `;
   }
 
@@ -313,7 +264,7 @@ class LingoDevWidget extends HTMLElement {
   }
 }
 
-console.debug("Loading Lingo Dev Widget...", window);
+logger.debug("Loading Lingo Dev Widget...");
 if (typeof window !== "undefined") {
   customElements.define("lingo-dev-widget", LingoDevWidget);
   const widget = document.createElement("lingo-dev-widget");
