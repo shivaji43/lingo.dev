@@ -16,7 +16,7 @@ import {
   createAiModel,
   parseModelString,
   validateAndGetApiKeys,
-} from "../lcp/model-factory";
+} from "../lingo/model-factory";
 import { Logger } from "../../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
 import { getSystemPrompt } from "./prompt";

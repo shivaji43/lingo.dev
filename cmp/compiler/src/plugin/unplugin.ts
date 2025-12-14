@@ -21,7 +21,7 @@ import {
   generateClientLocaleModule,
   generateDevConfigModule,
   generateServerLocaleModule,
-} from "./locale-code-generator";
+} from "./virtual-modules-code-generator";
 import { processBuildTranslations } from "./build-translator";
 import { registerCleanupOnCurrentProcess } from "./cleanup";
 import path from "path";

@@ -122,7 +122,7 @@ export type LingoConfig = {
   skipPatterns: RegExp[];
 
   /**
-   * Model configuration for LCP translator
+   * Model configuration for lingo translator
    * - Use "lingo.dev" for Lingo.dev Engine (recommended)
    * - Use locale-pair mapping for direct LLM providers
    *
@@ -135,7 +135,7 @@ export type LingoConfig = {
   models: "lingo.dev" | Record<string, string>;
 
   /**
-   * Custom translation prompt for LCP translator
+   * Custom translation prompt for lingo translator
    * Use {SOURCE_LOCALE} and {TARGET_LOCALE} placeholders
    */
   prompt?: string;

@@ -1,10 +1,10 @@
-# LCP (Lingo Compiler Protocol) Translator
+# Lingo Translator
 
 Real AI-powered translation using various LLM providers for compiler-beta.
 
 ## Overview
 
-The LCP Translator implements the `Translator` interface and provides real translation capabilities using:
+The lingo Translator implements the `Translator` interface and provides real translation capabilities using:
 
 - **Lingo.dev Engine** (recommended) - Optimized for localization
 - **Direct LLM providers** - Google, Groq, OpenRouter, Ollama, Mistral
@@ -36,9 +36,9 @@ The required dependencies are already included in compiler-beta:
 ### Basic Usage with Lingo.dev Engine (Recommended)
 
 ```typescript
-import { LCPTranslator } from "@lingo.dev/compiler-beta/translate";
+import { lingoTranslator } from "@lingo.dev/compiler-beta/translate";
 
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: "lingo.dev",
   sourceLocale: "en",
 });
@@ -61,7 +61,7 @@ console.log(batch);
 ### Using Direct LLM Providers
 
 ```typescript
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: {
     "en:es": "google:gemini-2.0-flash",
     "en:fr": "groq:llama3-8b-8192",
@@ -79,7 +79,7 @@ await translator.translate("es", {
 ### With Custom Prompts
 
 ```typescript
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: "lingo.dev",
   sourceLocale: "en",
   prompt: `
@@ -94,11 +94,11 @@ const translator = new LCPTranslator({
 
 ```typescript
 import {
-  LCPTranslator,
+  lingoTranslator,
   createCachedTranslator,
 } from "@lingo.dev/compiler-beta/translate";
 
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: "lingo.dev",
   sourceLocale: "en",
 });
@@ -112,10 +112,10 @@ const cachedTranslator = createCachedTranslator(translator, {
 
 ## Configuration
 
-### LCPTranslatorConfig
+### lingoTranslatorConfig
 
 ```typescript
-interface LCPTranslatorConfig {
+interface lingoTranslatorConfig {
   // Model configuration
   models: "lingo.dev" | Record<string, string>;
 
@@ -258,11 +258,11 @@ Translation data is serialized to XML for better LLM understanding:
 
 ## API Reference
 
-### `LCPTranslator` class
+### `lingoTranslator` class
 
 ```typescript
-class LCPTranslator implements Translator<LCPTranslatorConfig> {
-  constructor(config: LCPTranslatorConfig);
+class lingoTranslator implements Translator<lingoTranslatorConfig> {
+  constructor(config: lingoTranslatorConfig);
 
   // Translate one or more entries
   translate(
@@ -283,13 +283,13 @@ interface TranslatableEntry {
 
 ## Comparison with PseudoTranslator
 
-| Feature           | LCPTranslator | PseudoTranslator    |
-| ----------------- | ------------- | ------------------- |
-| Real translations | ✅ Yes        | ❌ No (fake)        |
-| Requires API key  | ✅ Yes        | ❌ No               |
-| Cost              | 💰 Varies     | 🆓 Free             |
-| Use case          | Production    | Testing/development |
-| Accuracy          | 🎯 High       | 🎪 N/A              |
+| Feature           | lingoTranslator | PseudoTranslator    |
+| ----------------- | --------------- | ------------------- |
+| Real translations | ✅ Yes          | ❌ No (fake)        |
+| Requires API key  | ✅ Yes          | ❌ No               |
+| Cost              | 💰 Varies       | 🆓 Free             |
+| Use case          | Production      | Testing/development |
+| Accuracy          | 🎯 High         | 🎪 N/A              |
 
 ## Error Handling
 
@@ -315,7 +315,7 @@ try {
 
 ## Examples
 
-See `lcp-translator.test.ts` for working examples.
+See `lingo-translator.test.ts` for working examples.
 
 ## Related
 

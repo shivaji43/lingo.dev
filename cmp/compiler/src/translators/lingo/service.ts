@@ -14,22 +14,22 @@ import { Logger } from "../../utils/logger";
 import { DEFAULT_TIMEOUTS, withTimeout } from "../../utils/timeout";
 
 /**
- * LCP Translator configuration
+ * Lingo Translator configuration
  */
-export interface LCPTranslatorConfig {
+export interface LingoTranslatorConfig {
   models: "lingo.dev" | Record<string, string>;
   sourceLocale: string;
   prompt?: string | null;
 }
 
 /**
- * LCP-based translator using AI models
+ * Lingo translator using AI models
  */
-export class Service implements Translator<LCPTranslatorConfig> {
+export class Service implements Translator<LingoTranslatorConfig> {
   private readonly validatedKeys: ValidatedApiKeys;
 
   constructor(
-    readonly config: LCPTranslatorConfig,
+    readonly config: LingoTranslatorConfig,
     private logger: Logger,
   ) {
     this.logger.info("Validating API keys for translation...");
@@ -44,9 +44,9 @@ export class Service implements Translator<LCPTranslatorConfig> {
     locale: string,
     entriesMap: Record<string, TranslatableEntry>,
   ): Promise<Record<string, string>> {
-    this.logger.debug(`[TRACE-LCP] translate() ENTERED for ${locale}`);
+    this.logger.debug(`[TRACE-LINGO] translate() ENTERED for ${locale}`);
     this.logger.debug(
-      `[TRACE-LCP] translate() called for ${locale} with ${Object.keys(entriesMap).length} entries`,
+      `[TRACE-LINGO] translate() called for ${locale} with ${Object.keys(entriesMap).length} entries`,
     );
 
     // Create dictionary from entries map
@@ -59,14 +59,14 @@ export class Service implements Translator<LCPTranslatorConfig> {
     };
 
     this.logger.debug(
-      `[TRACE-LCP] Created source dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
+      `[TRACE-LINGO] Created source dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
     );
-    this.logger.debug(`[TRACE-LCP] Calling translateDictionary()`);
+    this.logger.debug(`[TRACE-LINGO] Calling translateDictionary()`);
 
     const translated = await this.translateDictionary(sourceDictionary, locale);
 
     this.logger.debug(
-      `[TRACE-LCP] translateDictionary() completed, returned ${Object.keys(translated.entries || {}).length} entries`,
+      `[TRACE-LINGO] translateDictionary() completed, returned ${Object.keys(translated.entries || {}).length} entries`,
     );
 
     return translated.entries || {};
@@ -80,17 +80,17 @@ export class Service implements Translator<LCPTranslatorConfig> {
     targetLocale: string,
   ): Promise<DictionarySchema> {
     this.logger.debug(
-      `[TRACE-LCP] Chunking dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
+      `[TRACE-LINGO] Chunking dictionary with ${Object.keys(sourceDictionary.entries).length} entries`,
     );
     const chunks = this.chunkDictionary(sourceDictionary);
-    this.logger.debug(`[TRACE-LCP] Split into ${chunks.length} chunks`);
+    this.logger.debug(`[TRACE-LINGO] Split into ${chunks.length} chunks`);
 
     const translatedChunks: DictionarySchema[] = [];
 
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       this.logger.debug(
-        `[TRACE-LCP] Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
+        `[TRACE-LINGO] Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
       );
       const chunkStartTime = performance.now();
 
@@ -98,16 +98,16 @@ export class Service implements Translator<LCPTranslatorConfig> {
 
       const chunkEndTime = performance.now();
       this.logger.debug(
-        `[TRACE-LCP] Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
+        `[TRACE-LINGO] Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
       );
 
       translatedChunks.push(translatedChunk);
     }
 
-    this.logger.debug(`[TRACE-LCP] All chunks translated, merging results`);
+    this.logger.debug(`[TRACE-LINGO] All chunks translated, merging results`);
     const result = this.mergeDictionaries(translatedChunks);
     this.logger.debug(
-      `[TRACE-LCP] Merge completed, final dictionary has ${Object.keys(result.entries).length} entries`,
+      `[TRACE-LINGO] Merge completed, final dictionary has ${Object.keys(result.entries).length} entries`,
     );
 
     return result;
@@ -135,7 +135,7 @@ export class Service implements Translator<LCPTranslatorConfig> {
     sourceDictionary: DictionarySchema,
     targetLocale: string,
   ): Promise<DictionarySchema> {
-    this.logger.debug(`[TRACE-LCP] translateWithLingoDotDev() called`);
+    this.logger.debug(`[TRACE-LINGO] translateWithLingoDotDev() called`);
 
     const apiKey = this.validatedKeys["lingo.dev"];
     if (!apiKey) {
@@ -148,12 +148,12 @@ export class Service implements Translator<LCPTranslatorConfig> {
       `Using Lingo.dev Engine to localize from "${this.config.sourceLocale}" to "${targetLocale}"`,
     );
 
-    this.logger.debug(`[TRACE-LCP] Creating LingoDotDevEngine client`);
+    this.logger.debug(`[TRACE-LINGO] Creating LingoDotDevEngine client`);
     const engine = new LingoDotDevEngine({ apiKey });
 
     try {
       this.logger.debug(
-        `[TRACE-LCP] Calling engine.localizeObject() with timeout ${DEFAULT_TIMEOUTS.AI_API}ms`,
+        `[TRACE-LINGO] Calling engine.localizeObject() with timeout ${DEFAULT_TIMEOUTS.AI_API}ms`,
       );
       const apiStartTime = performance.now();
 
@@ -168,13 +168,13 @@ export class Service implements Translator<LCPTranslatorConfig> {
 
       const apiEndTime = performance.now();
       this.logger.debug(
-        `[TRACE-LCP] engine.localizeObject() completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`,
+        `[TRACE-LINGO] engine.localizeObject() completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`,
       );
 
       return result as DictionarySchema;
     } catch (error) {
       this.logger.error(
-        `[TRACE-LCP] translateWithLingoDotDev() failed:`,
+        `[TRACE-LINGO] translateWithLingoDotDev() failed:`,
         error,
       );
       throw new Error(

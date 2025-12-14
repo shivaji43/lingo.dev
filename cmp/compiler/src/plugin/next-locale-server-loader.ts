@@ -4,7 +4,7 @@
  */
 
 import type { LingoConfig } from "../types";
-import { generateServerLocaleModule } from "./locale-code-generator";
+import { generateServerLocaleModule } from "./virtual-modules-code-generator";
 
 export default function nextLocaleServerLoader(
   this: any,

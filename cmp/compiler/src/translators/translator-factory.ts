@@ -4,7 +4,7 @@
 
 import type { Translator } from "./api";
 import { PseudoTranslator } from "./pseudotranslator";
-import { Service } from "./lcp";
+import { Service } from "./lingo";
 import { Logger } from "../utils/logger";
 
 /**
@@ -36,7 +36,7 @@ export interface TranslatorFactoryConfig {
  * Note: Translators are stateless and don't handle caching.
  * Caching is handled by TranslationService layer.
  *
- * API key validation is now done in the LCPTranslator constructor
+ * API key validation is now done in the LingoTranslator constructor
  * which validates and fetches all keys once at initialization.
  */
 export function createTranslator(
@@ -52,13 +52,13 @@ export function createTranslator(
   }
 
   // 2. Try to create real translator
-  // LCPTranslator constructor will validate and fetch API keys
+  // LingoTranslator constructor will validate and fetch API keys
   // If validation fails, it will throw an error with helpful message
   try {
     const models = config.models || "lingo.dev";
 
     logger.info(
-      `Creating LCP translator with models: ${JSON.stringify(models)}`,
+      `Creating Lingo translator with models: ${JSON.stringify(models)}`,
     );
 
     return new Service(

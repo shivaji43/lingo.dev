@@ -1,5 +1,5 @@
 import type { LingoConfig } from "../types";
-import { generateDevConfigModule } from "./locale-code-generator";
+import { generateDevConfigModule } from "./virtual-modules-code-generator";
 
 /**
  * Loader for dev-config module

@@ -512,7 +512,7 @@ function TranslationProvider__Dev({
     if (devWidget?.enabled !== false) {
       // Dynamic import ensures this only runs on the client
       import("../../widget/lingo-dev-widget").catch((err) => {
-        logger.error("Failed to load dev widget:", err);
+        logger.error("Failed to load dev widget:", err, err.message);
       });
     }
   }, [devWidget?.enabled]);

@@ -43,21 +43,21 @@ const batch = await translator.translate("fr", {
 // Output: { hash1: "fr/Ḍáśĥḅóáŕḍ     ", hash2: "fr/Śéţţíñĝś    " }
 ```
 
-### 2. LCPTranslator (Production)
+### 2. lingoTranslator (Production)
 
 For real AI-powered translations:
 
 ```typescript
-import { LCPTranslator } from "@lingo.dev/compiler-beta/translate";
+import { lingoTranslator } from "@lingo.dev/compiler-beta/translate";
 
 // Using Lingo.dev Engine
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: "lingo.dev",
   sourceLocale: "en",
 });
 
 // Using custom LLM providers
-const customTranslator = new LCPTranslator({
+const customTranslator = new lingoTranslator({
   models: {
     "en:es": "google:gemini-2.0-flash",
     "en:fr": "groq:llama3-70b-8192",
@@ -80,11 +80,11 @@ Wrap any translator with caching:
 
 ```typescript
 import {
-  LCPTranslator,
+  lingoTranslator,
   createCachedTranslator,
 } from "@lingo.dev/compiler-beta/translate";
 
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models: "lingo.dev",
   sourceLocale: "en",
 });
@@ -126,11 +126,11 @@ export default async function Page() {
 
 ```typescript
 import { getServerTranslations } from "@lingo.dev/compiler-beta/react/server";
-import { LCPTranslator, createCachedTranslator } from "@lingo.dev/compiler-beta/translate";
+import { lingoTranslator, createCachedTranslator } from "@lingo.dev/compiler-beta/translate";
 import metadata from "./.lingo/metadata.json";
 
 const translator = createCachedTranslator(
-  new LCPTranslator({
+  new lingoTranslator({
     models: "lingo.dev",
     sourceLocale: "en",
   }),
@@ -224,7 +224,7 @@ const cached = createCachedTranslator(translateFn, cacheConfig);
 ### After (Translator Interface)
 
 ```typescript
-const translator = new LCPTranslator({
+const translator = new lingoTranslator({
   models,
   sourceLocale,
   prompt,
@@ -244,7 +244,7 @@ const cached = createCachedTranslator(translator, cacheConfig);
 
 ## Environment Variables
 
-For LCP translator, set your API keys:
+For lingo translator, set your API keys:
 
 ```env
 # Recommended
@@ -262,12 +262,12 @@ MISTRAL_API_KEY=your_key_here
 ```typescript
 // translator.ts
 import {
-  LCPTranslator,
+  LingoTranslator,
   createCachedTranslator,
 } from "@lingo.dev/compiler-beta/translate";
 
 export const translator = createCachedTranslator(
-  new LCPTranslator({
+  new LingoTranslator({
     models: "lingo.dev",
     sourceLocale: "en",
   }),

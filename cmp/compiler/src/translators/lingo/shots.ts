@@ -5,7 +5,6 @@ import type { DictionarySchema } from "../api";
  * These help the LLM understand the expected format and behavior
  */
 export const shots: [DictionarySchema, DictionarySchema][] = [
-  // Example 1: Basic UI translations
   [
     {
       version: 0.1,
