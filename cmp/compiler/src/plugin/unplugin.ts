@@ -19,9 +19,9 @@ import { logger } from "../utils/logger";
 import { useI18nRegex } from "./transform/use-i18n";
 import {
   generateClientLocaleModule,
-  generateDevConfigModule,
+  generateConfigModule,
   generateServerLocaleModule,
-} from "./virtual-modules-code-generator";
+} from "../virtual/code-generator";
 import { processBuildTranslations } from "./build-translator";
 import { registerCleanupOnCurrentProcess } from "./cleanup";
 import path from "path";
@@ -52,17 +52,17 @@ function tryLocalOrReturnVirtual(
  * If customFileCheck is defined, the specified file will be first searched for, and if not found virtual module will be used.
  */
 const virtualModules = {
-  "@lingo.dev/compiler/dev-config": {
-    virtualId: "\0virtual:lingo-dev-config",
-    loader: (config: LingoConfig) => generateDevConfigModule(config),
+  "@lingo.dev/compiler/virtual/config": {
+    virtualId: "\0virtual:lingo-config",
+    loader: (config: LingoConfig) => generateConfigModule(config),
     customFileCheck: undefined,
   },
-  "@lingo.dev/compiler/locale/server": {
+  "@lingo.dev/compiler/virtual/locale/server": {
     virtualId: "\0virtual:locale-resolver.server" as const,
     loader: (config: LingoConfig) => generateServerLocaleModule(config),
     customFileCheck: "locale-resolver.server.ts" as const,
   },
-  "@lingo.dev/compiler/locale/client": {
+  "@lingo.dev/compiler/virtual/locale/client": {
     virtualId: "\0virtual:locale-resolver.client" as const,
     loader: (config: LingoConfig) => generateClientLocaleModule(config),
     customFileCheck: "locale-resolver.client.ts" as const,
@@ -110,6 +110,27 @@ export const lingoUnplugin = createUnplugin<
     );
   };
 
+  async function startServer() {
+    const server = await startTranslationServer({
+      startPort,
+      onError: (err) => {
+        logger.error("Translation server error:", err);
+      },
+      onReady: (port) => {
+        logger.info(`Translation server started successfully on port: ${port}`);
+      },
+      config,
+    });
+    // I don't like this quite a lot. But starting server inside the loader seems lame.
+    config.dev.translationServerUrl = server.getUrl();
+    registerCleanupOnCurrentProcess({
+      asyncCleanup: async () => {
+        await translationServer.stop();
+      },
+    });
+    return server;
+  }
+
   return {
     name: PLUGIN_NAME,
     enforce: "pre", // Run before other plugins (especially before React plugin)
@@ -119,29 +140,12 @@ export const lingoUnplugin = createUnplugin<
         const metadataFilePath = getMetadataPath();
 
         cleanupExistingMetadata(metadataFilePath);
-
         registerCleanupOnCurrentProcess({
           cleanup: () => cleanupExistingMetadata(metadataFilePath),
         });
-        if (isDev && !translationServer) {
-          translationServer = await startTranslationServer({
-            startPort,
-            onError: (err) => {
-              logger.error("Translation server error:", err);
-            },
-            onReady: (port) => {
-              logger.info(
-                `Translation server started successfully on port: ${port}`,
-              );
-            },
-            config,
-          });
 
-          registerCleanupOnCurrentProcess({
-            asyncCleanup: async () => {
-              await translationServer.stop();
-            },
-          });
+        if (isDev && !translationServer) {
+          translationServer = await startServer();
         }
       },
 
@@ -177,23 +181,7 @@ export const lingoUnplugin = createUnplugin<
 
       compiler.hooks.watchRun.tapPromise(PLUGIN_NAME, async () => {
         if (webpackMode === "development" && !translationServer) {
-          translationServer = await startTranslationServer({
-            startPort,
-            onError: (err) => {
-              logger.error("Translation server error:", err);
-            },
-            onReady: (port) => {
-              logger.info(
-                `Translation server started successfully on port: ${port}`,
-              );
-            },
-            config,
-          });
-          registerCleanupOnCurrentProcess({
-            asyncCleanup: async () => {
-              await translationServer.stop();
-            },
-          });
+          translationServer = await startServer();
         }
       });
 

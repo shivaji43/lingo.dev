@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import IntlMessageFormat, { type FormatXMLElementFn } from "intl-messageformat";
 import { logger } from "../../utils/logger";
-import { sourceLocale } from "@lingo.dev/compiler/dev-config";
+import { sourceLocale } from "@lingo.dev/compiler/virtual/config";
 
 /**
  * Component renderer function for rich text translation

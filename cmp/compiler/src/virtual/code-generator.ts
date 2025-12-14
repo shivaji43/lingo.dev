@@ -1,5 +1,5 @@
 /**
- * Shared code generation for locale resolution modules
+ * Shared code generation for virtual modules
  * Used by both unplugin (virtual modules) and Turbopack loaders
  *
  * This module provides FULL module generators, not just function bodies.
@@ -10,10 +10,10 @@ import type { LingoConfig } from "../types";
 import { getCacheDir } from "../utils/path-helpers";
 
 /**
- * Generate complete dev-config module
+ * Generate complete config module
  * Exports serverUrl and cacheDir constants
  */
-export function generateDevConfigModule(config: LingoConfig): string {
+export function generateConfigModule(config: LingoConfig): string {
   const serverUrl = config.dev.translationServerUrl;
   const cacheDir = getCacheDir(config);
 

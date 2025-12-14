@@ -10,11 +10,11 @@ import {
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "./utils";
-import { serverUrl, sourceLocale } from "@lingo.dev/compiler/dev-config";
+import { serverUrl, sourceLocale } from "@lingo.dev/compiler/virtual/config";
 import {
   getClientLocale,
   persistLocale,
-} from "@lingo.dev/compiler/locale/client";
+} from "@lingo.dev/compiler/virtual/locale/client";
 import { LingoContext } from "./LingoContext";
 import type { LocaleCode } from "lingo.dev/spec";
 
@@ -400,7 +400,9 @@ function LingoProvider__Dev({
       const startTime = performance.now();
 
       try {
-        logger.info(`Fetching translations for locale: ${newLocale}`);
+        logger.info(
+          `Fetching translations for locale: ${newLocale}. Server url: ${serverUrl}`,
+        );
 
         // TODO (AleksandrSl 08/12/2025): We should be fetching the existing cached translations here.
         const translatedDict = await fetchTranslations(

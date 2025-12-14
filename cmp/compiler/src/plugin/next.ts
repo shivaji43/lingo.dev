@@ -42,8 +42,8 @@ export function loaders({
     },
   };
 
-  const devConfigLoader = {
-    loader: "@lingo.dev/compiler/next-dev-config-loader",
+  const configLoader = {
+    loader: "@lingo.dev/compiler/next-config-loader",
     options: {
       ...common,
       dev: {
@@ -90,43 +90,43 @@ export function loaders({
     devConfig: translationServerUrl
       ? {
           turbopack: {
-            pattern: "**/dev-config.mjs",
+            pattern: "**/virtual/config.mjs",
             config: {
-              loaders: [devConfigLoader],
+              loaders: [configLoader],
             },
           },
           webpack: {
             enforce: "pre",
-            test: /dev-config\.mjs$/i,
-            use: [devConfigLoader],
+            test: /virtual\/config\.mjs$/i,
+            use: [configLoader],
           },
         }
       : {},
 
     localeServer: {
       turbopack: {
-        pattern: "**/locale/server.mjs",
+        pattern: "**/virtual/locale/server.mjs",
         config: {
           loaders: [localeServerLoader],
         },
       },
       webpack: {
         enforce: "pre",
-        test: /locale[\\/]server\.mjs$/i,
+        test: /virtual\/locale[\\/]server\.mjs$/i,
         use: [localeServerLoader],
       },
     },
 
     localeClient: {
       turbopack: {
-        pattern: "**/locale/client.mjs",
+        pattern: "**/virtual/locale/client.mjs",
         config: {
           loaders: [localeClientLoader],
         },
       },
       webpack: {
         enforce: "pre",
-        test: /locale[\\/]client\.mjs$/i,
+        test: /virtual\/locale[\\/]client\.mjs$/i,
         use: [localeClientLoader],
       },
     },

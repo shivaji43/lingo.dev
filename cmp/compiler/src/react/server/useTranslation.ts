@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { use } from "react";
-import { getServerLocale } from "@lingo.dev/compiler/locale/server";
+import { getServerLocale } from "@lingo.dev/compiler/virtual/locale/server";
 import { fetchTranslationsOnServer } from "../server-only/translations";
 import {
   renderRichText,

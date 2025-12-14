@@ -102,7 +102,6 @@ The compiler is organized into several key modules:
 
 - **`src/index.ts`** - Main package exports (plugins, types)
 - **`src/types.ts`** - Core TypeScript types
-- **`src/dev-config.ts`** - Development configuration utilities
 
 ## Contributing
 

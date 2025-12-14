@@ -49,7 +49,7 @@ export function useLingoContext(): LingoContextType {
 
   if (!context) {
     // TODO (AleksandrSl 14/12/2025): Shouldn't throw in production
-    throw new Error("useTranslationContext must be used within LingoProvider");
+    throw new Error("useLingoContext must be used within LingoProvider");
   }
 
   return context;

@@ -12,7 +12,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 import { logger } from "../../utils/logger";
 import { fetchTranslations as fetchFromDevServer } from "../shared/utils";
-import { cacheDir, serverUrl } from "@lingo.dev/compiler/dev-config";
+import { cacheDir, serverUrl } from "@lingo.dev/compiler/virtual/config";
 import type { LocaleCode } from "lingo.dev/spec";
 
 /**

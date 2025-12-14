@@ -29,20 +29,20 @@
         "default": "./build/react/client/index.cjs"
       }
     },
-    "./dev-config": {
-      "types": "./build/dev-config.d.ts",
-      "import": "./build/dev-config.mjs",
-      "require": "./build/dev-config.cjs"
+    "./virtual/config": {
+      "types": "./build/virtual/config.d.ts",
+      "import": "./build/virtual/config.mjs",
+      "require": "./build/virtual/config.cjs"
     },
-    "./locale/server": {
-      "types": "./build/locale/server.d.ts",
-      "import": "./build/locale/server.mjs",
-      "require": "./build/locale/server.cjs"
+    "./virtual/locale/server": {
+      "types": "./build/virtual/locale/server.d.ts",
+      "import": "./build/virtual/locale/server.mjs",
+      "require": "./build/virtual/locale/server.cjs"
     },
-    "./locale/client": {
-      "types": "./build/locale/client.d.ts",
-      "import": "./build/locale/client.mjs",
-      "require": "./build/locale/client.cjs"
+    "./virtual/locale/client": {
+      "types": "./build/virtual/locale/client.d.ts",
+      "import": "./build/virtual/locale/client.mjs",
+      "require": "./build/virtual/locale/client.cjs"
     },
     "./react/client": {
       "types": "./build/react/index.d.ts",
@@ -91,10 +91,10 @@
       "import": "./build/plugin/next-compiler-loader.mjs",
       "require": "./build/plugin/next-compiler-loader.cjs"
     },
-    "./next-dev-config-loader": {
-      "types": "./build/plugin/next-dev-config-loader.d.ts",
-      "import": "./build/plugin/next-dev-config-loader.mjs",
-      "require": "./build/plugin/next-dev-config-loader.cjs"
+    "./next-config-loader": {
+      "types": "./build/plugin/next-config-loader.d.ts",
+      "import": "./build/plugin/next-config-loader.mjs",
+      "require": "./build/plugin/next-config-loader.cjs"
     },
     "./next-locale-server-loader": {
       "types": "./build/plugin/next-locale-server-loader.d.ts",

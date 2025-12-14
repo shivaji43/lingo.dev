@@ -16,7 +16,7 @@ import {
 import type { ReactNode } from "react";
 import { logger } from "../../utils/logger";
 // Keep this import full for replacement during build.
-import { getServerLocale } from "@lingo.dev/compiler/locale/server";
+import { getServerLocale } from "@lingo.dev/compiler/virtual/locale/server";
 import type { LocaleCode } from "lingo.dev/spec";
 
 /**
