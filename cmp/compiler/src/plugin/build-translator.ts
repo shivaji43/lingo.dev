@@ -89,7 +89,7 @@ export async function processBuildTranslations(
     logger.info("✅ Cache validation passed");
 
     if (publicOutputPath) {
-      await copyStaticFiles(config, publicOutputPath);
+      await copyStaticFiles(config, publicOutputPath, metadata);
     }
 
     return {
@@ -161,7 +161,7 @@ export async function processBuildTranslations(
 
     // Copy cache to public directory if requested
     if (publicOutputPath) {
-      await copyStaticFiles(config, publicOutputPath);
+      await copyStaticFiles(config, publicOutputPath, metadata);
     }
 
     logger.info("✅ Translation generation completed successfully");
@@ -269,10 +269,14 @@ function buildCacheStats(
 async function copyStaticFiles(
   config: LingoConfig,
   publicOutputPath: string,
+  metadata: MetadataSchema,
 ): Promise<void> {
   logger.info(`📦 Generating static translation files in ${publicOutputPath}`);
 
   await fs.mkdir(publicOutputPath, { recursive: true });
+
+  const usedHashes = new Set(Object.keys(metadata.entries));
+  logger.info(`📊 Filtering translations to ${usedHashes.size} used hash(es)`);
 
   // Include source locale if pluralization is enabled
   const needsSourceLocale = config.pluralization?.enabled !== false;
@@ -285,10 +289,42 @@ async function copyStaticFiles(
     const publicFilePath = path.join(publicOutputPath, `${locale}.json`);
 
     try {
-      await fs.copyFile(cacheFilePath, publicFilePath);
-      logger.info(`✓ Generated ${locale}.json`);
+      const cacheContent = await fs.readFile(cacheFilePath, "utf-8");
+      const cache = JSON.parse(cacheContent);
+
+      const filteredEntries: Record<string, string> = {};
+      let includedCount = 0;
+      let skippedCount = 0;
+
+      for (const [hash, translation] of Object.entries(
+        cache.entries as Record<string, string>,
+      )) {
+        if (usedHashes.has(hash)) {
+          filteredEntries[hash] = translation;
+          includedCount++;
+        } else {
+          skippedCount++;
+        }
+      }
+
+      // Write filtered translations
+      const outputData = {
+        locale,
+        entries: filteredEntries,
+        version: cache.version,
+      };
+
+      await fs.writeFile(
+        publicFilePath,
+        JSON.stringify(outputData, null, 2),
+        "utf-8",
+      );
+
+      logger.info(
+        `✓ Generated ${locale}.json (${includedCount} translations, ${skippedCount} unused skipped)`,
+      );
     } catch (error) {
-      logger.error(`❌ Failed to copy ${locale}.json:`, error);
+      logger.error(`❌ Failed to generate ${locale}.json:`, error);
       process.exit(1);
     }
   }

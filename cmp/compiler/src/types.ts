@@ -28,7 +28,7 @@ export interface CookieConfig {
 export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
 
 /**
- * Field that we require users to fill in in the config. The rest could be taken from defaults.
+ * Field that we require users to fill in the config. The rest could be taken from defaults.
  */
 export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
 

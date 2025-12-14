@@ -28,75 +28,81 @@ pnpm add @lingo.dev/compiler
 yarn add @lingo.dev/compiler
 ```
 
-## Quick Start
+## Structure
 
-## Usage with Turbopack (Next.js 16+)
+The compiler is organized into several key modules:
 
-### 1. Configure Next.js
+### Core Directories
 
-[//]: # ( TODO (AleksandrSl 12/12/2025):
+#### `src/plugin/` - Build-time transformation
 
-### 2. (Optional) Use directive mode
+- **`transform/`** - Babel AST transformation logic for JSX text extraction
+- **`unplugin.ts`** - Universal plugin implementation (Vite, Webpack, Rollup, esbuild)
+- **`next.ts`** - Next.js-specific plugin with Turbopack and webpack support
+- **`build-translator.ts`** - Batch translation generation at build time
+- **`locale-code-generator.ts`** - Generates locale resolver modules
 
-If you set `useDirective: true`, add the directive to files you want to translate:
+#### `src/metadata/` - Translation metadata management
 
-```tsx
-"use i18n";
+- **`manager.ts`** - CRUD operations for `.lingo/metadata.json`
+- Thread-safe metadata file operations with locking
+- Manages translation entries with hash-based identifiers
 
-export function MyComponent() {
-  return <div>This text will be translated</div>;
-}
-```
+#### `src/translators/` - Translation provider abstraction
 
-### 3. Write components normally
+- **`lcp/`** - Lingo.dev Engine integration
+- **`pseudotranslator/`** - Development-mode fake translator
+- **`pluralization/`** - Automatic ICU MessageFormat detection
+- **`translator-factory.ts`** - Provider selection and initialization
 
-```tsx
-// src/components/Welcome.tsx
-export function Welcome() {
-  return (
-    <div>
-      <h1>Welcome to our site</h1>
-      <p>This text will be automatically translated</p>
-    </div>
-  );
-}
-```
+#### `src/translation-server/` - Development server
 
-### 4. Build and see transformations
+- **`translation-server.ts`** - HTTP server for on-demand translations
+- **`cli.ts`** - Standalone CLI for translation generation
+- WebSocket support for real-time dev widget updates
+- Port management (60000-60099 range)
 
-After build, the code will be transformed to:
+#### `src/react/` - Runtime translation hooks
 
-```tsx
-import { useTranslation } from "@lingo.dev/runtime";
+- **`client/`** - Client-side Context-based hooks
+- **`server/`** - Server component cache-based hooks (isomorphic)
+- **`server-only/`** - Async server-only API (`getServerTranslations`)
+- **`shared/`** - Shared utilities (RichText rendering, Context)
+- **`next/`** - Next.js-specific middleware and locale switcher
 
-export function Welcome() {
-  const t = useTranslation();
-  return (
-    <div>
-      <h1>{t("a1b2c3d4e5f6")}</h1>
-      <p>{t("f6e5d4c3b2a1")}</p>
-    </div>
-  );
-}
-```
+#### `src/utils/` - Shared utilities
 
-## How It Works
+- **`hash.ts`** - Stable hash generation for translation keys
+- **`config-factory.ts`** - Configuration defaults and merging
+- **`logger.ts`** - Structured logging utilities
+- **`path-helpers.ts`** - File path resolution
 
-[//]: # ( TODO (AleksandrSl 12/12/2025):
+#### `src/widget/` - Development widget
 
-## Limitations (Current Version)
+- In-browser translation editor overlay for development mode
 
-- Requires manual runtime setup (TranslationProvider, etc.)
+### Support Directories
 
-## Supported Bundlers
+#### `tests/` - End-to-end testing
 
-| Bundler | Status          | Import Path                   |
-| ------- | --------------- | ----------------------------- |
-| Vite    | ✅ Full Support | `@lingo.dev/compiler/vite`    |
-| Webpack | ✅ Full Support | `@lingo.dev/compiler/webpack` |
-| Next.js | ✅ Full Support | `@lingo.dev/compiler/next`    |
+- **`e2e/`** - Playwright tests for full build workflows
+- **`fixtures/`** - Test applications (Vite, Next.js)
+- **`helpers/`** - Test utilities and assertions
 
-All bundler plugins share the same configuration API.
+#### `benchmarks/` - Performance benchmarks
+
+- Translation speed benchmarks
+- Metadata I/O performance tests
+
+#### `old-docs/` - Legacy documentation
+
+- Historical design documents and notes
+
+### Entry Points
+
+- **`src/index.ts`** - Main package exports (plugins, types)
+- **`src/types.ts`** - Core TypeScript types
+- **`src/dev-config.ts`** - Development configuration utilities
 
 ## Contributing
 

@@ -12,23 +12,9 @@ export interface TransformResult {
   transformed: boolean;
 }
 
-/**
- * Options for the Babel transformation
- */
 export interface BabelTransformOptions {
-  /**
-   * Source code to transform
-   */
   code: string;
-
-  /**
-   * File path being transformed
-   */
   filePath: string;
-
-  /**
-   * Loader configuration
-   */
   config: LingoConfig;
 }
 
@@ -85,28 +71,4 @@ export function transformComponent({
       transformed: false,
     };
   }
-}
-
-/**
- * Check if a file should be transformed
- */
-export function shouldTransformFile(
-  filePath: string,
-  config: LingoConfig,
-): boolean {
-  // Only transform .tsx and .jsx files
-  if (!filePath.match(/\.(tsx|jsx)$/)) {
-    return false;
-  }
-
-  // Check skip patterns
-  if (config.skipPatterns) {
-    for (const pattern of config.skipPatterns) {
-      if (pattern.test(filePath)) {
-        return false;
-      }
-    }
-  }
-
-  return true;
 }
