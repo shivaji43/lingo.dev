@@ -95,10 +95,7 @@ export class TranslationServer {
     const isPseudo = translator.constructor.name === "PseudoTranslator";
 
     const cache = new LocalTranslationCache(
-      {
-        cacheDir: this.config.lingoDir,
-        sourceRoot: this.config.sourceRoot,
-      },
+      { cacheDir: this.config.lingoDir },
       this.logger,
     );
 

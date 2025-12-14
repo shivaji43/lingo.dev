@@ -11,12 +11,12 @@ import fs from "fs/promises";
 import path from "path";
 import type { LingoConfig, MetadataSchema } from "../types";
 import { logger } from "../utils/logger";
-import { getCachePath } from "../utils/path-helpers";
 import {
   startTranslationServer,
   type TranslationServer,
 } from "../translation-server";
 import { loadMetadata } from "../metadata/manager";
+import { LocalTranslationCache, type TranslationCache } from "../translators";
 
 export interface BuildTranslationOptions {
   config: LingoConfig;
@@ -82,14 +82,19 @@ export async function processBuildTranslations(
   const totalEntries = Object.keys(metadata.entries).length;
   logger.info(`📊 Found ${totalEntries} translatable entries`);
 
+  const cache = new LocalTranslationCache(
+    { cacheDir: config.lingoDir },
+    logger,
+  );
+
   // Handle cache-only mode
   if (buildMode === "cache-only") {
     logger.info("🔍 Validating translation cache...");
-    await validateCache(config, metadata);
+    await validateCache(config, metadata, cache);
     logger.info("✅ Cache validation passed");
 
     if (publicOutputPath) {
-      await copyStaticFiles(config, publicOutputPath, metadata);
+      await copyStaticFiles(config, publicOutputPath, metadata, cache);
     }
 
     return {
@@ -161,7 +166,7 @@ export async function processBuildTranslations(
 
     // Copy cache to public directory if requested
     if (publicOutputPath) {
-      await copyStaticFiles(config, publicOutputPath, metadata);
+      await copyStaticFiles(config, publicOutputPath, metadata, cache);
     }
 
     logger.info("✅ Translation generation completed successfully");
@@ -188,6 +193,7 @@ export async function processBuildTranslations(
 async function validateCache(
   config: LingoConfig,
   metadata: MetadataSchema,
+  cache: TranslationCache,
 ): Promise<void> {
   const allHashes = Object.keys(metadata.entries);
   const missingLocales: string[] = [];
@@ -204,13 +210,16 @@ async function validateCache(
     : config.targetLocales;
 
   for (const locale of allLocales) {
-    const cacheFilePath = getCachePath(config, locale);
-
     try {
-      const cacheContent = await fs.readFile(cacheFilePath, "utf-8");
-      const cache = JSON.parse(cacheContent).entries as Record<string, string>;
+      const entries = await cache.get(locale);
 
-      const missingHashes = allHashes.filter((hash) => !cache[hash]);
+      if (Object.keys(entries).length === 0) {
+        missingLocales.push(locale);
+        logger.debug(`Cache file not found or empty for ${locale}`);
+        continue;
+      }
+
+      const missingHashes = allHashes.filter((hash) => !entries[hash]);
 
       if (missingHashes.length > 0) {
         incompleteLocales.push({
@@ -228,7 +237,7 @@ async function validateCache(
       }
     } catch (error) {
       missingLocales.push(locale);
-      logger.debug(`Cache file not found for ${locale}: ${cacheFilePath}`);
+      logger.debug(`Failed to read cache for ${locale}:`, error);
     }
   }
 
@@ -270,6 +279,7 @@ async function copyStaticFiles(
   config: LingoConfig,
   publicOutputPath: string,
   metadata: MetadataSchema,
+  cache: TranslationCache,
 ): Promise<void> {
   logger.info(`📦 Generating static translation files in ${publicOutputPath}`);
 
@@ -285,20 +295,24 @@ async function copyStaticFiles(
     : config.targetLocales;
 
   for (const locale of allLocales) {
-    const cacheFilePath = getCachePath(config, locale);
     const publicFilePath = path.join(publicOutputPath, `${locale}.json`);
 
     try {
-      const cacheContent = await fs.readFile(cacheFilePath, "utf-8");
-      const cache = JSON.parse(cacheContent);
+      // Use getDictionary if available (for LocalTranslationCache), otherwise use get
+      const dictionary = cache.getDictionary
+        ? await cache.getDictionary(locale)
+        : null;
+
+      if (!dictionary) {
+        logger.error(`❌ Failed to read cache for ${locale}`);
+        process.exit(1);
+      }
 
       const filteredEntries: Record<string, string> = {};
       let includedCount = 0;
       let skippedCount = 0;
 
-      for (const [hash, translation] of Object.entries(
-        cache.entries as Record<string, string>,
-      )) {
+      for (const [hash, translation] of Object.entries(dictionary.entries)) {
         if (usedHashes.has(hash)) {
           filteredEntries[hash] = translation;
           includedCount++;
@@ -311,7 +325,7 @@ async function copyStaticFiles(
       const outputData = {
         locale,
         entries: filteredEntries,
-        version: cache.version,
+        version: dictionary.version,
       };
 
       await fs.writeFile(

@@ -23,24 +23,15 @@ export class LocalTranslationCache implements TranslationCache {
     this.config = config;
   }
 
-  /**
-   * Get cache file path for a locale
-   */
   private getCachePath(locale: string): string {
-    const baseDir = this.config.sourceRoot
-      ? path.join(process.cwd(), this.config.sourceRoot, this.config.cacheDir)
-      : path.join(process.cwd(), this.config.cacheDir);
-
-    return path.join(baseDir, "cache", `${locale}.json`);
+    return path.join(this.config.cacheDir, `${locale}.json`);
   }
 
   /**
    * Read dictionary file from disk
    * Times out after 10 seconds to prevent indefinite hangs
    */
-  private async readDictionary(
-    locale: string,
-  ): Promise<DictionarySchema | null> {
+  async getDictionary(locale: string): Promise<DictionarySchema | null> {
     try {
       const cachePath = this.getCachePath(locale);
       const content = await withTimeout(
@@ -58,7 +49,7 @@ export class LocalTranslationCache implements TranslationCache {
    * Write dictionary file to disk
    * Times out after 10 seconds to prevent indefinite hangs
    */
-  private async writeDictionary(
+  async setDictionary(
     locale: string,
     dictionary: DictionarySchema,
   ): Promise<void> {
@@ -89,7 +80,7 @@ export class LocalTranslationCache implements TranslationCache {
    * Get cached translations for a locale
    */
   async get(locale: string): Promise<Record<string, string>> {
-    const dictionary = await this.readDictionary(locale);
+    const dictionary = await this.getDictionary(locale);
     if (!dictionary) {
       return {};
     }
@@ -126,7 +117,7 @@ export class LocalTranslationCache implements TranslationCache {
       entries: translations,
     };
 
-    await this.writeDictionary(locale, dictionary);
+    await this.setDictionary(locale, dictionary);
   }
 
   /**
@@ -159,17 +150,12 @@ export class LocalTranslationCache implements TranslationCache {
    */
   async clearAll(): Promise<void> {
     try {
-      const baseDir = this.config.sourceRoot
-        ? path.join(process.cwd(), this.config.sourceRoot, this.config.cacheDir)
-        : path.join(process.cwd(), this.config.cacheDir);
-
-      const cacheDir = path.join(baseDir, "cache");
-      const files = await fs.readdir(cacheDir);
+      const files = await fs.readdir(this.config.cacheDir);
 
       await Promise.all(
         files
           .filter((file) => file.endsWith(".json"))
-          .map((file) => fs.unlink(path.join(cacheDir, file))),
+          .map((file) => fs.unlink(path.join(this.config.cacheDir, file))),
       );
     } catch {
       // Ignore errors if directory doesn't exist

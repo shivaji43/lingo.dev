@@ -29,41 +29,6 @@ export function resolveAbsolutePath(
 }
 
 /**
- * Get the absolute path to a locale's cache file
- *
- * @param config - Config with sourceRoot and lingoDir
- * @param locale - Locale code (e.g., "en", "de", "fr")
- * @returns Absolute path to locale.json cache file
- *
- * @example
- * ```typescript
- * getCachePath({ sourceRoot: "src", lingoDir: ".lingo" }, "de")
- * // -> "/full/path/to/src/.lingo/cache/de.json"
- * ```
- */
-export function getCachePath(config: PathConfig, locale: string): string {
-  const rootPath = resolveAbsolutePath(config.sourceRoot);
-  return path.join(rootPath, config.lingoDir, "cache", `${locale}.json`);
-}
-
-/**
- * Get the absolute path to the cache directory
- *
- * @param config - Config with sourceRoot and lingoDir
- * @returns Absolute path to cache directory
- *
- * @example
- * ```typescript
- * getCacheDir({ sourceRoot: "src", lingoDir: ".lingo" })
- * // -> "/full/path/to/src/.lingo/cache"
- * ```
- */
-export function getCacheDir(config: PathConfig): string {
-  const rootPath = resolveAbsolutePath(config.sourceRoot);
-  return path.join(rootPath, config.lingoDir, "cache");
-}
-
-/**
  * Get the absolute path to the lingo directory
  *
  * @param config - Config with sourceRoot and lingoDir

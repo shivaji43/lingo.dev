@@ -42,19 +42,29 @@ export interface TranslationCache {
    * Clear all cached translations
    */
   clearAll(): Promise<void>;
+
+  /**
+   * Get full dictionary schema for a locale (includes version, metadata)
+   * Used for build-time operations that need the complete schema
+   * Returns null if cache doesn't exist
+   */
+  getDictionary?(
+    locale: string,
+  ): Promise<import("./api").DictionarySchema | null>;
+
+  /**
+   * Write full dictionary schema for a locale
+   * Used for build-time operations that need to preserve schema metadata
+   */
+  setDictionary?(
+    locale: string,
+    dictionary: import("./api").DictionarySchema,
+  ): Promise<void>;
 }
 
 /**
  * Configuration for local disk cache
  */
 export interface LocalCacheConfig {
-  /**
-   * Directory to store cache files (e.g., ".lingo")
-   */
   cacheDir: string;
-
-  /**
-   * Optional source root path
-   */
-  sourceRoot?: string;
 }

@@ -65,6 +65,8 @@ export interface PluralizationConfig {
   model?: string;
 }
 
+export type LingoEnvironment = "development" | "production";
+
 /**
  * Lingo config with all the defaults applied
  */
@@ -85,7 +87,7 @@ export type LingoConfig = {
    *
    * @default "production"
    */
-  environment: "development" | "production";
+  environment: LingoEnvironment;
 
   /**
    * The locale to translate from.
