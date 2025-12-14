@@ -97,15 +97,33 @@ export class MetadataManager {
       lastUpdated: new Date().toISOString(),
     };
 
+    // Per LLM writing to a file is not an atomic operation while rename is, so nobody should get partial content.
+    // Sounds reasonable.
+    const dir = path.dirname(this.filePath);
+    const base = path.basename(this.filePath);
+
+    // Keep temp file in the same directory to maximize chance that rename is atomic
+    const tmpPath = path.join(dir, `.${base}.tmp-${process.pid}-${Date.now()}`);
+
+    const json = JSON.stringify(metadata, null, 2);
+
     await withTimeout(
-      fsPromises.writeFile(
-        this.filePath,
-        JSON.stringify(metadata, null, 2),
-        "utf-8",
-      ),
+      fsPromises.writeFile(tmpPath, json, "utf-8"),
       DEFAULT_TIMEOUTS.METADATA,
-      "Save metadata",
+      "Save metadata (tmp write)",
     );
+
+    try {
+      // TODO (AleksandrSl 14/12/2025): LLM says that we may want to remove older file first for windows, but it seems lo work fine as is.
+      await withTimeout(
+        fsPromises.rename(tmpPath, this.filePath),
+        DEFAULT_TIMEOUTS.METADATA,
+        "Save metadata (atomic rename)",
+      );
+    } finally {
+      // Best-effort cleanup if rename failed for some reason
+      await fsPromises.unlink(tmpPath).catch(() => {});
+    }
   }
 
   /**
@@ -120,14 +138,11 @@ export class MetadataManager {
   ): Promise<MetadataSchema> {
     const lockDir = path.dirname(this.filePath);
 
-    // Ensure directory exists before locking
     await fsPromises.mkdir(lockDir, { recursive: true });
 
-    // Create lock file if it doesn't exist (lockfile needs a file to lock)
     try {
       await fsPromises.access(this.filePath);
     } catch {
-      // TODO (AleksandrSl 10/12/2025): Should I use another file as a lock?
       await fsPromises.writeFile(
         this.filePath,
         JSON.stringify(createEmptyMetadata(), null, 2),
@@ -135,14 +150,13 @@ export class MetadataManager {
       );
     }
 
-    // Acquire lock with retry options
     const release = await lockfile.lock(this.filePath, {
       retries: {
         retries: 10,
         minTimeout: 50,
         maxTimeout: 1000,
       },
-      stale: 2000, // Consider lock stale after 5 seconds
+      stale: 2000,
     });
 
     try {
