@@ -3,8 +3,9 @@
  */
 import type {
   LingoConfig,
-  PartialLingoConfig,
   LingoConfigRequiredFields,
+  LingoInternalFields,
+  PartialLingoConfig,
 } from "../types";
 
 /**
@@ -31,7 +32,11 @@ export const DEFAULT_CONFIG = {
     model: "groq:llama-3.1-8b-instant",
   },
   buildMode: "translate",
-} satisfies Omit<LingoConfig, LingoConfigRequiredFields | "environment">;
+} satisfies Omit<
+  LingoConfig,
+  // Looks like we can use LingoInternalFields, but it's only a coincidence that the types match, we may want to provide default for internal fields
+  LingoConfigRequiredFields | "environment" | "cacheType"
+>;
 
 /**
  * Create a LoaderConfig with defaults applied
@@ -41,7 +46,7 @@ export const DEFAULT_CONFIG = {
  *
  */
 export function createLingoConfig(
-  options: PartialLingoConfig & Partial<Pick<LingoConfig, "environment">>,
+  options: PartialLingoConfig & Partial<Pick<LingoConfig, LingoInternalFields>>,
 ): LingoConfig {
   return {
     ...DEFAULT_CONFIG,
@@ -49,6 +54,7 @@ export function createLingoConfig(
     environment:
       options.environment ??
       (process.env.NODE_ENV === "development" ? "development" : "production"),
+    cacheType: options.cacheType ?? "local",
     dev: {
       ...DEFAULT_CONFIG.dev,
       ...options.dev,

@@ -44,3 +44,8 @@ export function getLingoDir(config: PathConfig): string {
   const rootPath = resolveAbsolutePath(config.sourceRoot);
   return path.join(rootPath, config.lingoDir);
 }
+
+export function getCacheDir(config: PathConfig): string {
+  const lingoDir = getLingoDir(config);
+  return path.join(lingoDir, "cache");
+}

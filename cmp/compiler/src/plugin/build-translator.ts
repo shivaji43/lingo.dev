@@ -16,7 +16,7 @@ import {
   type TranslationServer,
 } from "../translation-server";
 import { loadMetadata } from "../metadata/manager";
-import { LocalTranslationCache, type TranslationCache } from "../translators";
+import { createCache, type TranslationCache } from "../translators";
 
 export interface BuildTranslationOptions {
   config: LingoConfig;
@@ -82,10 +82,7 @@ export async function processBuildTranslations(
   const totalEntries = Object.keys(metadata.entries).length;
   logger.info(`📊 Found ${totalEntries} translatable entries`);
 
-  const cache = new LocalTranslationCache(
-    { cacheDir: config.lingoDir },
-    logger,
-  );
+  const cache = createCache(config);
 
   // Handle cache-only mode
   if (buildMode === "cache-only") {
@@ -298,6 +295,7 @@ async function copyStaticFiles(
     const publicFilePath = path.join(publicOutputPath, `${locale}.json`);
 
     try {
+      // TODO (AleksandrSl 14/12/2025): Probably make it required?
       // Use getDictionary if available (for LocalTranslationCache), otherwise use get
       const dictionary = cache.getDictionary
         ? await cache.getDictionary(locale)

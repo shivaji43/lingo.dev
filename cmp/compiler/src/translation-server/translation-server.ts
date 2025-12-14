@@ -18,8 +18,8 @@ import { WebSocket, WebSocketServer } from "ws";
 import type { MetadataSchema, TranslationMiddlewareConfig } from "../types";
 import { getLogger } from "./logger";
 import {
+  createCache,
   createTranslator,
-  LocalTranslationCache,
   TranslationService,
 } from "../translators";
 import {
@@ -92,12 +92,9 @@ export class TranslationServer {
     this.logger.info(`🔧 Initializing translator...`);
 
     const translator = createTranslator(this.config, this.logger);
+    // TODO (AleksandrSl 14/12/2025): I think this should be taken from the translator directly
     const isPseudo = translator.constructor.name === "PseudoTranslator";
-
-    const cache = new LocalTranslationCache(
-      { cacheDir: this.config.lingoDir },
-      this.logger,
-    );
+    const cache = createCache(this.config);
 
     this.translationService = new TranslationService(
       translator,

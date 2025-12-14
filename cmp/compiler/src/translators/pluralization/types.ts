@@ -1,41 +1,13 @@
-/**
- * Types for pluralization system
- */
+import type { LocaleCode } from "lingo.dev/spec";
 
-import type { LingoConfig } from "../../types";
-
-/**
- * Plural candidate detected by pattern matching
- */
 export interface PluralCandidate {
-  /**
-   * Hash of the entry
-   */
   hash: string;
-
-  /**
-   * Original source text
-   */
   sourceText: string;
 }
 
-/**
- * Result of ICU format generation
- */
 export interface ICUGenerationResult {
-  /**
-   * Whether ICU format was generated successfully
-   */
   success: boolean;
-
-  /**
-   * Generated ICU format text (if successful)
-   */
   icuText?: string;
-
-  /**
-   * Error message (if failed)
-   */
   error?: string;
 
   /**
@@ -44,25 +16,8 @@ export interface ICUGenerationResult {
   reasoning?: string;
 }
 
-type RequiredPluralizationConfigFields = "sourceLocale";
-
-export type DefaultPluralizationConfig = Required<
-  Omit<PluralizationConfig, RequiredPluralizationConfigFields>
->;
-
-export type PartialPluralizationConfig = Partial<
-  Omit<PluralizationConfig, RequiredPluralizationConfigFields>
-> &
-  Pick<PluralizationConfig, RequiredPluralizationConfigFields>;
-
-/**
- * Configuration for pluralization system
- */
 export type PluralizationConfig = {
-  /**
-   * Whether pluralization is enabled
-   * @default true
-   */
+  sourceLocale: LocaleCode;
   enabled: boolean;
 
   /**
@@ -71,7 +26,7 @@ export type PluralizationConfig = {
    * @default "groq:llama3-8b-8192"
    */
   model: string;
-} & Pick<LingoConfig, "sourceLocale">;
+};
 
 /**
  * Statistics about pluralization processing

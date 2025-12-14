@@ -3,6 +3,7 @@
  */
 
 import type { LocaleCode } from "lingo.dev/spec";
+import type { PluralizationConfig } from "./translators/pluralization";
 
 /**
  * Cookie configuration for locale persistence
@@ -32,7 +33,7 @@ export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
  */
 export type LingoConfigRequiredFields = "sourceLocale" | "targetLocales";
 
-export type LingoInternalFields = "environment";
+export type LingoInternalFields = "environment" | "cacheType";
 
 /**
  * Configuration for the Lingo compiler
@@ -46,24 +47,6 @@ export type PartialLingoConfig = Pick<LingoConfig, LingoConfigRequiredFields> &
       dev: Partial<LingoConfig["dev"]>;
     }
   >;
-
-/**
- * Pluralization configuration
- */
-export interface PluralizationConfig {
-  /**
-   * Whether pluralization is enabled
-   * @default true
-   */
-  enabled: boolean;
-
-  /**
-   * LLM provider for pluralization detection
-   * Format: "provider:model" (e.g., "groq:llama3-8b-8192")
-   * @default "groq:llama3-8b-8192"
-   */
-  model?: string;
-}
 
 export type LingoEnvironment = "development" | "production";
 
@@ -86,8 +69,19 @@ export type LingoConfig = {
    * Determines metadata file naming and translator behavior
    *
    * @default "production"
+   * @internal
    */
   environment: LingoEnvironment;
+
+  /**
+   * Cache implementation type
+   * - "local": Local file system cache (default)
+   * - "remote": Remote cache (future)
+   *
+   * @default "local"
+   * @internal Since we do not support more types, there is no need to make it public, but it allows keeping the config in the single place
+   */
+  cacheType: "local";
 
   /**
    * The locale to translate from.
@@ -140,10 +134,8 @@ export type LingoConfig = {
   /**
    * Pluralization configuration
    * Automatically detects and converts messages to ICU MessageFormat
-   *
-   * @default { enabled: true, model: "groq:llama3-8b-8192" }
    */
-  pluralization: PluralizationConfig;
+  pluralization: Omit<PluralizationConfig, "sourceLocale">;
 
   /**
    * Development-specific settings
@@ -227,6 +219,7 @@ export type TranslationMiddlewareConfig = Pick<
   | "dev"
   | "pluralization"
   | "environment"
+  | "cacheType"
 >;
 
 /**

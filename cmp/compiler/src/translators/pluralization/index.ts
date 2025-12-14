@@ -9,8 +9,6 @@
  */
 export type {
   PluralizationConfig,
-  PartialPluralizationConfig,
-  DefaultPluralizationConfig,
   PluralizationStats,
   PluralCandidate,
   ICUGenerationResult,

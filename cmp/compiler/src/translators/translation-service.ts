@@ -11,19 +11,17 @@
 import type { TranslationCache } from "./cache";
 import type { TranslatableEntry, Translator } from "./api";
 import type { MetadataSchema } from "../types";
-import { PluralizationService } from "./pluralization";
+import {
+  type PluralizationConfig,
+  PluralizationService,
+} from "./pluralization";
 import type { Logger } from "../utils/logger";
-import type { PartialPluralizationConfig } from "./pluralization";
 import type { LocaleCode } from "lingo.dev/spec";
 
-/**
- * Configuration for translation service
- */
 export interface TranslationServiceConfig {
   /**
    * Source locale (e.g., "en")
    */
-  // TODO (AleksandrSl 05/12/2025): Sort out these fields, they should most likely pick from the global config
   sourceLocale: LocaleCode;
 
   /**
@@ -36,26 +34,17 @@ export interface TranslationServiceConfig {
    * Pluralization configuration
    * If provided, enables automatic pluralization of source messages
    */
-  pluralization?: Omit<PartialPluralizationConfig, "sourceLocale">;
+  pluralization: Omit<PluralizationConfig, "sourceLocale">;
 }
 
-/**
- * Result of a translation request
- */
 export interface TranslationResult {
   /**
    * Successfully translated entries (hash -> translated text)
    */
   translations: Record<string, string>;
 
-  /**
-   * Errors that occurred during translation
-   */
   errors: TranslationError[];
 
-  /**
-   * Statistics about the operation
-   */
   stats: {
     total: number;
     cached: number;
@@ -64,18 +53,12 @@ export interface TranslationResult {
   };
 }
 
-/**
- * Translation error details
- */
 export interface TranslationError {
   hash: string;
   sourceText: string;
   error: string;
 }
 
-/**
- * Translation service orchestrator
- */
 export class TranslationService {
   private useCache = true;
   private pluralizationService?: PluralizationService;
@@ -94,9 +77,7 @@ export class TranslationService {
       this.logger.info("Initializing pluralization service...");
       this.pluralizationService = new PluralizationService(
         {
-          enabled: true,
-          model:
-            this.config.pluralization?.model || "groq:llama-3.1-8b-instant",
+          ...this.config.pluralization,
           sourceLocale: this.config.sourceLocale,
         },
         this.logger,
@@ -379,6 +360,7 @@ export class TranslationService {
   /**
    * Pick only requested translations from the full set
    */
+  // TODO (AleksandrSl 14/12/2025): SHould I use this in the build somehow?
   private pickTranslations(
     allTranslations: Record<string, string>,
     requestedHashes: string[],
