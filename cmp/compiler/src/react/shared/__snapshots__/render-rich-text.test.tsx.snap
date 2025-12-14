@@ -22,8 +22,6 @@ exports[`renderRichText > should handle nested components inside component tags 
 ]
 `;
 
-exports[`renderRichText > should handle text with literal angle brackets 1`] = `"To translate it you have to wrap it into the <'>some text</>"`;
-
 exports[`renderRichText > should handle the page.tsx example case 1`] = `
 [
   <React.Fragment

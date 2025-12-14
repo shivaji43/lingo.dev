@@ -161,11 +161,7 @@ function translateAttributes(
         node.loc?.start.line,
         node.loc?.start.column,
       );
-      state.newEntries.push(entry);
-
-      const hashes = state.componentHashes.get(component.name) || [];
-      hashes.push(entry.hash);
-      state.componentHashes.set(component.name, hashes);
+      registerEntry(entry, state, component.name);
 
       attr.value = constructTranslationCall(entry.hash, text);
     }
@@ -263,7 +259,6 @@ interface SerializedJSX {
   components: Map<string, t.JSXElement>;
 }
 
-// TODO (AleksandrSl 28/11/2025): Check whitespace logic, the rest seems reasonable
 /**
  * Serialize JSX children to a translation string with placeholders
  */
@@ -397,6 +392,92 @@ function transformVoidElement(
   translateAttributes(node, state);
 }
 
+type TranslationScope =
+  | { kind: "mixed"; text: string; args: any }
+  | { kind: "text"; text: string; textNodeIndex: number };
+
+function getTranslationScope(
+  node: t.JSXElement | t.JSXFragment,
+  state: VisitorsInternalState,
+): TranslationScope | null {
+  if (hasMixedContent(node)) {
+    const serialized = serializeJSXChildren(node.children, state);
+    const text = serialized.text.trim();
+    if (text.length === 0) return null;
+
+    return {
+      kind: "mixed",
+      text,
+      args: {
+        variables: serialized.variables,
+        expressions: serialized.expressions,
+        components: serialized.components,
+      },
+    };
+  }
+
+  // Non-mixed: allow exactly one meaningful JSXText + optional void elements + whitespace
+  const textNodeIndex = node.children.findIndex(
+    (child) => child.type === "JSXText" && child.value.trim().length > 0,
+  );
+  if (textNodeIndex === -1) return null;
+
+  const allowed = node.children.every(
+    (child) =>
+      child.type === "JSXText" ||
+      (child.type === "JSXElement" && isVoidElement(child)),
+  );
+  if (!allowed) return null;
+
+  const textNode = node.children[textNodeIndex] as t.JSXText;
+  const text = normalizeWhitespace(textNode.value);
+  if (text.length === 0) return null;
+
+  return { kind: "text", text, textNodeIndex };
+}
+
+function registerEntry(
+  entry: ReturnType<typeof createTranslationEntry>,
+  state: VisitorsInternalState,
+  componentName: string,
+) {
+  state.newEntries.push(entry);
+
+  const hashes = state.componentHashes.get(componentName) ?? [];
+  hashes.push(entry.hash);
+  state.componentHashes.set(componentName, hashes);
+}
+
+function rewriteChildren(
+  path: NodePath<t.JSXElement | t.JSXFragment>,
+  state: VisitorsInternalState,
+  translationScope: TranslationScope,
+  entryHash: string,
+) {
+  if (translationScope.kind === "mixed") {
+    path.node.children = [
+      constructTranslationCall(
+        entryHash,
+        translationScope.text,
+        translationScope.args,
+      ),
+    ];
+    return;
+  }
+
+  const { textNodeIndex, text } = translationScope;
+
+  path.node.children = path.node.children.map((child, index) => {
+    if (index === textNodeIndex) {
+      return constructTranslationCall(entryHash, text);
+    }
+    if (child.type === "JSXElement") {
+      transformVoidElement(child, state);
+    }
+    return child;
+  });
+}
+
 function processJSXElement(
   path: NodePath<t.JSXElement | t.JSXFragment>,
   state: VisitorsInternalState,
@@ -404,80 +485,24 @@ function processJSXElement(
   const component = state.componentsStack.at(-1);
   if (!component) return;
 
-  let type = undefined;
-  let textNode;
-  let textNodeIndex: number | undefined;
-  if (hasMixedContent(path.node)) {
-    type = "mixed";
-  } else {
-    // If there were several text elements we will be in the mixed content above
-    textNodeIndex = path.node.children.findIndex(
-      (child) => child.type === "JSXText" && child.value.trim().length > 0,
-    );
-    if (
-      textNodeIndex !== -1 &&
-      path.node.children.every(
-        (child) =>
-          child.type === "JSXText" ||
-          (child.type === "JSXElement" && isVoidElement(child)),
-      )
-    ) {
-      type = "text";
-      textNode = path.node.children[textNodeIndex] as t.JSXText;
-    }
-  }
-
-  if (!type) {
-    return;
-  }
+  const scope = getTranslationScope(path.node, state);
+  if (!scope) return;
 
   const overrides = processOverrideAttributes(path);
 
-  let text;
-  let args;
-  if (type === "mixed") {
-    const serialized = serializeJSXChildren(path.node.children, state);
-    text = serialized.text.trim();
-    args = {
-      variables: serialized.variables,
-      expressions: serialized.expressions,
-      components: serialized.components,
-    };
-  } else {
-    text = normalizeWhitespace(textNode!.value);
-  }
-
-  if (text.length == 0) return;
-
   const entry = createTranslationEntry(
     "content",
-    text,
+    scope.text,
     { componentName: component.name },
     state.filePath,
     path.node.loc?.start.line,
     path.node.loc?.start.column,
     overrides,
   );
-  state.newEntries.push(entry);
 
-  const hashes = state.componentHashes.get(component.name) || [];
-  hashes.push(entry.hash);
-  state.componentHashes.set(component.name, hashes);
+  registerEntry(entry, state, component.name);
+  rewriteChildren(path, state, scope, entry.hash);
 
-  if (type === "mixed") {
-    path.node.children = [constructTranslationCall(entry.hash, text, args)];
-  } else {
-    path.node.children = path.node.children.map((it, index) => {
-      if (index === textNodeIndex) {
-        return constructTranslationCall(entry.hash, text);
-      } else if (it.type === "JSXElement") {
-        transformVoidElement(it, state);
-        return it;
-      } else {
-        return it;
-      }
-    });
-  }
   path.skip();
 }
 

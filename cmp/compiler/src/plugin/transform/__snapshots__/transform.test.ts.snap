@@ -962,16 +962,6 @@ exports[`transformComponent > translation overrides (data-lingo-override) > shou
 }"
 `;
 
-exports[`transformComponent > translation overrides (data-lingo-override) > should parse override attribute with JSON string 1`] = `
-"import { useTranslation } from "@lingo.dev/compiler/react";
-export function Button() {
-  const {
-    t
-  } = useTranslation(["43e1aff00fc2"]);
-  return <button>{t("43e1aff00fc2", "Click")}</button>;
-}"
-`;
-
 exports[`transformComponent > translation overrides (data-lingo-override) > should parse override attribute with object expression 1`] = `
 "import { useTranslation } from "@lingo.dev/compiler/react";
 export function Button() {
