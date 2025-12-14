@@ -1,6 +1,7 @@
-import { Children, Fragment, isValidElement, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import IntlMessageFormat, { type FormatXMLElementFn } from "intl-messageformat";
 import { logger } from "../../utils/logger";
+import { sourceLocale } from "@lingo.dev/compiler/dev-config";
 
 /**
  * Component renderer function for rich text translation
@@ -12,23 +13,6 @@ export type ComponentRenderer = FormatXMLElementFn<ReactNode>;
  */
 export type RichTextParams = Record<string, ReactNode | ComponentRenderer>;
 
-//
-/**
- * Adds keys to React elements in an array
- */
-function toKeyedReactNodeArray(children: Array<ReactNode>): Array<ReactNode> {
-  return (
-    // TODO (AleksandrSl 06/12/2025): Seems like map is adding it's own keys anyway, so we can skip the clone?
-    Children.map(children, (child, index) => {
-      if (isValidElement(child)) {
-        return child;
-        // return cloneElement(child, { key: child.key ?? index });
-      }
-      return child;
-    }) ?? []
-  );
-}
-
 /**
  * Wraps a FormatXMLElementFn to automatically assign keys to parts
  */
@@ -36,7 +20,6 @@ function assignUniqueKeysToParts(
   formatXMLElementFn: FormatXMLElementFn<ReactNode>,
 ): FormatXMLElementFn<ReactNode> {
   return function (parts: Array<ReactNode>) {
-    // return formatXMLElementFn(toKeyedReactNodeArray(parts));
     return formatXMLElementFn(parts);
   };
 }
@@ -77,7 +60,7 @@ export function renderRichText(
   params: RichTextParams,
 ): ReactNode {
   try {
-    const formatter = new IntlMessageFormat(text, "en");
+    const formatter = new IntlMessageFormat(text, sourceLocale);
     const keyedParams = assignUniqueKeysToParams(params);
     const result = formatter.format<ReactNode>(keyedParams);
 

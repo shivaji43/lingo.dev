@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  type ReactNode,
+  type PropsWithChildren,
   useCallback,
   useEffect,
   useRef,
@@ -10,7 +10,7 @@ import {
 import { logger } from "../../utils/logger";
 import type { LingoDevState } from "../../widget/types";
 import { fetchTranslations } from "./utils";
-import { serverUrl } from "@lingo.dev/compiler/dev-config";
+import { serverUrl, sourceLocale } from "@lingo.dev/compiler/dev-config";
 import {
   getClientLocale,
   persistLocale,
@@ -23,16 +23,11 @@ const noop = () => {};
 /**
  * Translation provider props
  */
-export interface LingoProviderProps {
+export type LingoProviderProps = PropsWithChildren<{
   /**
    * Initial locale to use
    */
   initialLocale?: LocaleCode;
-
-  /**
-   * Source locale (default language)
-   */
-  sourceLocale?: LocaleCode;
 
   /**
    * Initial translations (pre-loaded)
@@ -62,9 +57,7 @@ export interface LingoProviderProps {
      */
     position?: "bottom-left" | "bottom-right" | "top-left" | "top-right";
   };
-
-  children: ReactNode;
-}
+}>;
 
 const IS_DEV = process.env.NODE_ENV === "development";
 const BATCH_DELAY = 200;
@@ -98,8 +91,6 @@ export const LingoProvider = IS_DEV ? LingoProvider__Dev : LingoProvider__Prod;
 
 function LingoProvider__Prod({
   initialLocale,
-  // TODO (AleksandrSl 14/12/2025): Remove sourceLocale here.
-  sourceLocale = "en",
   initialTranslations = {},
   router,
   children,
@@ -228,7 +219,6 @@ function LingoProvider__Prod({
 
 function LingoProvider__Dev({
   initialLocale,
-  sourceLocale = "en",
   initialTranslations = {},
   router,
   devWidget,
@@ -376,7 +366,7 @@ function LingoProvider__Dev({
         setIsLoading(false);
       }
     }, BATCH_DELAY);
-  }, [allSeenHashes, locale, sourceLocale, translations]);
+  }, [allSeenHashes, locale, translations]);
 
   /**
    * Clear batch timer on unmount

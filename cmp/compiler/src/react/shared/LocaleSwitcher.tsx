@@ -4,18 +4,8 @@ import type { CSSProperties } from "react";
 import { useLingoContext } from "./LingoContext";
 import type { LocaleCode } from "lingo.dev/spec";
 
-/**
- * Locale configuration
- */
 export interface LocaleConfig {
-  /**
-   * Locale code (e.g., 'en', 'de', 'fr')
-   */
   code: LocaleCode;
-
-  /**
-   * Display name (e.g., 'English', 'Deutsch', 'Français')
-   */
   label: string;
 }
 
@@ -24,10 +14,9 @@ export interface LocaleConfig {
  */
 export interface LocaleSwitcherProps {
   /**
-   * Available locales
-   * @default [{ code: 'en', label: 'English' }]
+   * Available locales, e.g. [{ code: 'en', label: 'English' }]
    */
-  locales?: LocaleConfig[];
+  locales: LocaleConfig[];
 
   /**
    * Custom styles for the select element
@@ -78,12 +67,7 @@ export interface LocaleSwitcherProps {
  * ```
  */
 export function LocaleSwitcher({
-  locales = [
-    {
-      code: "en",
-      label: "English",
-    },
-  ],
+  locales,
   style,
   className = "lingo-locale-switcher",
   showLoadingState = true,

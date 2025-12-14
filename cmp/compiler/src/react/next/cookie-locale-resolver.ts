@@ -7,6 +7,8 @@
  */
 import type { CookieConfig } from "../../types";
 import { cookies } from "next/headers";
+import { logger } from "../../utils/logger";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Configuration for Next.js locale resolver
@@ -16,13 +18,13 @@ export interface NextLocaleResolverConfig {
    * Cookie configuration (name and maxAge)
    * @default { name: 'locale', maxAge: 31536000 }
    */
-  cookieConfig?: CookieConfig;
+  cookieConfig: CookieConfig;
 
   /**
    * Default locale if cookie is not set
    * @default 'en'
    */
-  defaultLocale?: string;
+  defaultLocale: LocaleCode;
 }
 
 /**
@@ -33,27 +35,12 @@ export interface NextLocaleResolverConfig {
  *
  * @param config - Configuration options
  * @returns Locale resolver function
- *
- * @example
- * ```typescript
- * import { setLocaleResolver } from '@lingo.dev/compiler/react';
- * import { createNextCookieLocaleResolver } from '@lingo.dev/compiler/react/next';
- *
- * // Use default config (cookie name: 'locale', default: 'en')
- * setLocaleResolver(createNextCookieLocaleResolver());
- *
- * // Or customize with cookie config
- * setLocaleResolver(createNextCookieLocaleResolver({
- *   cookieConfig: { name: 'user_language', maxAge: 2592000 },
- *   defaultLocale: 'de'
- * }));
- * ```
  */
 export function createNextCookieLocaleResolver(
-  config: NextLocaleResolverConfig = {},
+  config: NextLocaleResolverConfig,
 ): () => Promise<string> {
-  const cookieName = config.cookieConfig?.name || "locale";
-  const defaultLocale = config.defaultLocale || "en";
+  const cookieName = config.cookieConfig.name;
+  const defaultLocale = config.defaultLocale;
 
   return async () => {
     try {
@@ -62,9 +49,7 @@ export function createNextCookieLocaleResolver(
     } catch (error) {
       // Fallback on error (e.g., not in Next.js environment, or cookies() failed)
       if (process.env.DEBUG) {
-        process.stderr.write(
-          `[lingo.dev] Error reading locale from Next.js cookies: ${error}\n`,
-        );
+        logger.error(`Error reading locale from Next.js cookies: ${error}\n`);
       }
       return defaultLocale;
     }

@@ -14,11 +14,12 @@ import { getCacheDir } from "../utils/path-helpers";
  * Exports serverUrl and cacheDir constants
  */
 export function generateDevConfigModule(config: LingoConfig): string {
-  const serverUrl = config.dev.translationServerUrl || "http://127.0.0.1:60000";
+  const serverUrl = config.dev.translationServerUrl;
   const cacheDir = getCacheDir(config);
 
   return `export const serverUrl = ${JSON.stringify(serverUrl)};
 export const cacheDir = ${JSON.stringify(cacheDir)};
+export const sourceLocale = ${JSON.stringify(config.sourceLocale)};
 `;
 }
 
@@ -28,17 +29,8 @@ export const cacheDir = ${JSON.stringify(cacheDir)};
  */
 export function generateServerLocaleModule(config: LingoConfig): string {
   return `
-export async function getServerLocale() {
-  try {
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const locale = cookieStore.get(${JSON.stringify(config.cookieConfig.name)})?.value;
-    return locale || ${JSON.stringify(config.sourceLocale)};
-  } catch (error) {
-    // Fallback if cookies are not available
-    return ${JSON.stringify(config.sourceLocale)};
-  }
-}
+import { createNextCookieLocaleResolver } from '@lingo.dev/compiler/react/next';
+export const getServerLocale = createNextCookieLocaleResolver({ cookieConfig: ${JSON.stringify(config.cookieConfig)}, defaultLocale: ${JSON.stringify(config.sourceLocale)} });
 `;
 }
 
