@@ -5,13 +5,13 @@
  * - Finds a free port automatically
  * - Serves translations via:
  *   - GET /translations/:locale - Full dictionary (cached)
- *   - GET /translations/:locale/:hash - Single hash translation
  *   - POST /translations/:locale (body: { hashes: string[] }) - Batch translation
  * - Uses the same translation logic as middleware
  * - Can be started/stopped programmatically
  */
 
 import http from "http";
+import crypto from "crypto";
 import type { Socket } from "net";
 import { URL } from "url";
 import { WebSocket, WebSocketServer } from "ws";
@@ -58,6 +58,7 @@ export class TranslationServer {
   private url: string | undefined = undefined;
   private logger;
   private config: TranslationMiddlewareConfig;
+  private configHash: string;
   private startPort: number;
   private onReadyCallback?: (port: number) => void;
   private onErrorCallback?: (error: Error) => void;
@@ -75,6 +76,7 @@ export class TranslationServer {
 
   constructor(options: TranslationServerOptions) {
     this.config = options.config;
+    this.configHash = hashConfig(options.config);
     this.startPort = options.startPort || 60000;
     this.onReadyCallback = options.onReady;
     this.onErrorCallback = options.onError;
@@ -508,6 +510,7 @@ export class TranslationServer {
 
   /**
    * Check if a given URL is running our translation server by calling the health endpoint
+   * Also verifies that the config hash matches to ensure compatible configuration
    */
   private async checkIfTranslationServer(url: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -525,11 +528,18 @@ export class TranslationServer {
             // Check if response is valid and has the expected structure
             if (res.statusCode === 200) {
               const json = JSON.parse(data);
-              // Our translation server returns { status: "ok", port: ... }
-              if (json.status === "ok") {
-                resolve(true);
+              // Our translation server returns { status: "ok", port: ..., configHash: ... }
+              // Check if config hash matches (if present)
+              // If configHash is missing (old server), accept it for backward compatibility
+              if (json.configHash && json.configHash !== this.configHash) {
+                this.logger.warn(
+                  `Existing server has different config (hash: ${json.configHash} vs ${this.configHash}), will start new server`,
+                );
+                resolve(false);
                 return;
               }
+              resolve(true);
+              return;
             }
             resolve(false);
           } catch (error) {
@@ -581,10 +591,14 @@ export class TranslationServer {
         return;
       }
 
-      // Health check endpoint
       if (url.pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ status: "ok", port: this.url }));
+        res.end(
+          JSON.stringify({
+            port: this.url,
+            configHash: this.configHash,
+          }),
+        );
         return;
       }
 
@@ -775,6 +789,53 @@ export class TranslationServer {
   }
 }
 
+type SerializablePrimitive = string | number | boolean | null | undefined;
+
+type SerializableObject = {
+  [key: string]: SerializableValue;
+};
+export type SerializableValue =
+  | SerializablePrimitive
+  | SerializableValue[]
+  | SerializableObject;
+
+export function stableStringify(
+  value: Record<string, SerializableValue>,
+): string {
+  const normalize = (v: any): any => {
+    if (v === undefined) return undefined;
+    if (typeof v === "function") return undefined;
+    if (v === null) return null;
+
+    if (Array.isArray(v)) {
+      return v.map(normalize).filter((x) => x !== undefined);
+    }
+
+    if (typeof v === "object") {
+      const out: Record<string, any> = {};
+      for (const key of Object.keys(v).sort()) {
+        const next = normalize(v[key]);
+        if (next !== undefined) out[key] = next;
+      }
+      return out;
+    }
+
+    return v;
+  };
+
+  return JSON.stringify(normalize(value));
+}
+
+/**
+ * Generate a stable hash of a config object
+ * Filters out functions and non-serializable values
+ * Sorts keys for stability
+ */
+export function hashConfig(config: Record<string, SerializableValue>): string {
+  const serialized = stableStringify(config);
+  return crypto.createHash("md5").update(serialized).digest("hex").slice(0, 12);
+}
+
 /**
  * Create and start a translation server
  */
@@ -800,7 +861,6 @@ export async function startOrGetTranslationServer(
   options: TranslationServerOptions,
 ): Promise<{ server: TranslationServer; url: string }> {
   const server = new TranslationServer(options);
-  // TODO (AleksandrSl 03/12/2025): Health endpoint should return the config and we should check if it matched the current one.
   const url = await server.startOrGetUrl();
   return { server, url };
 }

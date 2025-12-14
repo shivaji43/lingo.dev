@@ -24,6 +24,7 @@ export function generateTranslationHash(
   context: Record<string, any>,
 ): string {
   const input = `${sourceText}::${Object.entries(context)
+    .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([key, value]) => `${key}:${value}`)
     .join("::")}`;
   return crypto.createHash("md5").update(input).digest("hex").substring(0, 12); // Use first 12 chars for brevity
