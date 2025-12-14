@@ -289,11 +289,6 @@ export type BaseTranslationEntry<Type, Context> = {
  */
 export interface MetadataSchema {
   /**
-   * Schema version
-   */
-  version: string;
-
-  /**
    * All translation entries indexed by hash
    */
   entries: Record<string, TranslationEntry>;

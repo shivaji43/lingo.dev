@@ -9,7 +9,6 @@ import { logger } from "../utils/logger";
 
 export function createEmptyMetadata(): MetadataSchema {
   return {
-    version: "0.1",
     entries: {},
     stats: {
       totalEntries: 0,
@@ -170,22 +169,5 @@ export class MetadataManager {
     } finally {
       await release();
     }
-  }
-
-  /**
-   * Get an entry by hash
-   */
-  getEntry(
-    metadata: MetadataSchema,
-    hash: string,
-  ): TranslationEntry | undefined {
-    return metadata.entries[hash];
-  }
-
-  /**
-   * Check if an entry exists
-   */
-  hasEntry(metadata: MetadataSchema, hash: string): boolean {
-    return hash in metadata.entries;
   }
 }
