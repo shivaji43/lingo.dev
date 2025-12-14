@@ -56,32 +56,48 @@ function tryLocalOrReturnVirtual(
   return virtualName;
 }
 
-// TODO (AleksandrSl 14/12/2025): Could we type this so we are sure we match the virtual model names
-const virtualModulesResolvers = {
-  "@lingo.dev/compiler/dev-config": (config: LingoConfig) =>
-    "\0virtual:lingo-dev-config",
-  "@lingo.dev/compiler/locale/server": (config: LingoConfig) =>
-    tryLocalOrReturnVirtual(
-      config,
-      "locale-resolver.server.ts",
-      "\0virtual:locale-resolver.server",
-    ),
-  "@lingo.dev/compiler/locale/client": (config: LingoConfig) =>
-    tryLocalOrReturnVirtual(
-      config,
-      "locale-resolver.client.ts",
-      "\0virtual:locale-resolver.client",
-    ),
-} satisfies Record<string, (config: LingoConfig) => string>;
+/**
+ * Single source of truth for virtual modules
+ * Each entry defines both resolver (import path → virtual ID) and loader (virtual ID → code)
+ */
+const virtualModules = {
+  "@lingo.dev/compiler/dev-config": {
+    virtualId: "\0virtual:lingo-dev-config",
+    loader: (config: LingoConfig) => generateDevConfigModule(config),
+    customFileCheck: undefined,
+  },
+  "@lingo.dev/compiler/locale/server": {
+    virtualId: "\0virtual:locale-resolver.server" as const,
+    loader: (config: LingoConfig) => generateServerLocaleModule(config),
+    // Custom file resolver - allows user overrides
+    customFileCheck: "locale-resolver.server.ts" as const,
+  },
+  "@lingo.dev/compiler/locale/client": {
+    virtualId: "\0virtual:locale-resolver.client" as const,
+    loader: (config: LingoConfig) => generateClientLocaleModule(config),
+    // Custom file resolver - allows user overrides
+    customFileCheck: "locale-resolver.client.ts" as const,
+  },
+} as const;
 
-const virtualModulesLoaders = {
-  "\0virtual:lingo-dev-config": (config: LingoConfig) =>
-    generateDevConfigModule(config),
-  "\0virtual:locale-resolver.server": (config: LingoConfig) =>
-    generateServerLocaleModule(config),
-  "\0virtual:locale-resolver.client": (config: LingoConfig) =>
-    generateClientLocaleModule(config),
-} satisfies Record<string, (config: LingoConfig) => string>;
+// Derive resolver and loader maps from the single source
+const virtualModulesResolvers = Object.fromEntries(
+  Object.entries(virtualModules).map(([importPath, module]) => [
+    importPath,
+    (config: LingoConfig) =>
+      module.customFileCheck
+        ? tryLocalOrReturnVirtual(
+            config,
+            module.customFileCheck,
+            module.virtualId,
+          )
+        : module.virtualId,
+  ]),
+);
+
+const virtualModulesLoaders = Object.fromEntries(
+  Object.values(virtualModules).map((value) => [value.virtualId, value.loader]),
+);
 
 /**
  * Universal plugin for Lingo.dev compiler
