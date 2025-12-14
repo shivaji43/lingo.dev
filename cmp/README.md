@@ -1,3 +1,5 @@
+# Lingo.dev compiler
+
 ### Development
 
 `pnpm install` from project root
