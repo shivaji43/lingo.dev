@@ -32,6 +32,17 @@
     "6b03202608a3": "'Pour le traduire, vous devez l'envelopper dans le <>'{translatableText}'</> '",
     "17e475720c65": "Pour le traduire, vous devez l'envelopper dans le '<''>'{translatableText}'<'/'>'",
     "1a95cb0327e7": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText}'<'/>",
-    "5c15bd35e916": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText} '<'/>"
+    "5c15bd35e916": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText} '<'/>",
+    "8492c53cfbaf": "À propos de Lingo.dev",
+    "8aa4fe3f0590": "Ceci est une application de démonstration présentant le compilateur Lingo.dev pour les traductions automatiques dans les applications React.",
+    "af76f667703b": "Fonctionnalités clés",
+    "999a96fc5866": "Extraction automatique du texte traduisible à partir de JSX",
+    "b285bf7876d3": "Transformation au moment de la compilation sans surcharge d'exécution",
+    "ab0450919701": "Prise en charge de plusieurs bundlers (Vite, Webpack, Next.js)",
+    "2d626508fb8f": "Système de traduction basé sur des hachages pour des identifiants stables",
+    "aca12d550fe2": "Prise en charge des composants serveur et client",
+    "44a3311c3a4a": "Comment ça fonctionne",
+    "0add30e37450": "Le compilateur analyse vos composants React au moment de la compilation et extrait automatiquement toutes les chaînes traduisibles. Il génère ensuite des traductions en utilisant votre fournisseur de traduction configuré.",
+    "07d84d34dd3a": "Ajoutez simplement la directive \"use i18n\" en haut de vos fichiers de composants, et le compilateur s'occupe du reste !"
   }
 }
