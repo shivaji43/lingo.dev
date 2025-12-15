@@ -119,6 +119,23 @@ export class MetadataManager {
         DEFAULT_TIMEOUTS.METADATA,
         "Save metadata (atomic rename)",
       );
+    } catch (error) {
+      // On Windows, rename() can fail with EPERM if something briefly holds the file.
+      // As a fallback, try writing directly to the destination (not atomic).
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "EPERM"
+      ) {
+        await withTimeout(
+          fsPromises.writeFile(this.filePath, json, "utf-8"),
+          DEFAULT_TIMEOUTS.METADATA,
+          "Save metadata (EPERM fallback direct write)",
+        );
+        return;
+      }
+      throw error;
     } finally {
       // Best-effort cleanup if rename failed for some reason
       await fsPromises.unlink(tmpPath).catch(() => {});
