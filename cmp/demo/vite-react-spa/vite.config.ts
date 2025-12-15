@@ -25,8 +25,6 @@ export default defineConfig({
     }),
     tanstackRouter({
       target: "react",
-      // TODO (AleksandrSl 03/12/2025): Turning code splitting on breaks the translations.
-      autoCodeSplitting: false,
     }),
     viteReact(),
     tailwindcss(),
