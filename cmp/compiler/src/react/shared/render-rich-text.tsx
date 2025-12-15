@@ -1,7 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import IntlMessageFormat, { type FormatXMLElementFn } from "intl-messageformat";
 import { logger } from "../../utils/logger";
-import { sourceLocale } from "@lingo.dev/compiler/virtual/config";
+import type { LocaleCode } from "lingo.dev/spec";
 
 /**
  * Component renderer function for rich text translation
@@ -53,14 +53,16 @@ function assignUniqueKeysToParams(params: RichTextParams): RichTextParams {
  *
  * @param text - The translation string with placeholders
  * @param params - Object with variable values and component renderers
+ * @param locale
  * @returns React nodes or string
  */
 export function renderRichText(
   text: string,
   params: RichTextParams,
+  locale: LocaleCode,
 ): ReactNode {
   try {
-    const formatter = new IntlMessageFormat(text, sourceLocale);
+    const formatter = new IntlMessageFormat(text, locale);
     const keyedParams = assignUniqueKeysToParams(params);
     const result = formatter.format<ReactNode>(keyedParams);
 

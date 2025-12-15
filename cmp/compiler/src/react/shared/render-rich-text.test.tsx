@@ -6,13 +6,13 @@ import {
   describe,
   expect,
   it,
-  type SerializedConfig,
   type SnapshotSerializer,
 } from "vitest";
 import React, { isValidElement, type ReactElement } from "react";
 import { renderRichText } from "./render-rich-text";
 
 const SERIALIZED_MARKER = Symbol("serialized");
+const LOCALE = "en";
 
 const serializer = {
   serialize(val: ReactElement, config, indentation, depth, refs, printer) {
@@ -47,27 +47,35 @@ describe("renderRichText", () => {
   });
 
   it("should return plain text when only text (no placeholders)", () => {
-    const result = renderRichText("Hello World", {});
+    const result = renderRichText("Hello World", {}, LOCALE);
     expect(result).toBe("Hello World");
   });
 
   it("should replace variable placeholders", () => {
-    const result = renderRichText("Hello {name}", { name: "Alice" });
+    const result = renderRichText("Hello {name}", { name: "Alice" }, LOCALE);
     expect(result).toBe("Hello Alice");
   });
 
   it("should replace multiple variable placeholders", () => {
-    const result = renderRichText("Hello {name}, you have {count} messages", {
-      name: "Bob",
-      count: 5,
-    });
+    const result = renderRichText(
+      "Hello {name}, you have {count} messages",
+      {
+        name: "Bob",
+        count: 5,
+      },
+      LOCALE,
+    );
     expect(result).toBe("Hello Bob, you have 5 messages");
   });
 
   it("should render component placeholders with JSX", () => {
-    const result = renderRichText("Click <a0>here</a0>", {
-      a0: (chunks) => <a href="/home">{chunks}</a>,
-    });
+    const result = renderRichText(
+      "Click <a0>here</a0>",
+      {
+        a0: (chunks) => <a href="/home">{chunks}</a>,
+      },
+      LOCALE,
+    );
 
     expect(result).toMatchSnapshot();
   });
@@ -80,16 +88,21 @@ describe("renderRichText", () => {
         count: 5,
         strong0: (chunks) => <strong>{chunks}</strong>,
       },
+      LOCALE,
     );
 
     expect(result).toMatchSnapshot();
   });
 
   it("should render multiple same-type components", () => {
-    const result = renderRichText("Click <a0>here</a0> or <a1>there</a1>", {
-      a0: (chunks) => <a href="/home">{chunks}</a>,
-      a1: (chunks) => <a href="/about">{chunks}</a>,
-    });
+    const result = renderRichText(
+      "Click <a0>here</a0> or <a1>there</a1>",
+      {
+        a0: (chunks) => <a href="/home">{chunks}</a>,
+        a1: (chunks) => <a href="/about">{chunks}</a>,
+      },
+      LOCALE,
+    );
 
     expect(result).toMatchSnapshot();
   });
@@ -109,16 +122,21 @@ describe("renderRichText", () => {
           </a>
         ),
       },
+      LOCALE,
     );
 
     expect(result).toMatchSnapshot();
   });
 
   it("should handle nested components inside component tags", () => {
-    const result = renderRichText("You have <strong0>{count}</strong0> items", {
-      count: 10,
-      strong0: (chunks) => <strong>{chunks}</strong>,
-    });
+    const result = renderRichText(
+      "You have <strong0>{count}</strong0> items",
+      {
+        count: 10,
+        strong0: (chunks) => <strong>{chunks}</strong>,
+      },
+      LOCALE,
+    );
 
     expect(result).toMatchSnapshot();
   });
@@ -130,25 +148,34 @@ describe("renderRichText", () => {
         a0: (chunks) => <a>{chunks}</a>,
         a1: (chunks) => <a>{chunks}</a>,
       },
+      LOCALE,
     );
 
     expect(result).toMatchSnapshot();
   });
 
   it("should render untranslatable content as is", () => {
-    const result = renderRichText("Install using <code0></code0> command", {
-      code0: () => <code>npm install package</code>,
-    });
+    const result = renderRichText(
+      "Install using <code0></code0> command",
+      {
+        code0: () => <code>npm install package</code>,
+      },
+      LOCALE,
+    );
     expect(result).toMatchSnapshot();
   });
 
   it("should render fragments with expressions", () => {
     const translatableMixedContextFragment = (
       <>
-        {renderRichText("<b0>Mixed</b0> content <i0>fragment</i0>", {
-          b0: (chunks) => <b>{chunks}</b>,
-          i0: (chunks) => <i>{chunks}</i>,
-        })}
+        {renderRichText(
+          "<b0>Mixed</b0> content <i0>fragment</i0>",
+          {
+            b0: (chunks) => <b>{chunks}</b>,
+            i0: (chunks) => <i>{chunks}</i>,
+          },
+          LOCALE,
+        )}
       </>
     );
 
@@ -157,6 +184,7 @@ describe("renderRichText", () => {
       {
         translatableMixedContextFragment,
       },
+      LOCALE,
     );
     expect(result).toMatchSnapshot();
   });
@@ -165,6 +193,7 @@ describe("renderRichText", () => {
     const result = renderRichText(
       "To wrap text use: '<'>content'<'/> or '<'Fragment>content'<'/Fragment>",
       {},
+      LOCALE,
     );
     expect(result).toBe(
       "To wrap text use: <>content</> or <Fragment>content</Fragment>",

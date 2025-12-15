@@ -74,7 +74,7 @@ export async function getServerTranslations(options: {
         return text;
       }
 
-      return renderRichText(text, params);
+      return renderRichText(text, params, locale);
     },
     locale,
     translations,

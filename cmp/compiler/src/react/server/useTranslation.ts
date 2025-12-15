@@ -73,7 +73,7 @@ export const useTranslation: TranslationHook = (hashes: string[]) => {
         return text;
       }
 
-      return renderRichText(text, params);
+      return renderRichText(text, params, locale);
     },
     locale,
   };
