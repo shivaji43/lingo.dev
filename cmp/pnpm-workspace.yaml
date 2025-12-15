@@ -1,4 +1,4 @@
 packages:
-  - 'demo'
-  - 'compiler'
-  - 'localizer'
+  - "demo/*"
+  - "compiler"
+  - "localizer"

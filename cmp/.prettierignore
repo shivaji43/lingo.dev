@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+.changeset/
+packages/cli/demo/
+build/
+dist/
+.react-router/
+.turbo/
+.next/
+CLAUDE.md

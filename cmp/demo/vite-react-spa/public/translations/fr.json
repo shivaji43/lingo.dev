@@ -1,0 +1,15 @@
+{
+  "version": 0.1,
+  "locale": "fr",
+  "entries": {
+    "daa4d8839395": "Cliqué {counter} fois",
+    "52ed9ee761d8": "Bonjour le monde",
+    "f11fc78c3ac0": "<b0>Contenu</b0> mixte <i0>fragment</i0>",
+    "556f5956dca7": "Bienvenue dans la démo du compilateur Lingo.dev",
+    "02704ec4e52a": "Il extrait automatiquement le texte de votre JSX et le traduit dans d'autres langues.",
+    "de6bfb30be49": "Le texte inséré comme un <code0></code0> n'est pas traduit : {text}",
+    "5c15bd35e916": "Pour le traduire, vous devez l'envelopper dans le '<'>{translatableText} '<'/>",
+    "93b50fe805b7": "Le texte externe au composant n'est pas traduit : {externalText}",
+    "d756b03ffbf5": "Le contenu qui contient du texte et d'autres balises sera traduit comme une seule entité : {translatableMixedContextFragment}"
+  }
+}
