@@ -19,7 +19,6 @@ interface BaseEvent {
 export interface ConnectedEvent extends BaseEvent {
   type: "connected";
   serverUrl: string;
-  version: string;
 }
 
 /**
@@ -144,7 +143,7 @@ type TranslationServerEventByType = {
  */
 export function createEvent<T extends keyof TranslationServerEventByType>(
   type: T,
-  event?: Omit<TranslationServerEventByType[T], "timestamp" | "type">,
+  event: Omit<TranslationServerEventByType[T], "timestamp" | "type">,
 ): TranslationServerEventByType[T] {
   return {
     ...event,

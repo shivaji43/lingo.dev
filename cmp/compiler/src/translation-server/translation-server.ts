@@ -179,7 +179,7 @@ export class TranslationServer {
       );
 
       // Send initial connected event
-      this.sendToClient(ws, createEvent("connected"));
+      this.sendToClient(ws, createEvent("connected", { serverUrl: this.url! }));
 
       ws.on("close", () => {
         this.wsClients.delete(ws);
