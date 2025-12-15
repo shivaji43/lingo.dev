@@ -700,7 +700,6 @@ export class TranslationServer {
       this.startTranslationActivity();
 
       try {
-        // Translate using the stored service
         const result = await this.translationService.translate(
           parsedLocale,
           this.metadata,

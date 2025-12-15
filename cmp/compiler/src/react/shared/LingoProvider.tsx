@@ -349,6 +349,21 @@ function LingoProvider__Dev({
           `Fetched translations for ${hashesToFetch.length} hashes:`,
           newTranslations,
         );
+
+        const receivedHashes = new Set(Object.keys(newTranslations));
+        const missingHashes = hashesToFetch.filter(
+          (hash) => !receivedHashes.has(hash),
+        );
+
+        if (missingHashes.length > 0) {
+          logger.warn(
+            `Server did not return translations for ${missingHashes.length} hashes: ${missingHashes.join(", ")}`,
+          );
+          for (const hash of missingHashes) {
+            erroredHashesRef.current.add(hash);
+          }
+        }
+
         setTranslations((prev) => ({ ...prev, ...newTranslations }));
         for (const hash of hashesToFetch) {
           registeredHashesRef.current.add(hash);
