@@ -1,5 +1,18 @@
 # Lingo.dev compiler
 
+Lingo.dev compiler with automatic translation support for React applications.
+
+This package provides plugins for multiple bundlers (Vite, Webpack) and Next.js that
+automatically transforms React components to inject translation calls.
+
+## Features
+
+- **Automatic JSX text transformation** - Automatically detects and transforms translatable text in JSX
+- **Opt-in or automatic** - Configure whether to require `'use i18n'` directive or transform all files
+- **Multi-bundler support** - Works with Vite, Webpack and Next.js (both Webpack and Turbopack builds)
+- **Translation server** - On-demand translation generation during development
+- **AI-powered translations** - Support for multiple LLM providers and Lingo.dev Engine
+
 ## Getting started
 
 Install the package - `pnpm install @lingo.dev/compile`

@@ -1,32 +1,6 @@
 # @lingo.dev/compiler
 
-Official Lingo.dev compiler with automatic translation support for React applications.
-
-This package provides plugins for multiple bundlers (Vite, Webpack, Rollup, esbuild) and a Next.js loader that
-automatically transforms React components to inject translation calls. It uses a hash-based metadata system to track
-translatable text across your application.
-
-## Features
-
-- **Automatic JSX text transformation** - Automatically detects and transforms translatable text in JSX
-- **Hash-based metadata** - Generates unique hashes for each translatable text based on content, component name, and
-  file path
-- **Opt-in or automatic** - Configure whether to require `'use i18n'` directive or transform all files
-- **Multi-bundler support** - Works with Vite, Webpack, Rollup, esbuild, and Next.js
-- **Built on unplugin** - Unified plugin API across all bundlers
-- **Metadata tracking** - Maintains `.lingo/metadata.json` with all translatable content
-- **Translation server** - On-demand translation generation during development
-- **AI-powered translations** - Support for multiple LLM providers and Lingo.dev Engine
-
-## Installation
-
-```bash
-npm install @lingo.dev/compiler
-# or
-pnpm add @lingo.dev/compiler
-# or
-yarn add @lingo.dev/compiler
-```
+See the main [README](../README.md) for general information.
 
 ## Structure
 
