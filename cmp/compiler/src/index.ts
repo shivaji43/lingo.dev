@@ -1,9 +1,1 @@
-export type {
-  PartialLingoConfig,
-  MetadataConfig,
-  TranslationConfig,
-  PathConfig,
-  TranslationEntry,
-  MetadataSchema,
-  CookieConfig,
-} from "./types";
+export type { PartialLingoConfig } from "./types";

@@ -17,7 +17,7 @@ export type LingoNextPluginOptions = PartialLingoConfig;
 
 type RuleKey = "compiler" | "devConfig" | "localeServer" | "localeClient";
 
-export function loaders({
+function loaders({
   lingoConfig,
   metadataFilePath,
   translationServerUrl,
@@ -56,7 +56,7 @@ export function loaders({
     loader: "@lingo.dev/compiler/next-locale-server-loader",
     options: {
       ...common,
-      cookieConfig: lingoConfig.cookieConfig,
+      localePersistence: lingoConfig.localePersistence,
     },
   };
 
@@ -64,7 +64,7 @@ export function loaders({
     loader: "@lingo.dev/compiler/next-locale-client-loader",
     options: {
       ...common,
-      cookieConfig: lingoConfig.cookieConfig,
+      localePersistence: lingoConfig.localePersistence,
     },
   };
 
@@ -345,6 +345,3 @@ export async function withLingo(
     webpack,
   };
 }
-
-// Also export TypeScript types
-export type { NextConfig };

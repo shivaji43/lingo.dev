@@ -30,7 +30,7 @@ export const sourceLocale = ${JSON.stringify(config.sourceLocale)};
 export function generateServerLocaleModule(config: LingoConfig): string {
   return `
 import { createNextCookieLocaleResolver } from '@lingo.dev/compiler/react/next';
-export const getServerLocale = createNextCookieLocaleResolver({ cookieConfig: ${JSON.stringify(config.cookieConfig)}, defaultLocale: ${JSON.stringify(config.sourceLocale)} });
+export const getServerLocale = createNextCookieLocaleResolver({ cookieConfig: ${JSON.stringify(config.localePersistence.config)}, defaultLocale: ${JSON.stringify(config.sourceLocale)} });
 `;
 }
 
@@ -39,8 +39,8 @@ export const getServerLocale = createNextCookieLocaleResolver({ cookieConfig: ${
  * Exports getClientLocale() and persistLocale() functions
  */
 export function generateClientLocaleModule(config: LingoConfig): string {
-  const cookieName = config.cookieConfig.name;
-  const maxAge = config.cookieConfig.maxAge;
+  const cookieName = config.localePersistence.config.name;
+  const maxAge = config.localePersistence.config.maxAge;
 
   return `
 export function getClientLocale() {

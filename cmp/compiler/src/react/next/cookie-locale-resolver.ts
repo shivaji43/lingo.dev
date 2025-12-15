@@ -13,7 +13,7 @@ import type { LocaleCode } from "lingo.dev/spec";
 /**
  * Configuration for Next.js locale resolver
  */
-export interface NextLocaleResolverConfig {
+interface NextLocaleResolverConfig {
   /**
    * Cookie configuration (name and maxAge)
    * @default { name: 'locale', maxAge: 31536000 }

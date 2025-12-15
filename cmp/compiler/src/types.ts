@@ -26,7 +26,7 @@ export interface CookieConfig {
  * Locale persistence configuration
  * Currently only supports cookie-based persistence
  */
-export type LocalePersistenceConfig = { type: "cookie"; cookieName?: string };
+export type LocalePersistenceConfig = { type: "cookie"; config: CookieConfig };
 
 /**
  * Field that we require users to fill in the config. The rest could be taken from defaults.
@@ -164,16 +164,10 @@ export type LingoConfig = {
   };
 
   /**
-   * Cookie configuration for locale persistence
-   * Used by both client-side LocaleSwitcher and server-side locale resolver
-   */
-  cookieConfig: CookieConfig;
-
-  /**
    * Locale persistence configuration
    * Defines how locale changes should be persisted
    *
-   * @default { type: 'cookie', cookieName: 'locale' }
+   * @default { type: 'cookie', config: { name: 'locale' } }
    */
   localePersistence: LocalePersistenceConfig;
 
@@ -188,21 +182,6 @@ export type LingoConfig = {
    */
   buildMode: "translate" | "cache-only";
 };
-
-/**
- * Minimal config needed for metadata operations
- * Used by metadata manager functions
- */
-export type MetadataConfig = Pick<LingoConfig, "sourceRoot" | "lingoDir">;
-
-/**
- * Config needed for translation operations
- * Includes translator configuration
- */
-export type TranslationConfig = Pick<
-  LingoConfig,
-  "sourceRoot" | "lingoDir" | "sourceLocale" | "models" | "prompt"
->;
 
 /**
  * Config needed for translation middleware and server

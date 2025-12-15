@@ -18,13 +18,12 @@ export const DEFAULT_CONFIG = {
   dev: {
     translationServerStartPort: 60000,
   },
-  cookieConfig: {
-    name: "locale",
-    maxAge: 31536000,
-  },
   localePersistence: {
     type: "cookie" as const,
-    cookieName: "locale",
+    config: {
+      name: "locale",
+      maxAge: 31536000,
+    },
   },
   models: "lingo.dev",
   pluralization: {
@@ -66,6 +65,10 @@ export function createLingoConfig(
     localePersistence: {
       ...DEFAULT_CONFIG.localePersistence,
       ...options.localePersistence,
+      config: {
+        ...DEFAULT_CONFIG.localePersistence.config,
+        ...options.localePersistence?.config,
+      },
     },
   };
 }
