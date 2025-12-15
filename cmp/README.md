@@ -15,7 +15,7 @@ automatically transforms React components to inject translation calls.
 
 ## Getting started
 
-Install the package - `pnpm install @lingo.dev/compile`
+Install the package - `pnpm install @lingo.dev/compiler`
 
 ### Vite
 
