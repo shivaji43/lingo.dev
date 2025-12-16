@@ -87,6 +87,7 @@ export function LocaleSwitcher({
         ...style,
       }}
       aria-label="Select language"
+      data-testid="lingo-locale-switcher"
     >
       {locales.map((loc) => (
         <option key={loc.code} value={loc.code}>

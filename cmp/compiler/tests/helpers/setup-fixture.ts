@@ -1,9 +1,9 @@
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import * as path from "path";
-import * as os from "os";
 import { exec, spawn, ChildProcess } from "child_process";
 import { promisify } from "util";
+import { verifyFixtureIntegrity } from "./fixture-integrity.js";
 
 const execAsync = promisify(exec);
 
@@ -35,39 +35,6 @@ function setupGlobalCleanup() {
 
 // Call once when module loads
 setupGlobalCleanup();
-
-// Helper to recursively copy directory
-async function copyDir(
-  src: string,
-  dest: string,
-  filter?: (src: string) => boolean,
-): Promise<void> {
-  await fs.mkdir(dest, { recursive: true });
-  const entries = await fs.readdir(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (filter && !filter(srcPath)) {
-      continue;
-    }
-
-    if (entry.isDirectory()) {
-      await copyDir(srcPath, destPath, filter);
-    } else {
-      await fs.copyFile(srcPath, destPath);
-    }
-  }
-}
-
-// Helper to recursively remove directory
-async function removeDir(dir: string): Promise<void> {
-  if (!fsSync.existsSync(dir)) {
-    return;
-  }
-  await fs.rm(dir, { recursive: true, force: true });
-}
 
 // Helper to kill process tree (cross-platform)
 function killProcessTree(proc: ChildProcess): void {
@@ -105,7 +72,7 @@ function killProcessTree(proc: ChildProcess): void {
   }
 }
 
-// Helper to check if port is in use
+// TODO (AleksandrSl 16/12/2025): Could we use helpers from src?
 async function isPortInUse(port: number): Promise<boolean> {
   try {
     const response = await fetch(`http://localhost:${port}`);
@@ -131,7 +98,6 @@ export interface TestFixtureOptions {
 export interface DevServer {
   port: number;
   stop: () => Promise<void>;
-  waitForReady: () => Promise<void>;
 }
 
 export interface ProdServer {
@@ -139,124 +105,82 @@ export interface ProdServer {
   stop: () => Promise<void>;
 }
 
+export type CleanupCallback = () => Promise<void> | void;
+
 export interface TestFixture {
   framework: Framework;
-  tempPath: string;
   path: (p: string) => string;
   startDev: () => Promise<DevServer>;
   build: () => Promise<string>;
   startProduction: () => Promise<ProdServer>;
   clean: () => Promise<void>;
-  readMetadata: () => Promise<any>;
   updateFile: (
     filePath: string,
     updater: (content: string) => string,
   ) => Promise<void>;
   createFile: (filePath: string, content: string) => Promise<void>;
+  registerCleanup: (callback: CleanupCallback) => void;
+  runCleanups: () => Promise<void>;
 }
 
-/**
- * Setup a test fixture by copying the prepared fixture
- * Prepared fixtures already have node_modules installed
- */
 export async function setupFixture(
   options: TestFixtureOptions,
 ): Promise<TestFixture> {
   const { framework } = options;
 
-  // Source: prepared fixture with dependencies already installed
   const fixturePath = path.join(process.cwd(), "tests", "fixtures", framework);
-
-  // Check if fixture exists
   if (!fsSync.existsSync(fixturePath)) {
     throw new Error(
       `Fixture for ${framework} not found. Run "pnpm test:prepare" first.`,
     );
   }
 
-  // Destination: temp directory
-  const tempPath = await fs.mkdtemp(
-    path.join(os.tmpdir(), `lingo-test-${framework}-`),
-  );
-
-  console.log(
-    `Setting up ${framework} test from prepared fixture at ${tempPath}`,
-  );
-
-  // Copy prepared fixture to temp directory (excluding node_modules and build artifacts)
-  await copyDir(fixturePath, tempPath, (src: string) => {
-    const name = path.basename(src);
-    // Skip build artifacts and node_modules (we'll install fresh)
-    return ![".next", "dist", ".lingo", ".turbo", "node_modules"].includes(
-      name,
+  const { valid, errors } = await verifyFixtureIntegrity(fixturePath);
+  if (!valid) {
+    console.error(`❌ Fixture integrity check failed for ${framework}:`);
+    errors.forEach((error) => console.error(`  - ${error}`));
+    throw new Error(
+      `Fixture integrity check failed. Please run "pnpm test:prepare" to recreate fixtures.`,
     );
-  });
-
-  // Update package.json to use local compiler instead of workspace reference
-  console.log(`  Updating package.json to use local compiler...`);
-  const packageJsonPath = path.join(tempPath, "package.json");
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8"));
-  // Use compiler root directory (contains package.json and build/)
-  const compilerRoot = process.cwd();
-
-  // Replace workspace:* with file: path
-  // Using file: (not workspace:) prevents pnpm from detecting this as part of workspace
-  if (packageJson.dependencies?.["@lingo.dev/compiler"]) {
-    packageJson.dependencies["@lingo.dev/compiler"] = `file:${compilerRoot}`;
   }
-
-  await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
-
-  // Install dependencies fresh in temp directory
   console.log(
-    `  Installing dependencies for ${framework} in temp directory...`,
+    `Setting up ${framework} test from prepared fixture at ${fixturePath}`,
   );
-  try {
-    const result = await execAsync("pnpm install --no-frozen-lockfile", {
-      cwd: tempPath,
-      timeout: 120000,
-      env: { ...process.env, CI: "true" },
-    });
-    console.log(`  ✅ Dependencies installed`);
-  } catch (error: any) {
-    console.error(`  ❌ Failed to install dependencies:`, error.message);
-    if (error.stdout) console.error(`  stdout: ${error.stdout}`);
-    if (error.stderr) console.error(`  stderr: ${error.stderr}`);
-    throw error;
-  }
+  console.log(`✅ Fixture ready (using prepared node_modules)`);
 
   // Apply custom config if provided
   if (options.config) {
-    await updateConfig(tempPath, framework, options.config);
+    await updateConfig(fixturePath, framework, options.config);
   }
+
+  // Cleanup callbacks stack (LIFO order - last registered runs first)
+  const cleanupCallbacks: CleanupCallback[] = [];
 
   const fixture: TestFixture = {
     framework,
-    tempPath,
-    path: (p: string) => path.join(tempPath, p),
+    path: (p: string) => path.join(fixturePath, p),
 
     async startDev(): Promise<DevServer> {
       // Both Next.js and Vite are configured to use port 3000 in the demo apps
       const port = 3000;
 
       // Check if port is already in use
-      // if (await isPortInUse(port)) {
-      //   throw new Error(
-      //     `Port ${port} is already in use. Please free it before starting dev server.`,
-      //   );
-      // }
+      if (await isPortInUse(port)) {
+        throw new Error(
+          `Port ${port} is already in use. Please free it before starting dev server.`,
+        );
+      }
 
       console.log(`Starting dev server for ${framework} on port ${port}...`);
 
       const isWindows = process.platform === "win32";
       const devProcess = spawn(isWindows ? "pnpm.cmd" : "pnpm", ["dev"], {
-        cwd: tempPath,
+        cwd: fixturePath,
         stdio: "pipe",
         shell: true,
         detached: !isWindows, // Use process groups on Unix
       });
 
-      // Track if process errored during startup
       let startupError: Error | null = null;
 
       devProcess.on("error", (error) => {
@@ -316,7 +240,6 @@ export async function setupFixture(
             }, 5000);
           });
         },
-        waitForReady: () => waitForPort(port),
       };
     },
 
@@ -324,7 +247,7 @@ export async function setupFixture(
       console.log(`Building ${framework}...`);
       try {
         const result = await execAsync("pnpm build", {
-          cwd: tempPath,
+          cwd: fixturePath,
           timeout: 120000,
         });
         console.log(`✅ Build completed for ${framework}`);
@@ -355,7 +278,7 @@ export async function setupFixture(
 
       const isWindows = process.platform === "win32";
       const prodProcess = spawn(isWindows ? "pnpm.cmd" : "pnpm", ["start"], {
-        cwd: tempPath,
+        cwd: fixturePath,
         stdio: "pipe",
         shell: true,
         detached: !isWindows,
@@ -423,34 +346,66 @@ export async function setupFixture(
     },
 
     async clean(): Promise<void> {
-      console.log(`Cleaning up fixture at ${tempPath}...`);
+      console.log(`Cleaning up fixture at ${fixturePath}...`);
+      await this.runCleanups();
       activeFixtures.delete(fixture);
-      await removeDir(tempPath);
-    },
-
-    async readMetadata(): Promise<any> {
-      const metadataPath = path.join(tempPath, ".lingo/metadata.json");
-      const content = await fs.readFile(metadataPath, "utf-8");
-      return JSON.parse(content);
     },
 
     async updateFile(
       filePath: string,
       updater: (content: string) => string,
     ): Promise<void> {
-      const fullPath = path.join(tempPath, filePath);
-      const content = await fs.readFile(fullPath, "utf-8");
-      await fs.writeFile(fullPath, updater(content));
+      const fullPath = path.join(fixturePath, filePath);
+
+      // Read original content before modifying
+      const originalContent = await fs.readFile(fullPath, "utf-8");
+
+      // Register cleanup to restore file to original state
+      fixture.registerCleanup(async () => {
+        await fs.writeFile(fullPath, originalContent);
+        console.log(`  🔄 Restored ${filePath} to original state`);
+      });
+
+      // Apply the update
+      const updatedContent = updater(originalContent);
+      await fs.writeFile(fullPath, updatedContent);
     },
 
     async createFile(filePath: string, content: string): Promise<void> {
-      const fullPath = path.join(tempPath, filePath);
+      const fullPath = path.join(fixturePath, filePath);
+
+      // Register cleanup to delete created file
+      fixture.registerCleanup(async () => {
+        if (fsSync.existsSync(fullPath)) {
+          await fs.unlink(fullPath);
+          console.log(`  🗑️  Deleted ${filePath}`);
+        }
+      });
+
+      // Create the file
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       await fs.writeFile(fullPath, content);
     },
+
+    registerCleanup(callback: CleanupCallback): void {
+      cleanupCallbacks.push(callback);
+    },
+
+    async runCleanups(): Promise<void> {
+      // Run cleanups in reverse order (LIFO)
+      while (cleanupCallbacks.length > 0) {
+        const callback = cleanupCallbacks.pop();
+        if (callback) {
+          try {
+            await callback();
+          } catch (error) {
+            console.error("Cleanup callback failed:", error);
+          }
+        }
+      }
+    },
   };
 
-  // Register for cleanup
   activeFixtures.add(fixture);
 
   return fixture;

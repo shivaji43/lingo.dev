@@ -3,6 +3,10 @@ import * as fsSync from "fs";
 import * as path from "path";
 import { exec } from "child_process";
 import { promisify } from "util";
+import {
+  generateFixtureChecksums,
+  saveChecksums,
+} from "./fixture-integrity.js";
 
 const execAsync = promisify(exec);
 
@@ -96,10 +100,42 @@ async function prepareFixture(
     console.log(`  Modified vite.config.ts to disable devtools`);
   }
 
-  // Note: Dependencies will be installed fresh during test setup
-  // This is more reliable than trying to copy node_modules from a pnpm workspace
+  // Update package.json to use local compiler with file: reference
+  console.log(`  Updating package.json to use local compiler...`);
+  const packageJsonPath = path.join(destPath, "package.json");
+  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8"));
+  // Use current directory (compiler/) which contains package.json and build/
+  const compilerRoot = process.cwd();
+
+  // Replace workspace:* with file: path
+  if (packageJson.dependencies?.["@lingo.dev/compiler"]) {
+    packageJson.dependencies["@lingo.dev/compiler"] = `file:${compilerRoot}`;
+  }
+
+  await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+
+  // Install dependencies once during preparation
+  console.log(`  Installing dependencies for ${framework}...`);
+  try {
+    // Use --ignore-workspace to prevent pnpm from treating this as a workspace package
+    await execAsync("pnpm install --no-frozen-lockfile --ignore-workspace", {
+      cwd: destPath,
+      timeout: 120000,
+      env: { ...process.env, CI: "true" },
+    });
+    console.log(`  ✅ ${framework} fixture ready with dependencies installed`);
+  } catch (error: any) {
+    console.error(`  ❌ Failed to install dependencies:`, error.message);
+    if (error.stdout) console.error(`  stdout: ${error.stdout}`);
+    if (error.stderr) console.error(`  stderr: ${error.stderr}`);
+    throw error;
+  }
+
+  // Generate checksums for integrity verification
+  const checksums = await generateFixtureChecksums(destPath, framework);
+  await saveChecksums(destPath, checksums);
   console.log(
-    `  ✅ ${framework} fixture ready (dependencies will be installed during test setup)`,
+    `  ✅ Generated checksums for ${checksums.files.length} source files`,
   );
 }
 

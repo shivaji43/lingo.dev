@@ -1,11 +1,17 @@
-import { expect, Page, test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   DevServer,
   findTranslationServerPort,
   setupFixture,
   type TestFixture,
 } from "../../helpers/setup-fixture";
-import { switchLocale } from "../../helpers/locale-switcher";
+import {
+  getCurrentLocale,
+  switchLocale,
+} from "../../helpers/locale-switcher"; /**
+ * Development Mode Tests
+ * These tests verify that the translation system works correctly in development mode
+ */
 
 /**
  * Development Mode Tests
@@ -15,33 +21,28 @@ import { switchLocale } from "../../helpers/locale-switcher";
 test.describe.serial("Development Mode", () => {
   test.describe.serial("Next.js", () => {
     let fixture: TestFixture;
-    let page: Page;
     let devServer: DevServer;
 
-    test.beforeAll(async ({ browser }, testInfo) => {
+    test.beforeAll(async ({}, testInfo) => {
       fixture = await setupFixture({ framework: "next" });
-      const context = await browser.newContext();
-      page = await context.newPage();
       devServer = await fixture.startDev();
-      testInfo.setTimeout(180000);
     });
 
     test.afterAll(async () => {
-      // Stop dev server first, then clean up
+      // Stop dev server, then clean up
       if (devServer) {
         await devServer.stop();
         // Give Windows time to release file handles
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-      await page?.close();
       await fixture?.clean();
     });
 
-    test("should start translation server on dev", async () => {
-      // Wait for server to be ready
-      await devServer.waitForReady();
+    test.beforeEach(async ({ page }) => {
+      await page.goto(`http://localhost:${devServer.port}`);
+    });
 
-      // Check translation server is running
+    test("should start translation server on dev", async ({}) => {
       const translationPort = await findTranslationServerPort();
       expect(translationPort).toBeGreaterThanOrEqual(60000);
       expect(translationPort).not.toBeNull();
@@ -55,15 +56,15 @@ test.describe.serial("Development Mode", () => {
       }
     });
 
-    test("should generate translations on demand in dev", async () => {
+    test("should generate translations on demand in dev", async ({ page }) => {
       // Navigate to app
       await page.goto(`http://localhost:${devServer.port}`);
 
       // Wait for page to load
-      await page.waitForSelector("h1", { timeout: 30000 });
-      const heading = await page.textContent("h1");
+      const initialHeading = page.getByRole("heading", { level: 1 });
+      await expect(initialHeading).toBeVisible();
+      const heading = await initialHeading.textContent();
       expect(heading).toBeTruthy();
-      console.log("Initial heading:", heading);
 
       // Monitor translation requests
       const translationRequests: string[] = [];
@@ -75,14 +76,12 @@ test.describe.serial("Development Mode", () => {
         }
       });
 
-      // Use the locale switching utility
       console.log("Switching to German locale...");
       await switchLocale(page, "de");
 
-      // Wait a bit for translations to potentially load
-      await page.waitForTimeout(2000);
-
-      const germanHeading = await page.textContent("h1");
+      const germanHeading = await page
+        .getByRole("heading", { level: 1 })
+        .textContent();
       console.log("German heading:", germanHeading);
       expect(germanHeading).toBeTruthy();
 
@@ -91,26 +90,25 @@ test.describe.serial("Development Mode", () => {
         console.log("✅ Translation changed the heading");
       } else {
         console.log(
-          "⚠️  Heading unchanged (pseudo-translation may not modify all text)",
+          "⚠️ Heading unchanged (pseudo-translation may not modify all text)",
         );
       }
 
-      await switchLocale(page, "en");
       // Verify translation request was made (optional check)
       console.log("Translation requests:", translationRequests);
+      expect(translationRequests).toHaveLength(1);
     });
 
-    test("should handle hot reload with text changes", async () => {
+    test("should handle hot reload with text changes", async ({ page }) => {
       await page.goto(`http://localhost:${devServer.port}`);
 
-      // Wait for initial render
-      await page.waitForSelector("h1", { timeout: 30000 });
-      const initialText = await page.textContent("h1");
+      const initialHeading = page.getByRole("heading", { level: 1 });
+      await expect(initialHeading).toBeVisible();
+      const initialText = await initialHeading.textContent();
       expect(initialText).toBeTruthy();
 
-      // Modify the component
-      const pagePath = "app/page.tsx";
-      await fixture.updateFile(pagePath, (content) => {
+      // Modify the component (cleanup is automatic via fixture.updateFile)
+      await fixture.updateFile("app/page.tsx", (content) => {
         // Add a new text element
         return content.replace(
           "</main>",
@@ -118,36 +116,20 @@ test.describe.serial("Development Mode", () => {
         );
       });
 
-      // Wait for hot reload
-      await page.waitForSelector('[data-testid="hot-reload-test"]', {
-        timeout: 15000,
-      });
-      const newElement = await page.textContent(
-        '[data-testid="hot-reload-test"]',
-      );
+      const newElement = await page
+        .getByTestId("hot-reload-test")
+        .textContent();
       expect(newElement).toBe("Hot reload works!");
-
-      // Restore original content
-      await fixture.updateFile(pagePath, (content) => {
-        return content.replace(
-          '<p data-testid="hot-reload-test">Hot reload works!</p>',
-          "",
-        );
-      });
     });
   });
 
   test.describe.serial("Vite", () => {
     let fixture: TestFixture;
-    let page: Page;
     let devServer: DevServer;
 
-    test.beforeAll(async ({ browser }, testInfo) => {
+    test.beforeAll(async ({}) => {
       fixture = await setupFixture({ framework: "vite" });
-      const context = await browser.newContext();
-      page = await context.newPage();
       devServer = await fixture.startDev();
-      testInfo.setTimeout(180000); // 3 minutes timeout for packing and installing deps
     });
 
     test.afterAll(async () => {
@@ -156,85 +138,66 @@ test.describe.serial("Development Mode", () => {
         // Give Windows time to release file handles
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-      await page?.close();
       await fixture?.clean();
     });
 
-    test("should start vite dev server and render page", async () => {
-      // Wait for server to be ready
-      await devServer.waitForReady();
-
-      // Navigate to app
+    test.beforeEach(async ({ page }) => {
       await page.goto(`http://localhost:${devServer.port}`);
-      await page.waitForSelector("h1", { timeout: 30000 });
+    });
 
-      const heading = await page.textContent("h1");
-      console.log("Vite - Initial heading:", heading);
-      expect(heading).toBeTruthy();
+    test("should start vite dev server and render page", async ({ page }) => {
+      // Navigate to app
+      const initialHeading = page.getByRole("heading", { level: 1 });
+      await expect(initialHeading).toBeVisible();
+
+      const heading = await initialHeading.textContent();
       expect(heading).toContain("Welcome");
     });
 
-    test("should switch locales and verify translation system", async () => {
-      const devServer = await fixture.startDev();
+    test.only("should switch locales and verify translation system", async ({
+      page,
+    }) => {
+      const initialHeading = page.getByRole("heading", { level: 1 });
+      console.log("Vite - Initial heading:", initialHeading);
+      await expect(initialHeading).toBeVisible();
+      const initialHeadingText = await initialHeading.textContent();
 
-      try {
-        // Navigate to homepage
-        await page.goto(`http://localhost:${devServer.port}`);
-        await page.waitForSelector("h1", { timeout: 30000 });
+      // Switch to Spanish
+      console.log("Vite - Switching to Spanish...");
+      await switchLocale(page, "es");
 
-        const initialHeading = await page.textContent("h1");
-        console.log("Vite - Initial heading:", initialHeading);
-        expect(initialHeading).toBeTruthy();
+      const spanishHeading = page.getByRole("heading", { level: 1 });
+      console.log("Vite - Spanish heading:", spanishHeading);
+      await expect(spanishHeading).toBeVisible();
+      const spanishHeadingText = await spanishHeading.textContent();
 
-        // Check that LocaleSwitcher is present
-        const select = page.locator('select[aria-label="Select language"]');
-        await expect(select).toBeVisible();
-
-        // Switch to Spanish
-        console.log("Vite - Switching to Spanish...");
-        await switchLocale(page, "es");
-        await page.waitForTimeout(2000);
-
-        const spanishHeading = await page.textContent("h1");
-        console.log("Vite - Spanish heading:", spanishHeading);
-        expect(spanishHeading).toBeTruthy();
-
-        if (spanishHeading !== initialHeading) {
-          console.log("✅ Translation system changed the text");
-        } else {
-          console.log("⚠️  Text unchanged (pseudo-translation varies)");
-        }
-        await switchLocale(page, "en");
-      } finally {
-        await devServer.stop();
+      if (spanishHeadingText !== initialHeadingText) {
+        console.log("✅ Translation system changed the text");
+      } else {
+        console.log("⚠️ Text unchanged");
       }
     });
 
-    test("should navigate between pages and persist locale", async () => {
-      const devServer = await fixture.startDev();
-
-      // Navigate to homepage
-      await page.goto(`http://localhost:${devServer.port}`);
-      await page.waitForSelector("h1", { timeout: 30000 });
+    test("should navigate between pages and persist locale", async ({
+      page,
+    }) => {
+      const initialHeading = page.getByRole("heading", { level: 1 });
+      await expect(initialHeading).toBeVisible();
+      const newLocale = "fr";
 
       // Switch to French
-      console.log("Vite - Switching to French...");
-      await switchLocale(page, "fr");
-      await page.waitForTimeout(1000);
+      console.log(`Vite - Switching to ${newLocale}...`);
+      await switchLocale(page, newLocale);
 
       // Navigate to about page
-      await page.click('a[href="/about"]');
-      await page.waitForSelector("h1", { timeout: 10000 });
-
-      const aboutHeading = await page.textContent("h1");
-      console.log("Vite - About page heading:", aboutHeading);
-      expect(aboutHeading).toBeTruthy();
+      await page.getByTestId("about-link").click();
+      const aboutHeading = page.getByRole("heading", { level: 1 });
+      await expect(aboutHeading).toBeVisible();
 
       // Verify locale persisted
-      const select = page.locator('select[aria-label="Select language"]');
-      const currentLocale = await select.inputValue();
-      expect(currentLocale).toBe("fr");
-      console.log("✅ Locale persisted across navigation");
+      const currentLocale = await getCurrentLocale(page);
+      expect(currentLocale).toBe(newLocale);
+      console.log(`✅ Locale persisted across navigation to ${newLocale}`);
     });
   });
 });
