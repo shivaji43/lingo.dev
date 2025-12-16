@@ -5,5 +5,6 @@ export default defineConfig({
     globals: true,
     environment: "node",
     snapshotSerializers: ["./src/react/shared/test-serializer.ts"],
+    exclude: ["**/tests/e2e/**"],
   },
 });

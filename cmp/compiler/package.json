@@ -117,15 +117,14 @@
     "clean": "rm -rf build",
     "test": "vitest --run",
     "test:watch": "vitest -w",
-    "test:prepare": "tsx tests/helpers/prepare-fixtures.ts",
+    "test:prepare": "pnpm build && tsx tests/helpers/prepare-fixtures.ts",
     "test:e2e": "playwright test",
     "test:e2e:next": "playwright test --grep next",
     "test:e2e:vite": "playwright test --grep vite",
     "test:e2e:shared": "playwright test tests/e2e/shared",
     "test:e2e:dev": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
-    "test:e2e:report": "playwright show-report",
-    "playwright:install": "playwright install chromium"
+    "test:e2e:report": "playwright show-report"
   },
   "keywords": [],
   "author": "",
