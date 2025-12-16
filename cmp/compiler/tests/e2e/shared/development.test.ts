@@ -154,7 +154,7 @@ test.describe.serial("Development Mode", () => {
       expect(heading).toContain("Welcome");
     });
 
-    test.only("should switch locales and verify translation system", async ({
+    test("should switch locales and verify translation system", async ({
       page,
     }) => {
       const initialHeading = page.getByRole("heading", { level: 1 });
