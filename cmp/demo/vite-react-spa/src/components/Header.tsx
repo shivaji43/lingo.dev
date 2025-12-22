@@ -20,6 +20,7 @@ export default function Header() {
             to="/about"
             className="hover:text-blue-300 transition-colors [&.active]:text-blue-400 [&.active]:font-semibold"
             activeProps={{ className: "active" }}
+            data-testid="about-link"
           >
             About
           </Link>
