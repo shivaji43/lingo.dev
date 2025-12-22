@@ -4,6 +4,7 @@ import * as path from "path";
 import { exec, spawn, ChildProcess } from "child_process";
 import { promisify } from "util";
 import { verifyFixtureIntegrity } from "./fixture-integrity.js";
+import * as os from "node:os";
 
 const execAsync = promisify(exec);
 
@@ -69,21 +70,6 @@ function killProcessTree(proc: ChildProcess): void {
         }
       }, 2000);
     }
-  }
-}
-
-// TODO (AleksandrSl 16/12/2025): Could we use helpers from src?
-async function isPortInUse(port: number): Promise<boolean> {
-  try {
-    const response = await fetch(`http://localhost:${port}`);
-    return true; // If we get any response, port is in use
-  } catch (e: any) {
-    // ECONNREFUSED means port is not in use
-    if (e.code === "ECONNREFUSED") {
-      return false;
-    }
-    // Other errors might mean port is in use but not responding
-    return true;
   }
 }
 
@@ -164,20 +150,12 @@ export async function setupFixture(
       // Both Next.js and Vite are configured to use port 3000 in the demo apps
       const port = 3000;
 
-      // Check if port is already in use
-      if (await isPortInUse(port)) {
-        throw new Error(
-          `Port ${port} is already in use. Please free it before starting dev server.`,
-        );
-      }
-
       console.log(`Starting dev server for ${framework} on port ${port}...`);
-
-      const isWindows = process.platform === "win32";
+      const isWindows = os.platform() === "win32";
       const devProcess = spawn(isWindows ? "pnpm.cmd" : "pnpm", ["dev"], {
         cwd: fixturePath,
         stdio: "pipe",
-        shell: true,
+        shell: isWindows,
         detached: !isWindows, // Use process groups on Unix
       });
 
@@ -265,22 +243,13 @@ export async function setupFixture(
     async startProduction(): Promise<ProdServer> {
       const port = framework === "next" ? 3000 : 4173;
 
-      // Check if port is already in use
-      if (await isPortInUse(port)) {
-        throw new Error(
-          `Port ${port} is already in use. Please free it before starting production server.`,
-        );
-      }
+      console.log(`Starting production server for ${framework}...`);
 
-      console.log(
-        `Starting production server for ${framework} on port ${port}...`,
-      );
-
-      const isWindows = process.platform === "win32";
+      const isWindows = os.platform() === "win32";
       const prodProcess = spawn(isWindows ? "pnpm.cmd" : "pnpm", ["start"], {
         cwd: fixturePath,
         stdio: "pipe",
-        shell: true,
+        shell: isWindows,
         detached: !isWindows,
       });
 
