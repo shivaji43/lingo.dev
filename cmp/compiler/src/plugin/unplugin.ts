@@ -136,6 +136,15 @@ export const lingoUnplugin = createUnplugin<
     enforce: "pre", // Run before other plugins (especially before React plugin)
 
     vite: {
+      // Vite handles deep merge
+      config() {
+        // Required for custom virtual like modules to be resolved; otherwise they are bundled with raw source code.
+        return {
+          optimizeDeps: {
+            exclude: ["@lingo.dev/compiler"],
+          },
+        };
+      },
       async buildStart() {
         const metadataFilePath = getMetadataPath();
 
