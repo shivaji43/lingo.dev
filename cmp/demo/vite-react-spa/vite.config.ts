@@ -29,9 +29,6 @@ export default defineConfig({
     viteReact(),
     tailwindcss(),
   ],
-  optimizeDeps: {
-    exclude: ["@lingo.dev/compiler"],
-  },
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),

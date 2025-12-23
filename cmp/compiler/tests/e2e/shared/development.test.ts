@@ -23,7 +23,7 @@ test.describe.serial("Development Mode", () => {
     let fixture: TestFixture;
     let devServer: DevServer;
 
-    test.beforeAll(async ({}, testInfo) => {
+    test.beforeAll(async () => {
       fixture = await setupFixture({ framework: "next" });
       devServer = await fixture.startDev();
     });
@@ -85,14 +85,7 @@ test.describe.serial("Development Mode", () => {
       console.log("German heading:", germanHeading);
       expect(germanHeading).toBeTruthy();
 
-      // Log if translation system changed the text
-      if (germanHeading !== heading) {
-        console.log("✅ Translation changed the heading");
-      } else {
-        console.log(
-          "⚠️ Heading unchanged (pseudo-translation may not modify all text)",
-        );
-      }
+      expect.soft(germanHeading).not.toEqual(heading);
 
       // Verify translation request was made (optional check)
       console.log("Translation requests:", translationRequests);
@@ -127,7 +120,7 @@ test.describe.serial("Development Mode", () => {
     let fixture: TestFixture;
     let devServer: DevServer;
 
-    test.beforeAll(async ({}) => {
+    test.beforeAll(async () => {
       fixture = await setupFixture({ framework: "vite" });
       devServer = await fixture.startDev();
     });
@@ -171,11 +164,7 @@ test.describe.serial("Development Mode", () => {
       await expect(spanishHeading).toBeVisible();
       const spanishHeadingText = await spanishHeading.textContent();
 
-      if (spanishHeadingText !== initialHeadingText) {
-        console.log("✅ Translation system changed the text");
-      } else {
-        console.log("⚠️ Text unchanged");
-      }
+      expect(spanishHeadingText).not.toEqual(initialHeadingText);
     });
 
     test("should navigate between pages and persist locale", async ({
@@ -197,7 +186,6 @@ test.describe.serial("Development Mode", () => {
       // Verify locale persisted
       const currentLocale = await getCurrentLocale(page);
       expect(currentLocale).toBe(newLocale);
-      console.log(`✅ Locale persisted across navigation to ${newLocale}`);
     });
   });
 });
