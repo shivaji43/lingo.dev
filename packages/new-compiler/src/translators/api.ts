@@ -12,6 +12,22 @@ export interface Translator<Config> {
 }
 
 /**
+ * Thrown when a translation run fails partway through, carrying the entries
+ * that already came back. They have been paid for, so discarding them makes the
+ * next build request and pay for identical source text again.
+ */
+export class PartialTranslationError extends Error {
+  constructor(
+    message: string,
+    public readonly partialTranslations: Record<string, string>,
+    cause: unknown,
+  ) {
+    super(message, { cause });
+    this.name = "PartialTranslationError";
+  }
+}
+
+/**
  * Dictionary schema for translation
  * Simple flat structure with direct access to translations
  */

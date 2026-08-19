@@ -9,7 +9,11 @@
  */
 
 import type { TranslationCache } from "./cache";
-import type { TranslatableEntry, Translator } from "./api";
+import {
+  PartialTranslationError,
+  type TranslatableEntry,
+  type Translator,
+} from "./api";
 import type { LingoEnvironment, MetadataSchema } from "../types";
 import {
   type PluralizationConfig,
@@ -258,6 +262,18 @@ Set the required API keys for real translations.`);
         );
         // Merge translated texts with overridden translations
         newTranslations = { ...overriddenTranslations, ...translatedTexts };
+
+        // Check for partial failures (some hashes didn't get translated)
+        for (const hash of uncachedHashes) {
+          if (!newTranslations[hash]) {
+            const entry = filteredMetadata[hash];
+            errors.push({
+              hash,
+              sourceText: entry?.sourceText || "",
+              error: "Translator doesn't return translation",
+            });
+          }
+        }
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : String(error);
@@ -268,37 +284,14 @@ Set the required API keys for real translations.`);
           this.logger.debug(`Stack trace: ${error.stack}`);
         }
 
-        return {
-          translations: this.pickTranslations(
-            cachedTranslations,
-            workingHashes,
-          ),
-          errors: [
-            {
-              hash: "all",
-              sourceText: "all",
-              error: errorMessage,
-            },
-          ],
-          stats: {
-            total: workingHashes.length,
-            cached: cachedCount,
-            translated: 0,
-            failed: uncachedHashes.length,
-          },
-        };
-      }
-
-      // Check for partial failures (some hashes didn't get translated)
-      for (const hash of uncachedHashes) {
-        if (!newTranslations[hash]) {
-          const entry = filteredMetadata[hash];
-          errors.push({
-            hash,
-            sourceText: entry?.sourceText || "",
-            error: "Translator doesn't return translation",
-          });
+        if (error instanceof PartialTranslationError) {
+          Object.assign(newTranslations, error.partialTranslations);
         }
+        errors.push({
+          hash: "all",
+          sourceText: "all",
+          error: errorMessage,
+        });
       }
     }
 
@@ -328,7 +321,9 @@ Set the required API keys for real translations.`);
         total: workingHashes.length,
         cached: cachedCount,
         translated: Object.keys(newTranslations).length,
-        failed: errors.length,
+        failed: uncachedHashes.filter(
+          (hash) => filteredMetadata[hash] && !newTranslations[hash],
+        ).length,
       },
     };
   }

@@ -1,6 +1,6 @@
 import { generateText } from "ai";
 import { LingoDotDevEngine } from "lingo.dev/sdk";
-import { dictionaryFrom, type DictionarySchema, type TranslatableEntry, type Translator, } from "../api";
+import { dictionaryFrom, PartialTranslationError, type DictionarySchema, type TranslatableEntry, type Translator, } from "../api";
 import { getSystemPrompt } from "./prompt";
 import { obj2xml, parseXmlFromResponseText } from "../parse-xml";
 import { shots } from "./shots";
@@ -73,21 +73,29 @@ export class LingoTranslator implements Translator<LingoTranslatorConfig> {
 
     const translatedChunks: DictionarySchema[] = [];
 
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      this.logger.debug(
-        `Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        this.logger.debug(
+          `Translating chunk ${i + 1}/${chunks.length} with ${Object.keys(chunk.entries).length} entries`,
+        );
+        const chunkStartTime = performance.now();
+
+        const translatedChunk = await this.translateChunk(chunk, targetLocale);
+
+        const chunkEndTime = performance.now();
+        this.logger.debug(
+          `Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
+        );
+
+        translatedChunks.push(translatedChunk);
+      }
+    } catch (error) {
+      throw new PartialTranslationError(
+        error instanceof Error ? error.message : String(error),
+        this.mergeDictionaries(translatedChunks).entries,
+        error,
       );
-      const chunkStartTime = performance.now();
-
-      const translatedChunk = await this.translateChunk(chunk, targetLocale);
-
-      const chunkEndTime = performance.now();
-      this.logger.debug(
-        `Chunk ${i + 1}/${chunks.length} completed in ${(chunkEndTime - chunkStartTime).toFixed(2)}ms`,
-      );
-
-      translatedChunks.push(translatedChunk);
     }
 
     const result = this.mergeDictionaries(translatedChunks);
