@@ -506,7 +506,26 @@ function processJSXElement(
   registerEntry(entry, state, component.name);
   rewriteChildren(path, state, scope, entry.hash);
 
+  // `path.skip()` below prunes the whole subtree, `openingElement` included, so JSX
+  // handed to this element through an attribute (`actions={<span>Text</span>}`) would
+  // never be visited. Traverse the opening element first. Fragments have no attributes.
+  if (path.node.type === "JSXElement") {
+    path.get("openingElement").traverse(componentVisitors, { visitorState: state });
+  }
+
   path.skip();
+}
+
+/**
+ * Is this node part of the value handed to a JSX attribute?
+ *
+ * Two visitors need the answer, and neither can get it from the node alone. A
+ * function sitting in a prop is a callback, not a component — `inferComponentName`
+ * only looks for a name and would happily accept `actions={function renderIt() { … }}`
+ * — and an `<html>` sitting in a prop is not the document root.
+ */
+function isInsidePropValue(path: NodePath): boolean {
+  return path.findParent((parent) => parent.isJSXAttribute()) !== null;
 }
 
 /**
@@ -623,6 +642,13 @@ function processComponentFunction(
   >,
   state: VisitorsInternalState,
 ): void {
+  // A function handed to a prop is a callback, however React-shaped it looks. Return
+  // without skipping so its JSX is still reached by the ambient traversal and gets
+  // registered against the enclosing component, whose `t` it closes over. Skipping
+  // here instead would drop those strings, which is what used to happen to arrow
+  // render props.
+  if (isInsidePropValue(path)) return;
+
   if (!isReactComponent(path)) {
     path.skip();
     logger.debug(`Skipping non-React component: ${path.node.type}`);
@@ -682,7 +708,11 @@ const componentVisitors = {
     translateAttributes(path.node, this.visitorState);
 
     // Inject locale attribute into <html> elements for Next.js
-    injectHtmlLangAttribute(path.node, this.visitorState);
+    // Only the document root gets the locale. An `<html>` handed to a prop is
+    // somebody's example markup, not the page.
+    if (!isInsidePropValue(path)) {
+      injectHtmlLangAttribute(path.node, this.visitorState);
+    }
 
     if (shouldSkipTranslationForElement(path.node)) {
       path.skip();

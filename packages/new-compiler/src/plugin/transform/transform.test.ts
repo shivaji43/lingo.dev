@@ -2852,4 +2852,232 @@ export function Legal() {
       expect(result.code).toMatchSnapshot();
     });
   });
+
+  describe("JSX passed through attributes", () => {
+    // Entry order is deterministic and meaningful: an element's own children are
+    // rewritten first, then its opening element is traversed, so host text comes
+    // before prop JSX and outer elements come before inner ones.
+    it("should translate JSX in a prop of an element that also has text children", () => {
+      const code = `
+export function Panel() {
+  return <FrameHeader actions={<span>Text A</span>}>Text B</FrameHeader>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Panel.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Text B",
+        "Text A",
+      ]);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate attributes of JSX passed through a prop", () => {
+      const code = `
+export function Row() {
+  return <Cell icon={<img alt="Company logo" src="/logo.png" />}>Cell label</Cell>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Row.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Cell label",
+        "Company logo",
+      ]);
+
+      const altEntry = result.newEntries.find((e) => e.type === "attribute");
+      assert.isDefined(altEntry);
+      expect(asAttribute(altEntry).sourceText).toBe("Company logo");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should register each nested prop JSX exactly once", () => {
+      const code = `
+export function Nested() {
+  return (
+    <Outer header={<Inner badge={<span>Deep</span>}>Middle</Inner>}>
+      Shallow
+    </Outer>
+  );
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Nested.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(3);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Shallow",
+        "Middle",
+        "Deep",
+      ]);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate prop JSX on a rich-text host", () => {
+      const code = `
+export function Notice() {
+  return <Banner action={<a href="/docs">Read the docs</a>}>Hello <b>world</b></Banner>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Notice.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries).toHaveLength(2);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Hello <b0>world</b0>",
+        "Read the docs",
+      ]);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    // `inferComponentName` accepts any named function expression, so a callback
+    // handed to a prop would otherwise be treated as a component and given a
+    // `useTranslation` call it never runs as one — a rules-of-hooks violation. Its
+    // JSX is still translated and registered against the enclosing component,
+    // whose `t` it closes over.
+    it("should not inject a hook into a named function passed as a prop", () => {
+      const code = `
+export function Page() {
+  return <FrameHeader actions={function renderIt() { return <span>Text A</span>; }}>Text B</FrameHeader>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Page.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Text B",
+        "Text A",
+      ]);
+      // Once for the import, once for the single call in `Page` — none inside
+      // `renderIt`.
+      expect(result.code.match(/useTranslation/g)).toHaveLength(2);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should not inject the locale attribute into an <html> inside a prop", () => {
+      const code = `
+export function Page() {
+  return <FrameHeader actions={<html><body>Text A</body></html>}>Text B</FrameHeader>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/PageHtml.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual([
+        "Text B",
+        "Text A",
+      ]);
+      expect(result.code).not.toContain("lang={locale}");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    // A host with nothing translatable of its own never reaches
+    // `processJSXElement`'s trailing `path.skip()`, so the ambient traversal walks
+    // into its attributes on its own. The guard has to hold on that path too — a
+    // self-closing element carrying only a callback prop is the common shape.
+    it("should keep hooks out of a prop callback on a host with no text of its own", () => {
+      const code = `
+export function Page() {
+  return <FrameHeader actions={function renderIt() { return <span>Text A</span>; }} />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/SelfClosing.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual(["Text A"]);
+      expect(asContent(result.newEntries[0]).context.componentName).toBe("Page");
+      expect(result.code.match(/useTranslation\(/g)).toHaveLength(1);
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should translate JSX returned by an arrow render prop", () => {
+      const code = `
+export function Page() {
+  return <List renderItem={() => <span>Hello world</span>} />;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/RenderProp.tsx",
+        config,
+      });
+
+      expect(result.transformed).toBe(true);
+      assert.isDefined(result.newEntries);
+      expect(result.newEntries.map((e) => e.sourceText)).toEqual(["Hello world"]);
+      expect(asContent(result.newEntries[0]).context.componentName).toBe("Page");
+      expect(result.code).toMatchSnapshot();
+    });
+
+    it("should leave the document root <html> its locale attribute", () => {
+      const code = `
+export default function Layout({ children }) {
+  return <html><body>{children}</body></html>;
+}
+`;
+
+      const result = transformComponent({
+        code,
+        filePath: "src/Layout.tsx",
+        config,
+      });
+
+      expect(result.code).toContain("lang={locale}");
+      // transformComponent injects lang={locale} here, but reports
+      // transformed: false (no translation entries), and both consumers —
+      // next-compiler-loader.ts:41 and unplugin.ts:352 — discard result.code on
+      // that flag, so the attribute never ships. Pre-existing, out of scope
+      // here; this assertion pins today's behavior and will fail when the flag
+      // starts tracking locale-only rewrites.
+      expect(result.transformed).toBe(false);
+      expect(result.code).toMatchSnapshot();
+    });
+  });
 });
